@@ -1,0 +1,37 @@
+'use strict';
+const { DataTypes } = require('sequelize');
+
+module.exports = (sequelize) => {
+  return sequelize.define('LoggedSet', {
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true
+    },
+    exercise_instance_id: {
+      type: DataTypes.UUID,
+      allowNull: false
+    },
+    client_id: {
+      type: DataTypes.UUID,
+      allowNull: false
+    },
+    set_number: {
+      type: DataTypes.INTEGER,
+      allowNull: false
+    },
+    completed_reps: {
+      type: DataTypes.INTEGER,
+      allowNull: false
+    },
+    completed_at: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW
+    }
+  }, {
+    tableName: 'logged_sets',
+    underscored: true,
+    timestamps: true
+  });
+};
