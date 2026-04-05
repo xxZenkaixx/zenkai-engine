@@ -1,16 +1,6 @@
-// * Root app layout. Mounts current MVP coach views.
-import ClientList from './components/ClientList';
-import ProgramList from './components/ProgramList';
+// * Root app mounts AdminDashboard (single MVP view)
+import AdminDashboard from './components/AdminDashboard';
 
-function App() {
-  return (
-    <main>
-      <h1>Zenkai Engine</h1>
-
-      <ProgramList />
-      <ClientList />
-    </main>
-  );
+export default function App() {
+  return <AdminDashboard />;
 }
-
-export default App;

@@ -1,8 +1,8 @@
-// Handles API requests for programs (GET + CREATE)
+// * Handles API requests for programs (GET + CREATE)
 
 const BASE_URL = 'http://localhost:3001/api/programs';
 
-// fetch all programs
+// * fetch all programs
 export const fetchPrograms = async () => {
   const res = await fetch(BASE_URL);
 
@@ -13,7 +13,18 @@ export const fetchPrograms = async () => {
   return res.json();
 };
 
-// create new program
+// * fetch one program by id with nested days + exercises
+export const fetchProgramById = async (programId) => {
+  const res = await fetch(`${BASE_URL}/${programId}`);
+
+  if (!res.ok) {
+    throw new Error('Failed to fetch program');
+  }
+
+  return res.json();
+};
+
+// * create new program
 export const createProgram = async ({ name, weeks, deload_weeks }) => {
   const res = await fetch(BASE_URL, {
     method: 'POST',

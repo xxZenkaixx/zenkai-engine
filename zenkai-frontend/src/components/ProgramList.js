@@ -1,34 +1,40 @@
-// * Fetches and displays programs. Handles selection + nested program days.
-import { useEffect, useState } from 'react';
-import { fetchPrograms } from '../api/programApi';
-import ProgramForm from './ProgramForm';
+// * Renders program list and creation form using parent-owned program state.
+import { useState } from 'react';
+import { createProgram } from '../api/programApi';
 import ProgramDayList from './ProgramDayList';
 
-export default function ProgramList() {
-  const [programs, setPrograms] = useState([]);
+export default function ProgramList({ programs, onProgramsChanged }) {
+  const [name, setName] = useState('');
+  const [weeks, setWeeks] = useState('');
+  const [deloadWeeks, setDeloadWeeks] = useState('');
   const [selectedProgramId, setSelectedProgramId] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // * load programs on initial mount
-  useEffect(() => {
-    loadPrograms();
-  }, []);
+  // * create a program, then ask parent to refresh shared program state
+  const handleCreateProgram = async () => {
+    if (!name.trim() || !weeks) return;
 
-  // * fetches programs from backend and keeps a valid selected program
-  const loadPrograms = async () => {
+    setLoading(true);
+    setError(null);
+
     try {
-      setLoading(true);
-      setError(null);
-      const data = await fetchPrograms();
-      setPrograms(data);
+      const parsedDeloadWeeks = deloadWeeks
+        ? deloadWeeks.split(',').map((value) => parseInt(value.trim(), 10)).filter((value) => !Number.isNaN(value))
+        : [];
 
-      if (data.length && !selectedProgramId) {
-        setSelectedProgramId(data[0].id);
-      }
+      await createProgram({
+        name: name.trim(),
+        weeks: parseInt(weeks, 10),
+        deload_weeks: parsedDeloadWeeks
+      });
 
-      if (selectedProgramId && !data.some((program) => program.id === selectedProgramId)) {
-        setSelectedProgramId(data.length ? data[0].id : null);
+      setName('');
+      setWeeks('');
+      setDeloadWeeks('');
+
+      if (onProgramsChanged) {
+        onProgramsChanged();
       }
     } catch (err) {
       setError(err.message);
@@ -37,35 +43,53 @@ export default function ProgramList() {
     }
   };
 
-  // * update selected program row
-  const handleSelectProgram = (programId) => {
-    setSelectedProgramId(programId);
-  };
-
-  if (loading) return <div>Loading programs...</div>;
-  if (error) return <div>Error: {error}</div>;
-
   return (
     <div>
-      <ProgramForm onProgramCreated={loadPrograms} />
-
       <h2>Programs</h2>
 
-      {programs.map((program) => (
-        <div
-          key={program.id}
-          className="client-row"
-          onClick={() => handleSelectProgram(program.id)}
-          style={{
-            cursor: 'pointer',
-            border: selectedProgramId === program.id ? '2px solid black' : '1px solid #ddd'
-          }}
-        >
-          <strong>{program.name}</strong> — {program.weeks} weeks
-        </div>
-      ))}
+      <input
+        placeholder="Program name"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+      />
 
-      <ProgramDayList programId={selectedProgramId} />
+      <input
+        placeholder="Weeks"
+        type="number"
+        value={weeks}
+        onChange={(e) => setWeeks(e.target.value)}
+      />
+
+      <input
+        placeholder="Deload weeks e.g. 4,8,12"
+        value={deloadWeeks}
+        onChange={(e) => setDeloadWeeks(e.target.value)}
+      />
+
+      <button onClick={handleCreateProgram} disabled={loading}>
+        {loading ? 'Creating...' : 'Add Program'}
+      </button>
+
+      {error && <p style={{ color: 'red' }}>{error}</p>}
+
+      <ul>
+        {programs.map((program) => (
+          <li
+            key={program.id}
+            onClick={() => setSelectedProgramId(program.id)}
+            style={{
+              fontWeight: selectedProgramId === program.id ? 'bold' : 'normal',
+              cursor: 'pointer'
+            }}
+          >
+            {program.name} — {program.weeks} weeks
+          </li>
+        ))}
+      </ul>
+
+      {selectedProgramId && (
+        <ProgramDayList programId={selectedProgramId} />
+      )}
     </div>
   );
 }

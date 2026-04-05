@@ -1,24 +1,26 @@
-// Fetches and displays clients. Handles loading + error state + refresh on create.
-import { useEffect, useState } from 'react';
-import { fetchClients } from '../api/clientApi';
-import ClientForm from './ClientForm';
+// * Renders client list and client creation form using parent-owned client state.
+import { useState } from 'react';
+import { createClient } from '../api/clientApi';
 
-export default function ClientList() {
-  const [clients, setClients] = useState([]);
-  const [loading, setLoading] = useState(true);
+export default function ClientList({ clients, selectedClientId, onSelectClient, onClientCreated }) {
+  const [name, setName] = useState('');
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // load clients on initial mount
-  useEffect(() => {
-    loadClients();
-  }, []);
+  // * create a client, then ask parent to refresh shared client state
+  const handleCreate = async () => {
+    if (!name.trim()) return;
 
-  // fetches clients from backend and updates state
-  const loadClients = async () => {
+    setLoading(true);
+    setError(null);
+
     try {
-      setLoading(true);
-      const data = await fetchClients();
-      setClients(data);
+      await createClient(name.trim());
+      setName('');
+
+      if (onClientCreated) {
+        onClientCreated();
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -26,23 +28,37 @@ export default function ClientList() {
     }
   };
 
-  // UI states for async behavior
-  if (loading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error}</div>;
-
   return (
     <div>
-      {/* creates new client and triggers reload */}
-      <ClientForm onClientCreated={loadClients} />
-
       <h2>Clients</h2>
 
-      {/* render each client */}
-      {clients.map((client) => (
-        <div key={client.id} className="client-row">
-          {client.name}
-        </div>
-      ))}
+      <input
+        type="text"
+        placeholder="Client name"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+      />
+
+      <button onClick={handleCreate} disabled={loading}>
+        {loading ? 'Creating...' : 'Add Client'}
+      </button>
+
+      {error && <p style={{ color: 'red' }}>{error}</p>}
+
+      <ul>
+        {clients.map((client) => (
+          <li
+            key={client.id}
+            onClick={() => onSelectClient(client.id)}
+            style={{
+              fontWeight: selectedClientId === client.id ? 'bold' : 'normal',
+              cursor: 'pointer'
+            }}
+          >
+            {client.name}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
