@@ -1,10 +1,12 @@
+// Root app layout. Mounts main client management view.
 import ClientList from './components/ClientList';
 
 function App() {
   return (
-    <div>
+    <main>
+      <h1>Zenkai Engine</h1>
       <ClientList />
-    </div>
+    </main>
   );
 }
 
