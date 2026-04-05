@@ -1,4 +1,4 @@
-// * Top-level admin view. Owns shared clients, programs, and selected client state.
+// * Top-level admin view. Owns shared admin state and can launch client workout view.
 import { useEffect, useState } from 'react';
 import { fetchClients } from '../api/clientApi';
 import { fetchPrograms } from '../api/programApi';
@@ -6,14 +6,14 @@ import ClientList from './ClientList';
 import ProgramList from './ProgramList';
 import ClientProgramAssignment from './ClientProgramAssignment';
 
-export default function AdminDashboard() {
+export default function AdminDashboard({ onStartWorkout }) {
   const [clients, setClients] = useState([]);
   const [programs, setPrograms] = useState([]);
   const [selectedClientId, setSelectedClientId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // * load shared dashboard data once on mount
+  // * load shared admin data once on mount
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -41,7 +41,7 @@ export default function AdminDashboard() {
     loadData();
   }, []);
 
-  // * refresh clients after create
+  // * refresh clients after creation
   const handleClientCreated = async () => {
     const clientData = await fetchClients();
     setClients(clientData);
@@ -51,7 +51,7 @@ export default function AdminDashboard() {
     }
   };
 
-  // * refresh programs after create/update
+  // * refresh programs after changes
   const handleProgramsChanged = async () => {
     const programData = await fetchPrograms();
     setPrograms(programData);
@@ -75,10 +75,16 @@ export default function AdminDashboard() {
       />
 
       {selectedClientId && (
-        <ClientProgramAssignment
-          selectedClientId={selectedClientId}
-          programs={programs}
-        />
+        <>
+          <ClientProgramAssignment
+            selectedClientId={selectedClientId}
+            programs={programs}
+          />
+
+          <button onClick={() => onStartWorkout(selectedClientId)}>
+            Start Workout for Client
+          </button>
+        </>
       )}
     </div>
   );
