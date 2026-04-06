@@ -1,28 +1,31 @@
-// * Renders one exercise and handles set logging + editing for the current client.
-import { useEffect, useState } from 'react';
+// * Renders one exercise card for workout execution.
+// * Receives workout-level timer state from ClientWorkoutView.
+// * Allows previous-set edits without affecting the active timer.
+
+import { useState, useEffect } from 'react';
 import { logSet, editSet, fetchLoggedSets } from '../api/loggedSetApi';
 
-export default function ExerciseCard({ exercise, clientId }) {
-  const {
-    id,
-    name,
-    target_sets,
-    target_reps,
-    target_weight,
-    notes
-  } = exercise;
+export default function ExerciseCard({
+  exercise,
+  clientId,
+  timerActive,
+  timerRemaining,
+  timerExerciseId,
+  onSetLogged
+}) {
+  const { id, name, target_sets, target_reps, target_weight, notes, rest_seconds } = exercise;
 
   const [loggedSets, setLoggedSets] = useState([]);
   const [completedReps, setCompletedReps] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // * load existing logged sets for this exercise + client
   useEffect(() => {
     const load = async () => {
       try {
         const data = await fetchLoggedSets(id, clientId);
-        setLoggedSets(data);
+        const sorted = [...data].sort((a, b) => a.set_number - b.set_number);
+        setLoggedSets(sorted);
       } catch (err) {
         setError(err.message);
       }
@@ -33,10 +36,19 @@ export default function ExerciseCard({ exercise, clientId }) {
 
   const nextSetNumber = loggedSets.length + 1;
   const allSetsComplete = loggedSets.length >= target_sets;
+  const nextSetLocked = timerActive && timerExerciseId === id;
 
-  // * save the next completed set immediately
   const handleLogSet = async () => {
-    if (!completedReps) return;
+    const parsedReps = Number(completedReps);
+
+    if (
+      nextSetLocked ||
+      !Number.isInteger(parsedReps) ||
+      parsedReps <= 0 ||
+      allSetsComplete
+    ) {
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -46,11 +58,16 @@ export default function ExerciseCard({ exercise, clientId }) {
         exercise_instance_id: id,
         client_id: clientId,
         set_number: nextSetNumber,
-        completed_reps: parseInt(completedReps, 10)
+        completed_reps: parsedReps
       });
 
-      setLoggedSets([...loggedSets, saved]);
+      setLoggedSets((prev) => {
+        const updated = [...prev, saved];
+        return updated.sort((a, b) => a.set_number - b.set_number);
+      });
+
       setCompletedReps('');
+      onSetLogged(rest_seconds, id);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -58,51 +75,63 @@ export default function ExerciseCard({ exercise, clientId }) {
     }
   };
 
-  // * edit a previously logged set
+  // ! Editing previous sets must never touch timer state
   const handleEditSet = async (setId, newReps) => {
+    const parsedReps = Number(newReps);
+
+    if (!Number.isInteger(parsedReps) || parsedReps <= 0) {
+      return;
+    }
+
+    setError(null);
+
     try {
-      const updated = await editSet(setId, parseInt(newReps, 10));
-      setLoggedSets(loggedSets.map((set) => (set.id === setId ? updated : set)));
+      const updated = await editSet(setId, parsedReps);
+
+      setLoggedSets((prev) =>
+        prev
+          .map((s) => (s.id === setId ? updated : s))
+          .sort((a, b) => a.set_number - b.set_number)
+      );
     } catch (err) {
       setError(err.message);
     }
   };
 
   return (
-    <div className="client-row">
+    <div>
       <h3>{name}</h3>
-
-      <p>
-        Target: {target_weight} lbs — {target_reps} reps
-      </p>
-
+      <p>Target: {target_weight} lbs — {target_reps} reps</p>
       {notes && <p>{notes}</p>}
 
-      {loggedSets.map((loggedSet, index) => (
+      {loggedSets.map((s, i) => (
         <LoggedSetRow
-          key={loggedSet.id}
-          setNumber={index + 1}
-          loggedSet={loggedSet}
+          key={s.id}
+          setNumber={i + 1}
+          loggedSet={s}
           onEdit={handleEditSet}
         />
       ))}
 
       {!allSetsComplete && (
         <div>
-          <p>
-            Set {nextSetNumber} of {target_sets}
-          </p>
+          <p>Set {nextSetNumber} of {target_sets}</p>
 
-          <input
-            type="number"
-            placeholder="Completed reps"
-            value={completedReps}
-            onChange={(e) => setCompletedReps(e.target.value)}
-          />
-
-          <button onClick={handleLogSet} disabled={loading}>
-            {loading ? 'Saving...' : 'Log Set'}
-          </button>
+          {nextSetLocked ? (
+            <p>Rest: {timerRemaining}s</p>
+          ) : (
+            <>
+              <input
+                type="number"
+                placeholder="Completed reps"
+                value={completedReps}
+                onChange={(e) => setCompletedReps(e.target.value)}
+              />
+              <button onClick={handleLogSet} disabled={loading}>
+                {loading ? 'Saving...' : 'Log Set'}
+              </button>
+            </>
+          )}
         </div>
       )}
 
@@ -112,10 +141,15 @@ export default function ExerciseCard({ exercise, clientId }) {
   );
 }
 
-// * Inline editable row for one logged set
+// * Inline editable row for an already logged set.
+// ! Editing here must not restart or change the rest timer.
 function LoggedSetRow({ setNumber, loggedSet, onEdit }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(loggedSet.completed_reps);
+
+  useEffect(() => {
+    setValue(loggedSet.completed_reps);
+  }, [loggedSet.completed_reps]);
 
   const handleDone = () => {
     onEdit(loggedSet.id, value);
