@@ -4,6 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { logSet, editSet, fetchLoggedSets } from '../api/loggedSetApi';
+import HistoryPanel from './HistoryPanel';
 
 export default function ExerciseCard({
   exercise,
@@ -137,8 +138,14 @@ export default function ExerciseCard({
         </div>
       )}
 
-      {allSetsComplete && <p>All sets complete.</p>}
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+{allSetsComplete && <p>All sets complete.</p>}
+{error && <p style={{ color: 'red' }}>{error}</p>}
+
+<HistoryPanel
+  exerciseInstanceId={id}
+  clientId={clientId}
+  targetWeight={target_weight}
+/>
     </div>
   );
 }

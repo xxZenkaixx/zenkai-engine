@@ -44,3 +44,20 @@ export const fetchLoggedSets = async (exerciseInstanceId, clientId) => {
 
   return res.json();
 };
+
+// * Fetches full set history for a client + exercise without feeding workout session state
+export const fetchSetHistory = async (exerciseInstanceId, clientId) => {
+  const res = await fetch(
+    `${BASE_URL}?exercise_instance_id=${exerciseInstanceId}&client_id=${clientId}`
+  );
+
+  if (!res.ok) {
+    throw new Error('Failed to fetch set history');
+  }
+
+  const data = await res.json();
+
+  return [...data].sort(
+    (a, b) => new Date(a.completed_at) - new Date(b.completed_at)
+  );
+};
