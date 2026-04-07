@@ -4,6 +4,7 @@
 
 import { useState } from 'react';
 import { fetchSetHistory } from '../api/loggedSetApi';
+import ProgressionSummary from './ProgressionSummary';
 
 export default function HistoryPanel({ exerciseInstanceId, clientId, targetWeight }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -19,7 +20,13 @@ export default function HistoryPanel({ exerciseInstanceId, clientId, targetWeigh
 
       try {
         const data = await fetchSetHistory(exerciseInstanceId, clientId);
-        setHistory(data);
+
+        // * Ensure chronological order for progression logic
+        const sorted = [...data].sort(
+          (a, b) => new Date(a.completed_at) - new Date(b.completed_at)
+        );
+
+        setHistory(sorted);
         setHasLoaded(true);
       } catch (err) {
         setHistoryError(err.message || 'Failed to load history');
@@ -52,26 +59,30 @@ export default function HistoryPanel({ exerciseInstanceId, clientId, targetWeigh
           )}
 
           {!isLoading && !historyError && history.length > 0 && (
-            <table>
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Set</th>
-                  <th>Weight</th>
-                  <th>Reps</th>
-                </tr>
-              </thead>
-              <tbody>
-                {history.map((set) => (
-                  <tr key={set.id}>
-                    <td>{new Date(set.completed_at).toLocaleDateString()}</td>
-                    <td>{set.set_number}</td>
-                    <td>{targetWeight ?? '—'}</td>
-                    <td>{set.completed_reps}</td>
+            <>
+              <ProgressionSummary history={history} />
+
+              <table>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Set</th>
+                    <th>Weight</th>
+                    <th>Reps</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {history.map((set) => (
+                    <tr key={set.id}>
+                      <td>{new Date(set.completed_at).toLocaleDateString()}</td>
+                      <td>{set.set_number}</td>
+                      <td>{targetWeight ?? '—'}</td>
+                      <td>{set.completed_reps}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
           )}
         </div>
       )}
