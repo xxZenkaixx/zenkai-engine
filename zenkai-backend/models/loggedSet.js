@@ -20,6 +20,10 @@ module.exports = (sequelize) => {
       type: DataTypes.INTEGER,
       allowNull: false
     },
+    completed_weight: {
+      type: DataTypes.DECIMAL(6, 2),
+      allowNull: true
+    },
     completed_reps: {
       type: DataTypes.INTEGER,
       allowNull: false

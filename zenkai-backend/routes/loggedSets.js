@@ -34,13 +34,15 @@ router.get('/', async (req, res) => {
 // * log one completed set
 router.post('/', async (req, res) => {
   try {
-    const { exercise_instance_id, client_id, set_number, completed_reps } = req.body;
+    const { exercise_instance_id, client_id, set_number, completed_reps, completed_weight } = req.body;
 
     const loggedSet = await LoggedSet.create({
       exercise_instance_id,
       client_id,
       set_number,
-      completed_reps
+      completed_reps,
+      // * allow null for legacy compatibility
+      completed_weight: completed_weight ?? null
     });
 
     res.status(201).json(loggedSet);
@@ -58,7 +60,12 @@ router.put('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Set not found' });
     }
 
-    await loggedSet.update({ completed_reps: req.body.completed_reps });
+    const { completed_reps, completed_weight } = req.body;
+
+    await loggedSet.update({
+      completed_reps,
+      ...(completed_weight !== undefined && { completed_weight })
+    });
     res.json(loggedSet);
   } catch (err) {
     res.status(500).json({ error: err.message });

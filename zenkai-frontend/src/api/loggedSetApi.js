@@ -18,17 +18,17 @@ export const logSet = async (data) => {
 };
 
 // * edit a logged set
-export const editSet = async (id, completed_reps) => {
+export const editSet = async (id, completed_reps, completed_weight) => {
   const res = await fetch(`${BASE_URL}/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ completed_reps })
+    body: JSON.stringify({
+      completed_reps,
+      completed_weight
+    })
   });
 
-  if (!res.ok) {
-    throw new Error('Failed to edit set');
-  }
-
+  if (!res.ok) throw new Error('Failed to edit set');
   return res.json();
 };
 

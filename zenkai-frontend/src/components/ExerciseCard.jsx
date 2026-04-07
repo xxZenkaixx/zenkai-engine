@@ -62,7 +62,10 @@ export default function ExerciseCard({
         exercise_instance_id: id,
         client_id: clientId,
         set_number: nextSetNumber,
-        completed_reps: parsedReps
+        completed_reps: parsedReps,
+        // * Snapshot assigned weight at log time
+        completed_weight:
+          target_weight != null ? parseFloat(target_weight) : null
       });
 
       setLoggedSets((prev) => {
