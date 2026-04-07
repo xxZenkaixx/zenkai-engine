@@ -1,11 +1,25 @@
-// Handles exercise creation, editing, and deletion within a program day.
+// * Handles exercise instance creation, retrieval, updating, and deletion.
 'use strict';
 
 const express = require('express');
 const router = express.Router();
 const { ExerciseInstance } = require('../models');
 
-// Creates an exercise instance with prescribed target values
+// * GET all exercise instances for one program day
+router.get('/program-day/:programDayId', async (req, res) => {
+  try {
+    const exercises = await ExerciseInstance.findAll({
+      where: { program_day_id: req.params.programDayId },
+      order: [['order_index', 'ASC']]
+    });
+
+    res.json(exercises);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// * POST create one exercise instance
 router.post('/', async (req, res) => {
   try {
     const {
@@ -36,7 +50,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Updates one exercise instance by id
+// * PUT update one exercise instance
 router.put('/:id', async (req, res) => {
   try {
     const exercise = await ExerciseInstance.findByPk(req.params.id);
@@ -52,7 +66,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// Deletes one exercise instance by id
+// * DELETE one exercise instance
 router.delete('/:id', async (req, res) => {
   try {
     const exercise = await ExerciseInstance.findByPk(req.params.id);
@@ -62,7 +76,7 @@ router.delete('/:id', async (req, res) => {
     }
 
     await exercise.destroy();
-    res.json({ message: 'Deleted' });
+    res.json({ message: 'Exercise deleted' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
