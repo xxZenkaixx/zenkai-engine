@@ -1,11 +1,11 @@
-// Handles program creation and retrieval. Uses Program, ProgramDay, ExerciseInstance.
+// * Handles program creation, retrieval, updating, and deletion.
 'use strict';
 
 const express = require('express');
 const router = express.Router();
 const { Program, ProgramDay, ExerciseInstance } = require('../models');
 
-// GET all programs
+// * GET all programs
 router.get('/', async (req, res) => {
   try {
     const programs = await Program.findAll();
@@ -15,7 +15,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET one program with nested days + exercises
+// * GET one program with nested days + exercises
 router.get('/:id', async (req, res) => {
   try {
     const program = await Program.findByPk(req.params.id, {
@@ -28,7 +28,9 @@ router.get('/:id', async (req, res) => {
       }
     });
 
-    if (!program) return res.status(404).json({ error: 'Program not found' });
+    if (!program) {
+      return res.status(404).json({ error: 'Program not found' });
+    }
 
     res.json(program);
   } catch (err) {
@@ -36,7 +38,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// POST create program
+// * POST create program
 router.post('/', async (req, res) => {
   try {
     const { name, weeks, deload_weeks } = req.body;
@@ -48,6 +50,38 @@ router.post('/', async (req, res) => {
     });
 
     res.status(201).json(program);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// * PUT update program
+router.put('/:id', async (req, res) => {
+  try {
+    const program = await Program.findByPk(req.params.id);
+
+    if (!program) {
+      return res.status(404).json({ error: 'Program not found' });
+    }
+
+    await program.update(req.body);
+    res.json(program);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// * DELETE program
+router.delete('/:id', async (req, res) => {
+  try {
+    const program = await Program.findByPk(req.params.id);
+
+    if (!program) {
+      return res.status(404).json({ error: 'Program not found' });
+    }
+
+    await program.destroy();
+    res.json({ message: 'Program deleted' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -1,4 +1,4 @@
-// * Top-level admin view. Owns shared admin state and can launch client workout view.
+// * Top-level admin view. Owns shared clients, programs, and selected client state.
 import { useEffect, useState } from 'react';
 import { fetchClients } from '../api/clientApi';
 import { fetchPrograms } from '../api/programApi';
@@ -41,7 +41,7 @@ export default function AdminDashboard({ onStartWorkout }) {
     loadData();
   }, []);
 
-  // * refresh clients after creation
+  // * refresh clients after create
   const handleClientCreated = async () => {
     const clientData = await fetchClients();
     setClients(clientData);
@@ -51,7 +51,7 @@ export default function AdminDashboard({ onStartWorkout }) {
     }
   };
 
-  // * refresh programs after changes
+  // * refresh programs after create/update/delete
   const handleProgramsChanged = async () => {
     const programData = await fetchPrograms();
     setPrograms(programData);
@@ -62,6 +62,8 @@ export default function AdminDashboard({ onStartWorkout }) {
 
   return (
     <div>
+      <h1>Admin Dashboard</h1>
+
       <ClientList
         clients={clients}
         selectedClientId={selectedClientId}
@@ -69,13 +71,8 @@ export default function AdminDashboard({ onStartWorkout }) {
         onClientCreated={handleClientCreated}
       />
 
-      <ProgramList
-        programs={programs}
-        onProgramsChanged={handleProgramsChanged}
-      />
-
       {selectedClientId && (
-        <>
+        <div key={selectedClientId}>
           <ClientProgramAssignment
             selectedClientId={selectedClientId}
             programs={programs}
@@ -84,8 +81,13 @@ export default function AdminDashboard({ onStartWorkout }) {
           <button onClick={() => onStartWorkout(selectedClientId)}>
             Start Workout for Client
           </button>
-        </>
+        </div>
       )}
+
+      <ProgramList
+        programs={programs}
+        onProgramsChanged={handleProgramsChanged}
+      />
     </div>
   );
 }
