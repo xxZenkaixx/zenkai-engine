@@ -11,7 +11,9 @@ export default function ExerciseCard({
   timerActive,
   timerRemaining,
   timerExerciseId,
-  onSetLogged
+  onSetLogged,
+  cardRef,
+  nextSetRef
 }) {
   const { id, name, target_sets, target_reps, target_weight, notes, rest_seconds } = exercise;
 
@@ -43,9 +45,9 @@ export default function ExerciseCard({
 
     if (
       nextSetLocked ||
+      allSetsComplete ||
       !Number.isInteger(parsedReps) ||
-      parsedReps <= 0 ||
-      allSetsComplete
+      parsedReps <= 0
     ) {
       return;
     }
@@ -75,7 +77,7 @@ export default function ExerciseCard({
     }
   };
 
-  // ! Editing previous sets must never touch timer state
+  // ! Editing previous sets must never affect timer state
   const handleEditSet = async (setId, newReps) => {
     const parsedReps = Number(newReps);
 
@@ -99,7 +101,7 @@ export default function ExerciseCard({
   };
 
   return (
-    <div>
+    <div ref={cardRef}>
       <h3>{name}</h3>
       <p>Target: {target_weight} lbs — {target_reps} reps</p>
       {notes && <p>{notes}</p>}
@@ -114,7 +116,7 @@ export default function ExerciseCard({
       ))}
 
       {!allSetsComplete && (
-        <div>
+        <div ref={nextSetRef}>
           <p>Set {nextSetNumber} of {target_sets}</p>
 
           {nextSetLocked ? (
@@ -142,7 +144,7 @@ export default function ExerciseCard({
 }
 
 // * Inline editable row for an already logged set.
-// ! Editing here must not restart or change the rest timer.
+// ! Editing here must never restart or change the rest timer.
 function LoggedSetRow({ setNumber, loggedSet, onEdit }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(loggedSet.completed_reps);
