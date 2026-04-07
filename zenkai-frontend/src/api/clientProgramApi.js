@@ -1,33 +1,30 @@
-// * Handles API calls for client-program assignment.
+// * Handles API calls for assigning programs to clients and fetching active program.
 
 const BASE_URL = 'http://localhost:3001/api/client-programs';
 
-// * assign a program to a client
-export const assignProgram = async ({ client_id, program_id, start_date }) => {
+export const assignProgram = async (data) => {
   const res = await fetch(BASE_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      client_id,
-      program_id,
-      start_date
-    })
+    body: JSON.stringify(data)
   });
 
-  if (!res.ok) {
-    throw new Error('Failed to assign program');
-  }
-
+  if (!res.ok) throw new Error('Failed to assign program');
   return res.json();
 };
 
-// * fetch active program assignment for one client
+// * Returns active program with nested Program data for a client
+// ! Normalize null response for consistency
 export const fetchActiveProgram = async (clientId) => {
   const res = await fetch(`${BASE_URL}/${clientId}`);
 
-  if (!res.ok) {
-    throw new Error('Failed to fetch active program');
-  }
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error('Failed to fetch active program');
 
-  return res.json();
+  const data = await res.json();
+
+  // * Ensure consistent null shape
+  if (!data || !data.Program) return null;
+
+  return data;
 };

@@ -1,7 +1,10 @@
-// * Top-level admin view. Owns shared clients, programs, and selected client state.
-import { useEffect, useState } from 'react';
+// * Top-level admin view. Owns clients, programs, selectedClientId, and activeProgram state.
+// * Keeps program builder independent from client selection.
+
+import { useState, useEffect } from 'react';
 import { fetchClients } from '../api/clientApi';
 import { fetchPrograms } from '../api/programApi';
+import { fetchActiveProgram } from '../api/clientProgramApi';
 import ClientList from './ClientList';
 import ProgramList from './ProgramList';
 import ClientProgramAssignment from './ClientProgramAssignment';
@@ -10,16 +13,16 @@ export default function AdminDashboard({ onStartWorkout }) {
   const [clients, setClients] = useState([]);
   const [programs, setPrograms] = useState([]);
   const [selectedClientId, setSelectedClientId] = useState(null);
+
+  const [activeProgram, setActiveProgram] = useState(null);
+  const [activeProgramLoading, setActiveProgramLoading] = useState(false);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // * load shared admin data once on mount
   useEffect(() => {
     const loadData = async () => {
       try {
-        setLoading(true);
-        setError(null);
-
         const [clientData, programData] = await Promise.all([
           fetchClients(),
           fetchPrograms()
@@ -27,10 +30,6 @@ export default function AdminDashboard({ onStartWorkout }) {
 
         setClients(clientData);
         setPrograms(programData);
-
-        if (clientData.length) {
-          setSelectedClientId(clientData[0].id);
-        }
       } catch (err) {
         setError(err.message);
       } finally {
@@ -41,24 +40,57 @@ export default function AdminDashboard({ onStartWorkout }) {
     loadData();
   }, []);
 
-  // * refresh clients after create
-  const handleClientCreated = async () => {
-    const clientData = await fetchClients();
-    setClients(clientData);
+  // * Fetch active program when client changes
+  useEffect(() => {
+    if (!selectedClientId) {
+      setActiveProgram(null);
+      return;
+    }
 
-    if (clientData.length && !selectedClientId) {
-      setSelectedClientId(clientData[0].id);
+    const load = async () => {
+      setActiveProgramLoading(true);
+
+      try {
+        const data = await fetchActiveProgram(selectedClientId);
+        setActiveProgram(data || null);
+      } catch (err) {
+        setActiveProgram(null);
+      } finally {
+        setActiveProgramLoading(false);
+      }
+    };
+
+    load();
+  }, [selectedClientId]);
+
+  const handleClientCreated = async () => {
+    const data = await fetchClients();
+    setClients(data);
+  };
+
+  const handleClientDeleted = async () => {
+    const data = await fetchClients();
+    setClients(data);
+    setSelectedClientId(null);
+    setActiveProgram(null);
+  };
+
+  const handleProgramsChanged = async () => {
+    const data = await fetchPrograms();
+    setPrograms(data);
+  };
+
+  const handleAssigned = async () => {
+    await handleProgramsChanged();
+
+    if (selectedClientId) {
+      const data = await fetchActiveProgram(selectedClientId);
+      setActiveProgram(data || null);
     }
   };
 
-  // * refresh programs after create/update/delete
-  const handleProgramsChanged = async () => {
-    const programData = await fetchPrograms();
-    setPrograms(programData);
-  };
-
-  if (loading) return <div>Loading admin dashboard...</div>;
-  if (error) return <div>Error: {error}</div>;
+  if (loading) return <p>Loading...</p>;
+  if (error) return <p>Error: {error}</p>;
 
   return (
     <div>
@@ -69,13 +101,29 @@ export default function AdminDashboard({ onStartWorkout }) {
         selectedClientId={selectedClientId}
         onSelectClient={setSelectedClientId}
         onClientCreated={handleClientCreated}
+        onClientDeleted={handleClientDeleted}
       />
 
       {selectedClientId && (
-        <div key={selectedClientId}>
+        <div>
+          <h3>Active Program</h3>
+
+          {activeProgramLoading && <p>Loading...</p>}
+
+          {!activeProgramLoading && activeProgram?.Program && (
+            <p>
+              <strong>{activeProgram.Program.name}</strong> — {activeProgram.Program.weeks} weeks
+            </p>
+          )}
+
+          {!activeProgramLoading && !activeProgram && (
+            <p>No active program assigned.</p>
+          )}
+
           <ClientProgramAssignment
             selectedClientId={selectedClientId}
             programs={programs}
+            onAssigned={handleAssigned}
           />
 
           <button onClick={() => onStartWorkout(selectedClientId)}>
