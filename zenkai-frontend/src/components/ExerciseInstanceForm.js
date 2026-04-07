@@ -1,88 +1,181 @@
-// * Creates an exercise for the selected program day and refreshes the parent day list.
-import { useState } from 'react';
-import { createExerciseInstance } from '../api/exerciseInstanceApi';
+// * Renders exercise list for a selected day.
+// * Supports create, edit, delete.
+// * Clears edit state safely if deleted.
 
-export default function ExerciseInstanceForm({ programDayId, nextOrderIndex, onExerciseCreated }) {
-  const [name, setName] = useState('');
-  const [targetSets, setTargetSets] = useState('');
-  const [targetReps, setTargetReps] = useState('');
-  const [targetWeight, setTargetWeight] = useState('');
-  const [restSeconds, setRestSeconds] = useState('');
-  const [notes, setNotes] = useState('');
+import { useState, useEffect } from 'react';
+import {
+  fetchExerciseInstances,
+  createExerciseInstance,
+  updateExerciseInstance,
+  deleteExerciseInstance
+} from '../api/exerciseInstanceApi';
 
-  // * submit new exercise instance to backend
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+const EMPTY_FORM = {
+  name: '',
+  target_sets: '',
+  target_reps: '',
+  target_weight: '',
+  rest_seconds: '',
+  order_index: '',
+  notes: ''
+};
 
-    if (!programDayId || !name.trim() || !targetSets || !targetReps) return;
+export default function ExerciseInstanceForm({ dayId }) {
+  const [exercises, setExercises] = useState([]);
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [editingId, setEditingId] = useState(null);
+  const [editFields, setEditFields] = useState(EMPTY_FORM);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-    await createExerciseInstance({
-      program_day_id: programDayId,
-      name: name.trim(),
-      target_sets: Number(targetSets),
-      target_reps: targetReps.trim(),
-      target_weight: targetWeight ? Number(targetWeight) : null,
-      rest_seconds: restSeconds ? Number(restSeconds) : null,
-      order_index: nextOrderIndex,
-      notes: notes.trim() || null
+  const loadExercises = async () => {
+    try {
+      const data = await fetchExerciseInstances(dayId);
+      const sorted = [...data].sort((a, b) => a.order_index - b.order_index);
+      setExercises(sorted);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  useEffect(() => {
+    if (!dayId) return;
+
+    setExercises([]);
+    setEditingId(null);
+    setEditFields(EMPTY_FORM);
+    setError(null);
+
+    loadExercises();
+  }, [dayId]);
+
+  const handleCreate = async () => {
+    if (!form.name.trim()) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      await createExerciseInstance({
+        ...form,
+        program_day_id: dayId,
+        target_sets: Number(form.target_sets),
+        target_reps: Number(form.target_reps),
+        target_weight: form.target_weight ? Number(form.target_weight) : null,
+        rest_seconds: Number(form.rest_seconds),
+        order_index: Number(form.order_index)
+      });
+
+      setForm(EMPTY_FORM);
+      await loadExercises();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditStart = (ex) => {
+    setEditingId(ex.id);
+    setEditFields({
+      name: ex.name || '',
+      target_sets: ex.target_sets ?? '',
+      target_reps: ex.target_reps ?? '',
+      target_weight: ex.target_weight ?? '',
+      rest_seconds: ex.rest_seconds ?? '',
+      order_index: ex.order_index ?? '',
+      notes: ex.notes ?? ''
     });
+  };
 
-    setName('');
-    setTargetSets('');
-    setTargetReps('');
-    setTargetWeight('');
-    setRestSeconds('');
-    setNotes('');
-    onExerciseCreated();
+  const handleEditSave = async (id) => {
+    setError(null);
+
+    try {
+      await updateExerciseInstance(id, {
+        ...editFields,
+        target_sets: Number(editFields.target_sets),
+        target_reps: Number(editFields.target_reps),
+        target_weight: editFields.target_weight ? Number(editFields.target_weight) : null,
+        rest_seconds: Number(editFields.rest_seconds),
+        order_index: Number(editFields.order_index)
+      });
+
+      setEditingId(null);
+      setEditFields(EMPTY_FORM);
+      await loadExercises();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  // * Clear edit state if the deleted exercise was being edited
+  const handleDelete = async (id) => {
+    setError(null);
+
+    try {
+      await deleteExerciseInstance(id);
+
+      if (editingId === id) {
+        setEditingId(null);
+        setEditFields(EMPTY_FORM);
+      }
+
+      await loadExercises();
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <h4>Add Exercise</h4>
+    <div>
+      <h4>Exercises</h4>
 
-      <input
-        type="text"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="Exercise name"
-      />
+      <ul>
+        {exercises.map((ex) => (
+          <li key={ex.id}>
+            {editingId === ex.id ? (
+              <>
+                {Object.keys(EMPTY_FORM).map((field) => (
+                  <input
+                    key={field}
+                    placeholder={field.replace(/_/g, ' ')}
+                    value={editFields[field]}
+                    onChange={(e) =>
+                      setEditFields({ ...editFields, [field]: e.target.value })
+                    }
+                  />
+                ))}
+                <button onClick={() => handleEditSave(ex.id)}>Save</button>
+                <button onClick={() => setEditingId(null)}>Cancel</button>
+              </>
+            ) : (
+              <>
+                <span>
+                  {ex.order_index}. {ex.name} — {ex.target_sets}x{ex.target_reps} @ {ex.target_weight}lbs
+                </span>
+                <button onClick={() => handleEditStart(ex)}>Edit</button>
+                <button onClick={() => handleDelete(ex.id)}>Delete</button>
+              </>
+            )}
+          </li>
+        ))}
+      </ul>
 
-      <input
-        type="number"
-        value={targetSets}
-        onChange={(e) => setTargetSets(e.target.value)}
-        placeholder="Sets"
-      />
+      {error && <p style={{ color: 'red' }}>{error}</p>}
 
-      <input
-        type="text"
-        value={targetReps}
-        onChange={(e) => setTargetReps(e.target.value)}
-        placeholder="Reps (example: 6-8)"
-      />
-
-      <input
-        type="number"
-        value={targetWeight}
-        onChange={(e) => setTargetWeight(e.target.value)}
-        placeholder="Target weight"
-      />
-
-      <input
-        type="number"
-        value={restSeconds}
-        onChange={(e) => setRestSeconds(e.target.value)}
-        placeholder="Rest seconds"
-      />
-
-      <input
-        type="text"
-        value={notes}
-        onChange={(e) => setNotes(e.target.value)}
-        placeholder="Notes"
-      />
-
-      <button type="submit">Add Exercise</button>
-    </form>
+      <h5>Add Exercise</h5>
+      {Object.keys(EMPTY_FORM).map((field) => (
+        <input
+          key={field}
+          placeholder={field.replace(/_/g, ' ')}
+          value={form[field]}
+          onChange={(e) => setForm({ ...form, [field]: e.target.value })}
+        />
+      ))}
+      <button onClick={handleCreate} disabled={loading}>
+        {loading ? 'Saving...' : 'Add Exercise'}
+      </button>
+    </div>
   );
 }

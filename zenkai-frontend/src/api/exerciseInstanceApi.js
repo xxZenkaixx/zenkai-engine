@@ -1,36 +1,62 @@
-// * Handles API requests for exercise instances (CREATE only for now)
+// * Handles API calls for exercise instance CRUD.
 
 const BASE_URL = 'http://localhost:3001/api/exercise-instances';
 
-// * create a new exercise instance on a program day
-export const createExerciseInstance = async ({
-  program_day_id,
-  name,
-  target_sets,
-  target_reps,
-  target_weight,
-  rest_seconds,
-  order_index,
-  notes
-}) => {
-  const res = await fetch(BASE_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      program_day_id,
-      name,
-      target_sets,
-      target_reps,
-      target_weight,
-      rest_seconds,
-      order_index,
-      notes
-    })
-  });
+export const fetchExerciseInstances = async (dayId) => {
+  const res = await fetch(`${BASE_URL}/program-day/${dayId}`);
 
   if (!res.ok) {
-    throw new Error('Failed to create exercise');
+    const text = await res.text();
+    throw new Error(`Failed to fetch exercises (${res.status}): ${text || 'No response body'}`);
   }
 
   return res.json();
+};
+
+export const createExerciseInstance = async (data) => {
+  const res = await fetch(BASE_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to create exercise (${res.status}): ${text || 'No response body'}`);
+  }
+
+  return res.json();
+};
+
+export const updateExerciseInstance = async (id, data) => {
+  const res = await fetch(`${BASE_URL}/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to update exercise (${res.status}): ${text || 'No response body'}`);
+  }
+
+  return res.json();
+};
+
+// * Deletes a single exercise instance
+// ! UI must clear edit state if needed
+export const deleteExerciseInstance = async (id) => {
+  const res = await fetch(`${BASE_URL}/${id}`, {
+    method: 'DELETE'
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to delete exercise (${res.status}): ${text || 'No response body'}`);
+  }
+
+  if (res.status === 204) return null;
+
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
 };
