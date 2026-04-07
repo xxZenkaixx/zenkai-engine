@@ -5,6 +5,7 @@
 import { useState, useEffect } from 'react';
 import { logSet, editSet, fetchLoggedSets } from '../api/loggedSetApi';
 import HistoryPanel from './HistoryPanel';
+import LastPerformanceSnapshot from './LastPerformanceSnapshot';
 
 export default function ExerciseCard({
   exercise,
@@ -103,9 +104,14 @@ export default function ExerciseCard({
 
   return (
     <div ref={cardRef}>
-      <h3>{name}</h3>
-      <p>Target: {target_weight} lbs — {target_reps} reps</p>
-      {notes && <p>{notes}</p>}
+<h3>{name}</h3>
+<p>Target: {target_weight} lbs — {target_reps} reps</p>
+{notes && <p>{notes}</p>}
+
+<LastPerformanceSnapshot
+  exerciseInstanceId={id}
+  clientId={clientId}
+/>
 
       {loggedSets.map((s, i) => (
         <LoggedSetRow
