@@ -1,13 +1,12 @@
-// * Renders exercise list for a selected day.
-// * Supports create, edit, delete.
-// * Clears edit state safely if deleted.
+// * Renders exercises with create, edit, delete, and reorder.
 
 import { useState, useEffect } from 'react';
 import {
   fetchExerciseInstances,
   createExerciseInstance,
   updateExerciseInstance,
-  deleteExerciseInstance
+  deleteExerciseInstance,
+  swapExerciseOrder
 } from '../api/exerciseInstanceApi';
 
 const EMPTY_FORM = {
@@ -28,6 +27,11 @@ export default function ExerciseInstanceForm({ dayId }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  useEffect(() => {
+    if (!dayId) return;
+    loadExercises();
+  }, [dayId]);
+
   const loadExercises = async () => {
     try {
       const data = await fetchExerciseInstances(dayId);
@@ -38,16 +42,8 @@ export default function ExerciseInstanceForm({ dayId }) {
     }
   };
 
-  useEffect(() => {
-    if (!dayId) return;
-
-    setExercises([]);
-    setEditingId(null);
-    setEditFields(EMPTY_FORM);
-    setError(null);
-
-    loadExercises();
-  }, [dayId]);
+  const safeInt = (val) => (val === '' ? null : parseInt(val));
+  const safeFloat = (val) => (val === '' ? null : parseFloat(val));
 
   const handleCreate = async () => {
     if (!form.name.trim()) return;
@@ -59,11 +55,12 @@ export default function ExerciseInstanceForm({ dayId }) {
       await createExerciseInstance({
         ...form,
         program_day_id: dayId,
-        target_sets: Number(form.target_sets),
-        target_reps: Number(form.target_reps),
-        target_weight: form.target_weight ? Number(form.target_weight) : null,
-        rest_seconds: Number(form.rest_seconds),
-        order_index: Number(form.order_index)
+        name: form.name.trim(),
+        target_sets: safeInt(form.target_sets),
+        target_reps: form.target_reps,
+        target_weight: safeFloat(form.target_weight),
+        rest_seconds: safeInt(form.rest_seconds),
+        order_index: safeInt(form.order_index)
       });
 
       setForm(EMPTY_FORM);
@@ -78,14 +75,21 @@ export default function ExerciseInstanceForm({ dayId }) {
   const handleEditStart = (ex) => {
     setEditingId(ex.id);
     setEditFields({
-      name: ex.name || '',
-      target_sets: ex.target_sets ?? '',
-      target_reps: ex.target_reps ?? '',
+      name: ex.name,
+      target_sets: ex.target_sets,
+      target_reps: ex.target_reps,
       target_weight: ex.target_weight ?? '',
-      rest_seconds: ex.rest_seconds ?? '',
-      order_index: ex.order_index ?? '',
+      rest_seconds: ex.rest_seconds,
+      order_index: ex.order_index,
       notes: ex.notes ?? ''
     });
+    setError(null);
+  };
+
+  const handleEditCancel = () => {
+    setEditingId(null);
+    setEditFields(EMPTY_FORM);
+    setError(null);
   };
 
   const handleEditSave = async (id) => {
@@ -94,11 +98,11 @@ export default function ExerciseInstanceForm({ dayId }) {
     try {
       await updateExerciseInstance(id, {
         ...editFields,
-        target_sets: Number(editFields.target_sets),
-        target_reps: Number(editFields.target_reps),
-        target_weight: editFields.target_weight ? Number(editFields.target_weight) : null,
-        rest_seconds: Number(editFields.rest_seconds),
-        order_index: Number(editFields.order_index)
+        name: editFields.name.trim(),
+        target_sets: safeInt(editFields.target_sets),
+        target_weight: safeFloat(editFields.target_weight),
+        rest_seconds: safeInt(editFields.rest_seconds),
+        order_index: safeInt(editFields.order_index)
       });
 
       setEditingId(null);
@@ -109,7 +113,6 @@ export default function ExerciseInstanceForm({ dayId }) {
     }
   };
 
-  // * Clear edit state if the deleted exercise was being edited
   const handleDelete = async (id) => {
     setError(null);
 
@@ -127,33 +130,80 @@ export default function ExerciseInstanceForm({ dayId }) {
     }
   };
 
+  const handleMoveUp = async (index) => {
+    if (index === 0) return;
+
+    try {
+      await swapExerciseOrder(exercises[index], exercises[index - 1]);
+      await loadExercises();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleMoveDown = async (index) => {
+    if (index === exercises.length - 1) return;
+
+    try {
+      await swapExerciseOrder(exercises[index], exercises[index + 1]);
+      await loadExercises();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   return (
     <div>
       <h4>Exercises</h4>
 
       <ul>
-        {exercises.map((ex) => (
+        {exercises.map((ex, index) => (
           <li key={ex.id}>
             {editingId === ex.id ? (
               <>
-                {Object.keys(EMPTY_FORM).map((field) => (
-                  <input
-                    key={field}
-                    placeholder={field.replace(/_/g, ' ')}
-                    value={editFields[field]}
-                    onChange={(e) =>
-                      setEditFields({ ...editFields, [field]: e.target.value })
-                    }
-                  />
-                ))}
+{[
+  { key: 'name', label: 'Exercise Name' },
+  { key: 'target_sets', label: 'Sets' },
+  { key: 'target_reps', label: 'Reps' },
+  { key: 'target_weight', label: 'Weight' },
+  { key: 'rest_seconds', label: 'Rest (sec)' },
+  { key: 'order_index', label: 'Order' },
+  { key: 'notes', label: 'Notes' }
+].map(({ key, label }) => (
+  <input
+    key={key}
+    placeholder={label}
+    value={editingId ? editFields[key] : form[key]}
+    onChange={(e) =>
+      editingId
+        ? setEditFields({ ...editFields, [key]: e.target.value })
+        : setForm({ ...form, [key]: e.target.value })
+    }
+  />
+))}
                 <button onClick={() => handleEditSave(ex.id)}>Save</button>
-                <button onClick={() => setEditingId(null)}>Cancel</button>
+                <button onClick={handleEditCancel}>Cancel</button>
               </>
             ) : (
               <>
                 <span>
-                  {ex.order_index}. {ex.name} — {ex.target_sets}x{ex.target_reps} @ {ex.target_weight}lbs
+                  {ex.order_index}. {ex.name}
                 </span>
+
+                <button
+                  onClick={() => handleMoveUp(index)}
+                  disabled={index === 0}
+                >
+                  Up
+                </button>
+
+                <button
+                  onClick={() => handleMoveDown(index)}
+                  disabled={index === exercises.length - 1}
+                >
+                  Down
+                </button>
+
                 <button onClick={() => handleEditStart(ex)}>Edit</button>
                 <button onClick={() => handleDelete(ex.id)}>Delete</button>
               </>
@@ -165,14 +215,28 @@ export default function ExerciseInstanceForm({ dayId }) {
       {error && <p style={{ color: 'red' }}>{error}</p>}
 
       <h5>Add Exercise</h5>
-      {Object.keys(EMPTY_FORM).map((field) => (
-        <input
-          key={field}
-          placeholder={field.replace(/_/g, ' ')}
-          value={form[field]}
-          onChange={(e) => setForm({ ...form, [field]: e.target.value })}
-        />
-      ))}
+
+      {[
+  { key: 'name', label: 'Exercise Name' },
+  { key: 'target_sets', label: 'Sets' },
+  { key: 'target_reps', label: 'Reps' },
+  { key: 'target_weight', label: 'Weight' },
+  { key: 'rest_seconds', label: 'Rest (sec)' },
+  { key: 'order_index', label: 'Order' },
+  { key: 'notes', label: 'Notes' }
+].map(({ key, label }) => (
+  <input
+    key={key}
+    placeholder={label}
+    value={editingId ? editFields[key] : form[key]}
+    onChange={(e) =>
+      editingId
+        ? setEditFields({ ...editFields, [key]: e.target.value })
+        : setForm({ ...form, [key]: e.target.value })
+    }
+  />
+))}
+
       <button onClick={handleCreate} disabled={loading}>
         {loading ? 'Saving...' : 'Add Exercise'}
       </button>

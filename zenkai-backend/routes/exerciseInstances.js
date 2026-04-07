@@ -1,15 +1,15 @@
-// * Handles exercise instance creation, retrieval, updating, and deletion.
+// * Handles exercise instance CRUD.
 'use strict';
 
 const express = require('express');
 const router = express.Router();
 const { ExerciseInstance } = require('../models');
 
-// * GET all exercise instances for one program day
-router.get('/program-day/:programDayId', async (req, res) => {
+// * GET exercises for a specific day
+router.get('/day/:dayId', async (req, res) => {
   try {
     const exercises = await ExerciseInstance.findAll({
-      where: { program_day_id: req.params.programDayId },
+      where: { program_day_id: req.params.dayId },
       order: [['order_index', 'ASC']]
     });
 
@@ -19,42 +19,20 @@ router.get('/program-day/:programDayId', async (req, res) => {
   }
 });
 
-// * POST create one exercise instance
+// * CREATE exercise
 router.post('/', async (req, res) => {
   try {
-    const {
-      program_day_id,
-      name,
-      target_sets,
-      target_reps,
-      target_weight,
-      rest_seconds,
-      order_index,
-      notes
-    } = req.body;
-
-    const exercise = await ExerciseInstance.create({
-      program_day_id,
-      name,
-      target_sets,
-      target_reps,
-      target_weight,
-      rest_seconds,
-      order_index,
-      notes
-    });
-
+    const exercise = await ExerciseInstance.create(req.body);
     res.status(201).json(exercise);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// * PUT update one exercise instance
+// * UPDATE exercise (used for edit + reorder)
 router.put('/:id', async (req, res) => {
   try {
     const exercise = await ExerciseInstance.findByPk(req.params.id);
-
     if (!exercise) {
       return res.status(404).json({ error: 'Exercise not found' });
     }
@@ -66,17 +44,16 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// * DELETE one exercise instance
+// * DELETE exercise
 router.delete('/:id', async (req, res) => {
   try {
     const exercise = await ExerciseInstance.findByPk(req.params.id);
-
     if (!exercise) {
       return res.status(404).json({ error: 'Exercise not found' });
     }
 
     await exercise.destroy();
-    res.json({ message: 'Exercise deleted' });
+    res.json({ message: 'Deleted' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
