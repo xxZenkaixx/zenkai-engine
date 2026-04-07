@@ -1,21 +1,56 @@
-// * Fetches and displays days for the selected program, including nested exercises.
-import { useEffect, useState } from 'react';
-import { fetchProgramDays } from '../api/programDayApi';
-import ProgramDayForm from './ProgramDayForm';
+// * Renders program days for a selected program.
+// * Supports day creation, deletion, and selection.
+// * Clears selected day safely if that day is deleted.
+
+import { useState, useEffect } from 'react';
+import { fetchProgramDays, createProgramDay, deleteDay } from '../api/programDayApi';
 import ExerciseInstanceForm from './ExerciseInstanceForm';
 
 export default function ProgramDayList({ programId }) {
   const [days, setDays] = useState([]);
+  const [selectedDayId, setSelectedDayId] = useState(null);
+  const [dayNumber, setDayNumber] = useState('');
+  const [dayName, setDayName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // * fetch days for current program
   const loadDays = async () => {
     try {
-      setLoading(true);
-      setError(null);
       const data = await fetchProgramDays(programId);
       setDays(data);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  useEffect(() => {
+    if (!programId) return;
+
+    setSelectedDayId(null);
+    setError(null);
+    loadDays();
+  }, [programId]);
+
+  const handleCreate = async () => {
+    const parsedDayNumber = Number(dayNumber);
+
+    if (!Number.isInteger(parsedDayNumber) || parsedDayNumber <= 0) {
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      await createProgramDay({
+        program_id: programId,
+        day_number: parsedDayNumber,
+        name: dayName.trim()
+      });
+
+      setDayNumber('');
+      setDayName('');
+      await loadDays();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -23,46 +58,62 @@ export default function ProgramDayList({ programId }) {
     }
   };
 
-  // * load days whenever selected program changes
-  useEffect(() => {
-    if (!programId) return;
-    loadDays();
-  }, [programId]);
+  // * Clear selection if the deleted day is currently open
+  const handleDelete = async (id) => {
+    setError(null);
 
-  if (!programId) return <div>Select a program to view days.</div>;
-  if (loading) return <div>Loading days...</div>;
-  if (error) return <div>Error: {error}</div>;
+    try {
+      await deleteDay(id);
+
+      if (selectedDayId === id) {
+        setSelectedDayId(null);
+      }
+
+      await loadDays();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
 
   return (
     <div>
-      {/* add new day */}
-      <ProgramDayForm programId={programId} onDayCreated={loadDays} />
+      <h3>Days</h3>
 
-      <h3>Program Days</h3>
+      <input
+        placeholder="Day number"
+        type="number"
+        value={dayNumber}
+        onChange={(e) => setDayNumber(e.target.value)}
+      />
+      <input
+        placeholder="Day name (optional)"
+        value={dayName}
+        onChange={(e) => setDayName(e.target.value)}
+      />
+      <button onClick={handleCreate} disabled={loading}>
+        {loading ? 'Creating...' : 'Add Day'}
+      </button>
 
-      {days.map((day) => (
-        <div key={day.id} className="client-row">
-          <strong>
-            Day {day.day_number}: {day.name}
-          </strong>
+      {error && <p style={{ color: 'red' }}>{error}</p>}
 
-          {/* render exercises already attached to this day */}
-          <div style={{ marginTop: '8px', marginBottom: '8px' }}>
-            {day.ExerciseInstances?.map((exercise) => (
-              <div key={exercise.id}>
-                {exercise.order_index}. {exercise.name} — {exercise.target_sets} sets — {exercise.target_reps}
-              </div>
-            ))}
-          </div>
+      <ul>
+        {days.map((d) => (
+          <li key={d.id}>
+            <span
+              onClick={() => setSelectedDayId(d.id)}
+              style={{
+                fontWeight: selectedDayId === d.id ? 'bold' : 'normal',
+                cursor: 'pointer'
+              }}
+            >
+              Day {d.day_number}{d.name ? ` — ${d.name}` : ''}
+            </span>
+            <button onClick={() => handleDelete(d.id)}>Delete</button>
+          </li>
+        ))}
+      </ul>
 
-          {/* add exercise into this day */}
-          <ExerciseInstanceForm
-            programDayId={day.id}
-            nextOrderIndex={(day.ExerciseInstances?.length || 0) + 1}
-            onExerciseCreated={loadDays}
-          />
-        </div>
-      ))}
+      {selectedDayId && <ExerciseInstanceForm dayId={selectedDayId} />}
     </div>
   );
 }
