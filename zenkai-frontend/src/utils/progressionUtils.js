@@ -85,3 +85,30 @@ export function getLastLoggedDate(history) {
   const last = history[history.length - 1];
   return new Date(last.completed_at).toLocaleDateString();
 }
+
+// * Groups a flat sorted history array into date buckets for display
+// ! Input should already be sorted by completed_at ASC
+export function groupHistoryByDate(history) {
+  if (!history || history.length === 0) {
+    return [];
+  }
+
+  const groups = {};
+  const orderedDates = [];
+
+  history.forEach((set) => {
+    const dateKey = new Date(set.completed_at).toLocaleDateString();
+
+    if (!groups[dateKey]) {
+      groups[dateKey] = [];
+      orderedDates.push(dateKey);
+    }
+
+    groups[dateKey].push(set);
+  });
+
+  return orderedDates.reverse().map((date) => ({
+    date,
+    sets: groups[date]
+  }));
+}

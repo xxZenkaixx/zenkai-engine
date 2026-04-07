@@ -1,14 +1,16 @@
-// * Read-only exercise history panel
-// * Fetches lazily on first open
-// ! Does not control workout flow, timer, or set locking
+// * Read-only history view for a single exercise + client
+// * Fetched lazily on first open
+// ! Does not affect live workout state
 
 import { useState } from 'react';
 import { fetchSetHistory } from '../api/loggedSetApi';
 import ProgressionSummary from './ProgressionSummary';
+import { groupHistoryByDate } from '../utils/progressionUtils';
 
 export default function HistoryPanel({ exerciseInstanceId, clientId, targetWeight }) {
   const [isOpen, setIsOpen] = useState(false);
   const [history, setHistory] = useState([]);
+  const [groupedHistory, setGroupedHistory] = useState([]);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [historyError, setHistoryError] = useState('');
@@ -20,13 +22,8 @@ export default function HistoryPanel({ exerciseInstanceId, clientId, targetWeigh
 
       try {
         const data = await fetchSetHistory(exerciseInstanceId, clientId);
-
-        // * Ensure chronological order for progression logic
-        const sorted = [...data].sort(
-          (a, b) => new Date(a.completed_at) - new Date(b.completed_at)
-        );
-
-        setHistory(sorted);
+        setHistory(data);
+        setGroupedHistory(groupHistoryByDate(data));
         setHasLoaded(true);
       } catch (err) {
         setHistoryError(err.message || 'Failed to load history');
@@ -62,26 +59,24 @@ export default function HistoryPanel({ exerciseInstanceId, clientId, targetWeigh
             <>
               <ProgressionSummary history={history} />
 
-              <table>
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Set</th>
-                    <th>Weight</th>
-                    <th>Reps</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {history.map((set) => (
-                    <tr key={set.id}>
-                      <td>{new Date(set.completed_at).toLocaleDateString()}</td>
-                      <td>{set.set_number}</td>
-                      <td>{targetWeight ?? '—'}</td>
-                      <td>{set.completed_reps}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              {groupedHistory.map(({ date, sets }) => (
+                <div key={date}>
+                  <p><strong>{date}</strong></p>
+
+                  <ul>
+                    {sets.map((set) => (
+                      <li key={set.id}>
+                        Set {set.set_number}: {set.completed_reps} reps
+                        {set.completed_weight != null
+                          ? ` @ ${parseFloat(set.completed_weight)} lbs`
+                          : targetWeight != null
+                            ? ` @ ${targetWeight} lbs (prescribed)`
+                            : ''}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
             </>
           )}
         </div>
