@@ -19,16 +19,23 @@ export const createExerciseInstance = async (data) => {
   return res.json();
 };
 
-export const updateExerciseInstance = async (id, data) => {
-  const res = await fetch(`${BASE_URL}/${id}`, {
+export async function updateExerciseInstance(id, updates) {
+  const res = await fetch(`http://localhost:3001/api/exercise-instances/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
+    body: JSON.stringify(updates)
   });
 
-  if (!res.ok) throw new Error('Failed to update exercise');
-  return res.json();
-};
+  const data = await res.json();
+
+  if (!res.ok) {
+    const error = new Error(data.error || 'Failed to update exercise.');
+    error.field = data.field || null;
+    throw error;
+  }
+
+  return data;
+}
 
 export const deleteExerciseInstance = async (id) => {
   const res = await fetch(`${BASE_URL}/${id}`, {

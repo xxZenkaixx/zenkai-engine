@@ -11,8 +11,10 @@ import {
   swapExerciseOrder
 } from '../api/exerciseInstanceApi';
 
+
 const EMPTY_FORM = {
   name: '',
+  type: 'accessory',
   target_sets: '',
   target_reps: '',
   target_weight: '',
@@ -23,6 +25,7 @@ const EMPTY_FORM = {
 
 const EMPTY_ERRORS = {
   name: '',
+  type: '',
   target_sets: '',
   target_reps: '',
   rest_seconds: '',
@@ -36,6 +39,10 @@ function validateForm(fields) {
 
   if (!fields.name.trim()) {
     errors.name = 'Exercise name is required.';
+    valid = false;
+  }
+  if (!fields.type) {
+    errors.type = 'Exercise type is required.';
     valid = false;
   }
   if (!fields.target_sets || isNaN(Number(fields.target_sets))) {
@@ -123,6 +130,7 @@ export default function ExerciseInstanceForm({ dayId }) {
     setEditErrors(EMPTY_ERRORS);
     setEditFields({
       name: ex.name,
+      type: ex.type || 'accessory',
       target_sets: ex.target_sets,
       target_reps: ex.target_reps,
       target_weight: ex.target_weight ?? '',
@@ -150,6 +158,15 @@ export default function ExerciseInstanceForm({ dayId }) {
       setEditErrors(EMPTY_ERRORS);
       await loadExercises();
     } catch (err) {
+      if (err.field) {
+        setEditErrors((prev) => ({
+          ...prev,
+          [err.field]: err.message
+        }));
+        setError(null);
+        return;
+      }
+
       setError(err.message);
     }
   };
@@ -204,7 +221,15 @@ export default function ExerciseInstanceForm({ dayId }) {
                   onChange={(e) => setEditFields({ ...editFields, name: e.target.value })}
                 />
                 {editErrors.name && <span style={{ color: 'red' }}>{editErrors.name}</span>}
-
+                <select
+                  value={editFields.type}
+                  onChange={(e) => setEditFields({ ...editFields, type: e.target.value })}
+                >
+                  <option value='compound'>Compound</option>
+                  <option value='accessory'>Accessory</option>
+                  <option value='custom'>Custom</option>
+                </select>
+                {editErrors.type && <span style={{ color: 'red' }}>{editErrors.type}</span>}
                 <input
                   placeholder='Sets'
                   value={editFields.target_sets}
@@ -260,7 +285,7 @@ export default function ExerciseInstanceForm({ dayId }) {
             ) : (
               <>
                 <span>
-                  {ex.order_index}. {ex.name} — {ex.target_sets}x{ex.target_reps} @ {ex.target_weight}lbs
+                {ex.order_index}. {ex.name} ({ex.type}) — {ex.target_sets}x{ex.target_reps} @ {ex.target_weight}lbs
                 </span>
                 <button onClick={() => handleMoveUp(index)} disabled={index === 0}>Up</button>
                 <button onClick={() => handleMoveDown(index)} disabled={index === exercises.length - 1}>Down</button>
@@ -290,6 +315,15 @@ export default function ExerciseInstanceForm({ dayId }) {
         onChange={(e) => setForm({ ...form, target_sets: e.target.value })}
       />
       {formErrors.target_sets && <span style={{ color: 'red' }}>{formErrors.target_sets}</span>}
+      <select
+        value={form.type}
+        onChange={(e) => setForm({ ...form, type: e.target.value })}
+      >
+        <option value='compound'>Compound</option>
+        <option value='accessory'>Accessory</option>
+        <option value='custom'>Custom</option>
+      </select>
+      {formErrors.type && <span style={{ color: 'red' }}>{formErrors.type}</span>}
 
       <input
         placeholder='Reps *'

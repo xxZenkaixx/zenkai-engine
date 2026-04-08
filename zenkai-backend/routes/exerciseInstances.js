@@ -29,12 +29,20 @@ router.post('/', async (req, res) => {
   }
 });
 
-// * UPDATE exercise (used for edit + reorder)
+// * Updates any field including type — enforces required + valid type
 router.put('/:id', async (req, res) => {
   try {
     const exercise = await ExerciseInstance.findByPk(req.params.id);
-    if (!exercise) {
-      return res.status(404).json({ error: 'Exercise not found' });
+    if (!exercise) return res.status(404).json({ error: 'Exercise not found' });
+
+    if (req.body.hasOwnProperty('type')) {
+      if (req.body.type === '' || req.body.type === null) {
+        return res.status(400).json({ field: 'type', error: 'Exercise type is required.' });
+      }
+
+      if (!['compound', 'accessory', 'custom'].includes(req.body.type)) {
+        return res.status(400).json({ field: 'type', error: 'Invalid exercise type.' });
+      }
     }
 
     await exercise.update(req.body);
