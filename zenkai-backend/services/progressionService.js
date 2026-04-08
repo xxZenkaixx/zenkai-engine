@@ -1,84 +1,105 @@
 // Progression service.
-// * Pure calculation logic for determining next target path.
-// * Does NOT modify any records. Does NOT touch live workout execution.
-// * Handles compound, accessory, custom, and cable override logic.
+// * Pure calculation logic — does NOT write to DB.
+// * Cable branch uses stack/micro rollover logic only — ignores progression_rules.
+// * compound/accessory/custom branches unchanged.
 'use strict';
 
 const { ProgressionRule } = require('../models');
 
-// * Rounds barbell, machine, and dumbbell weights to real-world usable jumps.
-function roundWeightByEquipment(weight, equipment_type) {
-  if (
-    equipment_type === 'barbell' ||
-    equipment_type === 'machine' ||
-    equipment_type === 'dumbbell'
-  ) {
-    return Math.round(weight / 5) * 5;
-  }
-
-  return weight;
+// * Rounds to nearest 2.5
+function roundToNearest2_5(weight) {
+  return Math.round(weight / 2.5) * 2.5;
 }
 
-// * determines next target weight based on performance
+// * Cable progression — returns next state object + display_weight
+// * Does not touch the DB — caller is responsible for persisting.
+function calculateCableNextState({
+  base_stack_weight,
+  stack_step_value,
+  micro_step_value,
+  max_micro_levels,
+  current_micro_level,
+  rep_range_min,
+  rep_range_max,
+  completed_reps_array
+}) {
+  const all_sets_hit_top = completed_reps_array.every((r) => r >= rep_range_max);
+  const any_set_below_min = completed_reps_array.some((r) => r < rep_range_min);
+
+  let next_stack = base_stack_weight;
+  let next_micro = current_micro_level;
+
+  if (all_sets_hit_top) {
+    if (next_micro < max_micro_levels) {
+      next_micro += 1;
+    } else {
+      next_stack += stack_step_value;
+      next_micro = 0;
+    }
+  } else if (any_set_below_min) {
+    if (next_micro > 0) {
+      next_micro -= 1;
+    } else {
+      next_stack -= stack_step_value;
+      // * Prevent micro going below 0
+      next_micro = 0;
+    }
+  }
+
+  const display_weight = next_stack + next_micro * micro_step_value;
+
+  return {
+    base_stack_weight: next_stack,
+    current_micro_level: next_micro,
+    display_weight
+  };
+}
+
+/**
+ * Determines next target weight (or cable state) based on performance.
+ *
+ * @param {Object} params
+ * @param {string} params.type - 'compound' | 'accessory' | 'custom'
+ * @param {string} params.equipment_type - 'barbell' | 'dumbbell' | 'machine' | 'cable'
+ * @param {number} params.target_weight
+ * @param {number} params.rep_range_min
+ * @param {number} params.rep_range_max
+ * @param {number[]} params.completed_reps_array
+ * @param {Object} [params.cable_state] - required when equipment_type === 'cable'
+ */
 async function calculateNextWeight({
   type,
   equipment_type,
-  progression_mode,
-  progression_value,
   target_weight,
   rep_range_min,
   rep_range_max,
   completed_reps_array,
-  cable_increment = 0
+  cable_state
 }) {
-  const all_sets_hit_top = completed_reps_array.every(
-    (reps) => reps >= rep_range_max
-  );
-
-  const any_set_below_min = completed_reps_array.some(
-    (reps) => reps < rep_range_min
-  );
-
-  // * cable machines ignore percentage progression entirely
+  // * Cable uses its own branch — progression_rules not consulted
   if (equipment_type === 'cable') {
-    if (all_sets_hit_top) {
-      return { cable_increment: Math.min(cable_increment + 1, 2) };
-    }
-
-    if (any_set_below_min) {
-      return { cable_increment: Math.max(cable_increment - 1, 0) };
-    }
-
-    return { cable_increment };
+    // ! cable_state must be provided and setup must be locked before calling
+    return calculateCableNextState({
+      ...cable_state,
+      rep_range_min,
+      rep_range_max,
+      completed_reps_array
+    });
   }
+
+  // * custom exercises are never adjusted
+  if (type === 'custom') {
+    return target_weight;
+  }
+
+  const all_sets_hit_top = completed_reps_array.every((r) => r >= rep_range_max);
+  const any_set_below_min = completed_reps_array.some((r) => r < rep_range_min);
+
+  // ! rule must exist for the given type
+  const rule = await ProgressionRule.findOne({ where: { type } });
+  if (!rule) throw new Error(`No progression rule found for type: ${type}`);
 
   let next_weight = target_weight;
-
-  if (type === 'custom') {
-    if (all_sets_hit_top) {
-      if (progression_mode === 'absolute') {
-        next_weight = target_weight + progression_value;
-      } else if (progression_mode === 'percent') {
-        next_weight = target_weight * (1 + progression_value / 100);
-      }
-    } else if (any_set_below_min) {
-      if (progression_mode === 'absolute') {
-        next_weight = target_weight - progression_value;
-      } else if (progression_mode === 'percent') {
-        next_weight = target_weight * (1 - 0.05);
-      }
-    }
-
-    return {
-      weight: roundWeightByEquipment(next_weight, equipment_type)
-    };
-  }
-
-  const rule = await ProgressionRule.findOne({ where: { type } });
-
-  if (!rule) {
-    throw new Error(`No progression rule found for type: ${type}`);
-  }
 
   if (all_sets_hit_top) {
     next_weight = target_weight * (1 + rule.increase_percent);
@@ -86,11 +107,10 @@ async function calculateNextWeight({
     next_weight = target_weight * (1 - rule.decrease_percent);
   }
 
-  return {
-    weight: roundWeightByEquipment(next_weight, equipment_type)
-  };
+  return roundToNearest2_5(next_weight);
 }
 
 module.exports = {
-  calculateNextWeight
+  calculateNextWeight,
+  calculateCableNextState
 };

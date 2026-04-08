@@ -25,21 +25,21 @@ export default function ClientWorkoutView({ clientId }) {
   // * Maps exercise id to the next-set input wrapper element
   const nextSetRefs = useRef({});
 
+  const load = async () => {
+    try {
+      const data = await fetchActiveProgram(clientId);
+      setProgramData(data);
+
+      const firstDayId = data?.Program?.ProgramDays?.[0]?.id || null;
+      setSelectedDayId(firstDayId);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const load = async () => {
-      try {
-        const data = await fetchActiveProgram(clientId);
-        setProgramData(data);
-
-        const firstDayId = data?.Program?.ProgramDays?.[0]?.id || null;
-        setSelectedDayId(firstDayId);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     load();
   }, [clientId]);
 
@@ -153,6 +153,7 @@ export default function ClientWorkoutView({ clientId }) {
             timerRemaining={timerRemaining}
             timerExerciseId={timerExerciseId}
             onSetLogged={startTimer}
+            onExerciseUpdated={load}
             cardRef={(el) => {
               cardRefs.current[ex.id] = el;
             }}
