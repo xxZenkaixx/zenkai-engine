@@ -3,7 +3,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { LoggedSet } = require('../models');
+const { LoggedSet, ExerciseInstance } = require('../models');
 
 // * get logged sets for one exercise + client
 router.get('/', async (req, res) => {
@@ -34,19 +34,55 @@ router.get('/', async (req, res) => {
 // * log one completed set
 router.post('/', async (req, res) => {
   try {
-    const { exercise_instance_id, client_id, set_number, completed_reps, completed_weight } = req.body;
+    const { exercise_instance_id, client_id, set_number, completed_reps } = req.body;
+
+    // * fetch exercise instance for weight snapshot
+    const instance = await ExerciseInstance.findByPk(exercise_instance_id);
+
+    if (!instance) {
+      console.error('POST /loggedSets ERROR: instance not found', { exercise_instance_id });
+      return res.status(404).json({ error: 'Exercise instance not found' });
+    }
+
+    // * determine effective weight (source of truth)
+    let completed_weight = null;
+
+    if (instance.equipment_type === 'cable') {
+      completed_weight =
+        instance.base_stack_weight +
+        instance.current_micro_level * instance.micro_step_value;
+    } else {
+      // ! enforce weight must exist for non-cable
+      if (instance.target_weight == null) {
+        console.error('POST /loggedSets BLOCKED: missing target_weight', {
+          exercise_instance_id
+        });
+
+        return res.status(400).json({
+          error: 'Missing target_weight on exercise instance'
+        });
+      }
+
+      completed_weight = instance.target_weight;
+    }
 
     const loggedSet = await LoggedSet.create({
       exercise_instance_id,
       client_id,
       set_number,
       completed_reps,
-      // * allow null for legacy compatibility
-      completed_weight: completed_weight ?? null
+      completed_weight
+    });
+
+    console.log('POST /loggedSets SUCCESS:', {
+      exercise_instance_id,
+      completed_reps,
+      completed_weight
     });
 
     res.status(201).json(loggedSet);
   } catch (err) {
+    console.error('POST /loggedSets ERROR:', err);
     res.status(500).json({ error: err.message });
   }
 });
