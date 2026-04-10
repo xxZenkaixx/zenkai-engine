@@ -2,7 +2,7 @@
 // * Owns one shared rest timer across all exercise cards.
 // * Handles global timer display and scroll coordination.
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { fetchActiveProgram } from '../api/clientProgramApi';
 import ExerciseCard from './ExerciseCard';
 import { applyProgression } from '../api/progressionApi';
@@ -20,32 +20,24 @@ export default function ClientWorkoutView({ clientId }) {
   const [finishingWorkout, setFinishingWorkout] = useState(false);
   const [workoutFinished, setWorkoutFinished] = useState(false);
   const [finishError, setFinishError] = useState(null);
+  const [exerciseLoggedCounts, setExerciseLoggedCounts] = useState({});
 
-  // ! Always clear active interval before replacing it
   const intervalRef = useRef(null);
-
-  // * Maps exercise id to the card wrapper element
   const cardRefs = useRef({});
-
-  // * Maps exercise id to the next-set input wrapper element
   const nextSetRefs = useRef({});
 
-  const handleFinishWorkout = async () => {
-    if (!clientId || !selectedDayId || finishingWorkout) return;
-    setFinishingWorkout(true);
-    setFinishError(null);
-    try {
-      await applyProgression(clientId, selectedDayId);
-      setWorkoutFinished(true);
-    } catch (err) {
-      setFinishError(err.message);
-    } finally {
-      setFinishingWorkout(false);
-    }
-  };
+  const handleLoggedSetsChange = useCallback((exerciseId, count) => {
+    setExerciseLoggedCounts((prev) => ({
+      ...prev,
+      [exerciseId]: count
+    }));
+  }, []);
 
   const load = async () => {
     try {
+      setLoading(true);
+      setError(null);
+
       const data = await fetchActiveProgram(clientId);
       setProgramData(data);
 
@@ -69,18 +61,67 @@ export default function ClientWorkoutView({ clientId }) {
     setTimerExerciseId(null);
     setWorkoutFinished(false);
     setFinishError(null);
+    setExerciseLoggedCounts({});
   }, [selectedDayId]);
 
   useEffect(() => {
     return () => clearInterval(intervalRef.current);
   }, []);
 
+  const program = programData?.Program;
+  const days = program?.ProgramDays || [];
+  const selectedDay = days.find((d) => d.id === selectedDayId);
+  const selectedExercises = selectedDay?.ExerciseInstances || [];
+
+  const totalLogged = selectedExercises.reduce((sum, ex) => {
+    return sum + (exerciseLoggedCounts[ex.id] ?? 0);
+  }, 0);
+
+  const anyIncomplete = selectedExercises.some((ex) => {
+    const assignedSets = ex.target_sets ?? ex.sets ?? 0;
+    return (exerciseLoggedCounts[ex.id] ?? 0) < assignedSets;
+  });
+
+  const finishBlockReason =
+    totalLogged === 0
+      ? 'Log at least one set before finishing.'
+      : anyIncomplete
+      ? 'Complete all assigned sets before finishing.'
+      : null;
+
+  // * Clear click-triggered validation error once user resolves the blocking condition.
+  // * Does not fire on unrelated renders — only when finishBlockReason transitions to null.
+  useEffect(() => {
+    setFinishError(null);
+  }, [exerciseLoggedCounts]);
+
+  const handleFinishWorkout = async () => {
+    if (finishBlockReason) {
+      setFinishError(finishBlockReason);
+      return;
+    }
+
+    setFinishError(null);
+
+    if (!clientId || !selectedDayId || finishingWorkout) return;
+
+    setFinishingWorkout(true);
+
+    try {
+      await applyProgression(clientId, selectedDayId);
+      setWorkoutFinished(true);
+    } catch (err) {
+      setFinishError(err.message);
+    } finally {
+      setFinishingWorkout(false);
+    }
+  };
+
   const startTimer = (restSeconds, exerciseId) => {
     const parsedRest = Number(restSeconds);
 
     clearInterval(intervalRef.current);
 
-    // * Scroll current exercise card into view right after set log
     cardRefs.current[exerciseId]?.scrollIntoView({
       behavior: 'smooth',
       block: 'start'
@@ -91,7 +132,6 @@ export default function ClientWorkoutView({ clientId }) {
       setTimerRemaining(0);
       setTimerExerciseId(null);
 
-      // * No valid timer, so reveal next set area immediately
       nextSetRefs.current[exerciseId]?.scrollIntoView({
         behavior: 'smooth',
         block: 'center'
@@ -111,7 +151,6 @@ export default function ClientWorkoutView({ clientId }) {
           setTimerActive(false);
           setTimerExerciseId(null);
 
-          // * Scroll to the next set input area when rest ends
           nextSetRefs.current[exerciseId]?.scrollIntoView({
             behavior: 'smooth',
             block: 'center'
@@ -128,11 +167,7 @@ export default function ClientWorkoutView({ clientId }) {
   if (loading) return <p>Loading workout...</p>;
   if (error) return <p>Error: {error}</p>;
   if (!programData) return <p>No active program assigned.</p>;
-
-  const program = programData.Program;
   if (!program) return <p>Program data unavailable.</p>;
-
-  const days = program.ProgramDays || [];
 
   return (
     <div>
@@ -161,12 +196,13 @@ export default function ClientWorkoutView({ clientId }) {
         <button onClick={handleFinishWorkout} disabled={finishingWorkout || workoutFinished}>
           {finishingWorkout ? 'Finishing...' : workoutFinished ? 'Workout Complete' : 'Finish Workout'}
         </button>
+
         {finishError && <p style={{ color: 'red' }}>{finishError}</p>}
       </div>
 
       {selectedDayId && (() => {
-        const selectedDay = days.find((d) => d.id === selectedDayId);
-        const exercises = [...(selectedDay?.ExerciseInstances || [])].sort(
+        const dayForRender = days.find((d) => d.id === selectedDayId);
+        const exercises = [...(dayForRender?.ExerciseInstances || [])].sort(
           (a, b) => a.order_index - b.order_index
         );
 
@@ -182,6 +218,7 @@ export default function ClientWorkoutView({ clientId }) {
             timerExerciseId={timerExerciseId}
             onSetLogged={startTimer}
             onExerciseUpdated={load}
+            onLoggedSetsChange={handleLoggedSetsChange}
             cardRef={(el) => {
               cardRefs.current[ex.id] = el;
             }}

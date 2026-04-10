@@ -24,6 +24,7 @@ export default function ExerciseCard({
   timerExerciseId,
   onSetLogged,
   onExerciseUpdated,
+  onLoggedSetsChange,
   cardRef,
   nextSetRef
 }) {
@@ -60,6 +61,10 @@ export default function ExerciseCard({
   const [completedReps, setCompletedReps] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (onLoggedSetsChange) onLoggedSetsChange(exercise.id, loggedSets.length);
+  }, [loggedSets.length, exercise.id, onLoggedSetsChange]);
 
   const [cableForm, setCableForm] = useState(EMPTY_CABLE_FORM);
   const [savingCable, setSavingCable] = useState(false);
