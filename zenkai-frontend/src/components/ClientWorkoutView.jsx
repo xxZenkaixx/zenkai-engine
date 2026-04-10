@@ -5,6 +5,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { fetchActiveProgram } from '../api/clientProgramApi';
 import ExerciseCard from './ExerciseCard';
+import { applyProgression } from '../api/progressionApi';
 
 export default function ClientWorkoutView({ clientId }) {
   const [programData, setProgramData] = useState(null);
@@ -16,6 +17,10 @@ export default function ClientWorkoutView({ clientId }) {
   const [timerRemaining, setTimerRemaining] = useState(0);
   const [timerExerciseId, setTimerExerciseId] = useState(null);
 
+  const [finishingWorkout, setFinishingWorkout] = useState(false);
+  const [workoutFinished, setWorkoutFinished] = useState(false);
+  const [finishError, setFinishError] = useState(null);
+
   // ! Always clear active interval before replacing it
   const intervalRef = useRef(null);
 
@@ -24,6 +29,20 @@ export default function ClientWorkoutView({ clientId }) {
 
   // * Maps exercise id to the next-set input wrapper element
   const nextSetRefs = useRef({});
+
+  const handleFinishWorkout = async () => {
+    if (!clientId || !selectedDayId || finishingWorkout) return;
+    setFinishingWorkout(true);
+    setFinishError(null);
+    try {
+      await applyProgression(clientId, selectedDayId);
+      setWorkoutFinished(true);
+    } catch (err) {
+      setFinishError(err.message);
+    } finally {
+      setFinishingWorkout(false);
+    }
+  };
 
   const load = async () => {
     try {
@@ -48,6 +67,8 @@ export default function ClientWorkoutView({ clientId }) {
     setTimerActive(false);
     setTimerRemaining(0);
     setTimerExerciseId(null);
+    setWorkoutFinished(false);
+    setFinishError(null);
   }, [selectedDayId]);
 
   useEffect(() => {
@@ -134,6 +155,13 @@ export default function ClientWorkoutView({ clientId }) {
             {day.name || `Day ${day.day_number}`}
           </button>
         ))}
+      </div>
+
+      <div>
+        <button onClick={handleFinishWorkout} disabled={finishingWorkout || workoutFinished}>
+          {finishingWorkout ? 'Finishing...' : workoutFinished ? 'Workout Complete' : 'Finish Workout'}
+        </button>
+        {finishError && <p style={{ color: 'red' }}>{finishError}</p>}
       </div>
 
       {selectedDayId && (() => {
