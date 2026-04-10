@@ -182,8 +182,8 @@ async function applyProgressionForWorkout(clientId, programDayId) {
 
 // * Reads stored progression results and applies them to future exercise_instance targets.
 // * Separated from applyProgressionForWorkout intentionally — mutation layer is distinct from evaluation layer.
-// * Only processes rows with actual changes. Applies latest record per instance only.
-// * Does not touch logged_sets.
+// * Only processes unapplied rows (applied_at IS NULL). Stamps applied_at after mutation.
+// * Skips malformed cable state. Does not touch logged_sets.
 async function mutateTargetsFromProgressions(clientId, programDayId) {
   const instances = await ExerciseInstance.findAll({
     where: { program_day_id: programDayId },
@@ -197,6 +197,7 @@ async function mutateTargetsFromProgressions(clientId, programDayId) {
     where: {
       client_id: clientId,
       exercise_instance_id: { [Op.in]: instanceIds },
+      applied_at: null,
       [Op.or]: [
         { next_weight: { [Op.ne]: null } },
         { next_cable_state: { [Op.ne]: null } }
@@ -205,9 +206,8 @@ async function mutateTargetsFromProgressions(clientId, programDayId) {
     order: [['created_at', 'DESC']]
   });
 
-  // * Keep only the latest record per exercise instance
+  // * Keep only the latest unapplied record per exercise instance
   const latestMap = new Map();
-
   for (const prog of progressions) {
     if (!latestMap.has(prog.exercise_instance_id)) {
       latestMap.set(prog.exercise_instance_id, prog);
@@ -215,35 +215,56 @@ async function mutateTargetsFromProgressions(clientId, programDayId) {
   }
 
   const filteredProgressions = Array.from(latestMap.values());
+
+  // * Stamp older duplicate unapplied rows so they cannot be picked up on later runs
+  const latestIds = new Set(filteredProgressions.map((prog) => prog.id));
+  for (const prog of progressions) {
+    if (!latestIds.has(prog.id)) {
+      await prog.update({ applied_at: new Date() });
+    }
+  }
+
   const results = [];
 
   for (const prog of filteredProgressions) {
     if (prog.next_cable_state) {
-      // * Apply cable state — update stack position and micro level
+      const { base_stack_weight, current_micro_level } = prog.next_cable_state;
+
+      // ! skip if cable state is malformed or missing required numeric fields
+      if (typeof base_stack_weight !== 'number' || typeof current_micro_level !== 'number') {
+        await prog.update({ applied_at: new Date() });
+
+        results.push({
+          exercise_instance_id: prog.exercise_instance_id,
+          applied: 'skipped',
+          reason: 'malformed cable state'
+        });
+
+        continue;
+      }
+
       await ExerciseInstance.update(
-        {
-          base_stack_weight: prog.next_cable_state.base_stack_weight,
-          current_micro_level: prog.next_cable_state.current_micro_level
-        },
+        { base_stack_weight, current_micro_level },
         { where: { id: prog.exercise_instance_id } }
       );
-      results.push({
-        exercise_instance_id: prog.exercise_instance_id,
-        applied: 'cable_state',
-        next_cable_state: prog.next_cable_state
-      });
+
     } else if (prog.next_weight != null) {
-      // * Apply weight — update future target
       await ExerciseInstance.update(
         { target_weight: prog.next_weight },
         { where: { id: prog.exercise_instance_id } }
       );
-      results.push({
-        exercise_instance_id: prog.exercise_instance_id,
-        applied: 'weight',
-        next_weight: prog.next_weight
-      });
     }
+
+    // * Stamp the row as applied — prevents re-application
+    await prog.update({ applied_at: new Date() });
+
+    results.push({
+      exercise_instance_id: prog.exercise_instance_id,
+      applied: prog.next_cable_state ? 'cable_state' : 'weight',
+      ...(prog.next_cable_state
+        ? { next_cable_state: prog.next_cable_state }
+        : { next_weight: prog.next_weight })
+    });
   }
 
   return results;

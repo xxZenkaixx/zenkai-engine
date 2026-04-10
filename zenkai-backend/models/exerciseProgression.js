@@ -2,6 +2,7 @@
 // * Stores the computed next target for an exercise instance after workout evaluation.
 // * next_weight used for non-cable exercises.
 // * next_cable_state used for cable exercises.
+// * applied_at marks when the row was consumed by the mutation layer — null means unapplied.
 'use strict';
 
 const { DataTypes } = require('sequelize');
@@ -29,6 +30,10 @@ module.exports = (sequelize) => {
       },
       next_cable_state: {
         type: DataTypes.JSON,
+        allowNull: true
+      },
+      applied_at: {
+        type: DataTypes.DATE,
         allowNull: true
       }
     },
