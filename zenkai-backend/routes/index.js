@@ -11,5 +11,6 @@ router.use('/exercise-instances', require('./exerciseInstances'));
 router.use('/client-programs', require('./clientPrograms'));
 router.use('/sets', require('./loggedSets'));
 router.use('/progression', require('./progression'));
+router.use('/history', require('./history'));
 
 module.exports = router;
