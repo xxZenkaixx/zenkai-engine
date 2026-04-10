@@ -84,15 +84,8 @@ export default function ClientWorkoutView({ clientId }) {
     return (exerciseLoggedCounts[ex.id] ?? 0) < assignedSets;
   });
 
-  const finishBlockReason =
-    totalLogged === 0
-      ? 'Log at least one set before finishing.'
-      : anyIncomplete
-      ? 'Complete all assigned sets before finishing.'
-      : null;
-
   // * Clear click-triggered validation error once user resolves the blocking condition.
-  // * Does not fire on unrelated renders — only when finishBlockReason transitions to null.
+  // * Does not fire on unrelated renders — only when exerciseLoggedCounts changes.
   useEffect(() => {
     setFinishError(null);
     setConfirmFinishEarly(false);
