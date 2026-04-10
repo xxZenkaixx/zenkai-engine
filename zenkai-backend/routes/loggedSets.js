@@ -107,28 +107,5 @@ router.put('/:id', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-// * Fetch logged sets for a specific client + exercise for history view
-router.get('/', async (req, res) => {
-  try {
-    const { client_id, exercise_instance_id } = req.query;
 
-    if (!client_id || !exercise_instance_id) {
-      return res.status(400).json({
-        error: 'client_id and exercise_instance_id are required'
-      });
-    }
-
-    const sets = await LoggedSet.findAll({
-      where: {
-        client_id,
-        exercise_instance_id
-      },
-      order: [['completed_at', 'ASC']]
-    });
-
-    res.json(sets);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
 module.exports = router;
