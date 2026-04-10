@@ -20,6 +20,7 @@ export default function ClientWorkoutView({ clientId }) {
   const [finishingWorkout, setFinishingWorkout] = useState(false);
   const [workoutFinished, setWorkoutFinished] = useState(false);
   const [finishError, setFinishError] = useState(null);
+  const [confirmFinishEarly, setConfirmFinishEarly] = useState(false);
   const [exerciseLoggedCounts, setExerciseLoggedCounts] = useState({});
 
   const intervalRef = useRef(null);
@@ -61,6 +62,7 @@ export default function ClientWorkoutView({ clientId }) {
     setTimerExerciseId(null);
     setWorkoutFinished(false);
     setFinishError(null);
+    setConfirmFinishEarly(false);
     setExerciseLoggedCounts({});
   }, [selectedDayId]);
 
@@ -93,15 +95,24 @@ export default function ClientWorkoutView({ clientId }) {
   // * Does not fire on unrelated renders — only when finishBlockReason transitions to null.
   useEffect(() => {
     setFinishError(null);
+    setConfirmFinishEarly(false);
   }, [exerciseLoggedCounts]);
 
   const handleFinishWorkout = async () => {
-    if (finishBlockReason) {
-      setFinishError(finishBlockReason);
+    if (totalLogged === 0) {
+      setFinishError('Log at least one set before finishing.');
+      setConfirmFinishEarly(false);
+      return;
+    }
+
+    if (anyIncomplete && !confirmFinishEarly) {
+      setFinishError('Complete all assigned sets before finishing. Click Finish again to proceed anyway.');
+      setConfirmFinishEarly(true);
       return;
     }
 
     setFinishError(null);
+    setConfirmFinishEarly(false);
 
     if (!clientId || !selectedDayId || finishingWorkout) return;
 
