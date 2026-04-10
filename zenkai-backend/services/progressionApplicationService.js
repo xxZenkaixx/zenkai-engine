@@ -180,4 +180,73 @@ async function applyProgressionForWorkout(clientId, programDayId) {
   return results;
 }
 
-module.exports = { applyProgressionForWorkout };
+// * Reads stored progression results and applies them to future exercise_instance targets.
+// * Separated from applyProgressionForWorkout intentionally — mutation layer is distinct from evaluation layer.
+// * Only processes rows with actual changes. Applies latest record per instance only.
+// * Does not touch logged_sets.
+async function mutateTargetsFromProgressions(clientId, programDayId) {
+  const instances = await ExerciseInstance.findAll({
+    where: { program_day_id: programDayId },
+    attributes: ['id']
+  });
+
+  const instanceIds = instances.map((i) => i.id);
+  if (!instanceIds.length) return [];
+
+  const progressions = await ExerciseProgression.findAll({
+    where: {
+      client_id: clientId,
+      exercise_instance_id: { [Op.in]: instanceIds },
+      [Op.or]: [
+        { next_weight: { [Op.ne]: null } },
+        { next_cable_state: { [Op.ne]: null } }
+      ]
+    },
+    order: [['created_at', 'DESC']]
+  });
+
+  // * Keep only the latest record per exercise instance
+  const latestMap = new Map();
+
+  for (const prog of progressions) {
+    if (!latestMap.has(prog.exercise_instance_id)) {
+      latestMap.set(prog.exercise_instance_id, prog);
+    }
+  }
+
+  const filteredProgressions = Array.from(latestMap.values());
+  const results = [];
+
+  for (const prog of filteredProgressions) {
+    if (prog.next_cable_state) {
+      // * Apply cable state — update stack position and micro level
+      await ExerciseInstance.update(
+        {
+          base_stack_weight: prog.next_cable_state.base_stack_weight,
+          current_micro_level: prog.next_cable_state.current_micro_level
+        },
+        { where: { id: prog.exercise_instance_id } }
+      );
+      results.push({
+        exercise_instance_id: prog.exercise_instance_id,
+        applied: 'cable_state',
+        next_cable_state: prog.next_cable_state
+      });
+    } else if (prog.next_weight != null) {
+      // * Apply weight — update future target
+      await ExerciseInstance.update(
+        { target_weight: prog.next_weight },
+        { where: { id: prog.exercise_instance_id } }
+      );
+      results.push({
+        exercise_instance_id: prog.exercise_instance_id,
+        applied: 'weight',
+        next_weight: prog.next_weight
+      });
+    }
+  }
+
+  return results;
+}
+
+module.exports = { applyProgressionForWorkout, mutateTargetsFromProgressions };

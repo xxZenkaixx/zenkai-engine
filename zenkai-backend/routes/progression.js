@@ -5,7 +5,10 @@
 
 const express = require('express');
 const router = express.Router();
-const { applyProgressionForWorkout } = require('../services/progressionApplicationService');
+const {
+  applyProgressionForWorkout,
+  mutateTargetsFromProgressions
+} = require('../services/progressionApplicationService');
 
 // * Apply progression after a completed workout session
 router.post('/apply', async (req, res) => {
@@ -17,8 +20,17 @@ router.post('/apply', async (req, res) => {
   }
 
   try {
-    const results = await applyProgressionForWorkout(clientId, programDayId);
-    return res.status(200).json({ results });
+    const progressionResults = await applyProgressionForWorkout(clientId, programDayId);
+
+    const hasApplicableChanges = progressionResults.some(
+      (result) => result.outcome === 'increase' || result.outcome === 'decrease'
+    );
+
+    const mutationResults = hasApplicableChanges
+      ? await mutateTargetsFromProgressions(clientId, programDayId)
+      : [];
+
+    return res.status(200).json({ progressionResults, mutationResults });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
