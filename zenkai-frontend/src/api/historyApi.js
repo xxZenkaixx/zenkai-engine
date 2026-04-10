@@ -13,3 +13,15 @@ export const fetchWorkoutDetail = async (clientId, date, programDayId) => {
   if (!res.ok) throw new Error('Failed to fetch workout detail');
   return res.json();
 };
+
+export const fetchExerciseList = async (clientId) => {
+  const res = await fetch(`${BASE_URL}/${clientId}/exercises`);
+  if (!res.ok) throw new Error('Failed to fetch exercise list');
+  return res.json();
+};
+
+export const fetchExercisePerformance = async (clientId, exerciseInstanceId) => {
+  const res = await fetch(`${BASE_URL}/${clientId}/exercises/${exerciseInstanceId}`);
+  if (!res.ok) throw new Error('Failed to fetch exercise performance');
+  return res.json();
+};

@@ -86,4 +86,71 @@ router.get('/:clientId/detail', async (req, res) => {
   }
 });
 
+// * Distinct exercises a client has logged, with most recent date.
+router.get('/:clientId/exercises', async (req, res) => {
+  try {
+    const { clientId } = req.params;
+
+    if (!clientId) {
+      return res.status(400).json({ error: 'clientId is required' });
+    }
+
+    const rows = await sequelize.query(`
+      SELECT
+        ei.id AS exercise_instance_id,
+        ei.name AS exercise_name,
+        pd.name AS day_name,
+        pd.day_number,
+        MAX(DATE(ls.completed_at)) AS last_logged
+      FROM logged_sets ls
+      JOIN exercise_instances ei ON ls.exercise_instance_id = ei.id
+      JOIN program_days pd ON ei.program_day_id = pd.id
+      WHERE ls.client_id = :clientId
+      GROUP BY ei.id, ei.name, pd.name, pd.day_number
+      ORDER BY last_logged DESC
+    `, {
+      replacements: { clientId },
+      type: QueryTypes.SELECT
+    });
+
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// * All logged sets for one exercise + client, ordered chronologically.
+router.get('/:clientId/exercises/:exerciseInstanceId', async (req, res) => {
+  try {
+    const { clientId, exerciseInstanceId } = req.params;
+
+    if (!clientId || !exerciseInstanceId) {
+      return res.status(400).json({ error: 'clientId and exerciseInstanceId are required' });
+    }
+
+    const rows = await sequelize.query(`
+      SELECT
+        DATE(ls.completed_at) AS date,
+        pd.name AS day_name,
+        pd.day_number,
+        ls.set_number,
+        ls.completed_reps,
+        ls.completed_weight
+      FROM logged_sets ls
+      JOIN exercise_instances ei ON ls.exercise_instance_id = ei.id
+      JOIN program_days pd ON ei.program_day_id = pd.id
+      WHERE ls.client_id = :clientId
+        AND ls.exercise_instance_id = :exerciseInstanceId
+      ORDER BY ls.completed_at ASC, ls.set_number ASC
+    `, {
+      replacements: { clientId, exerciseInstanceId },
+      type: QueryTypes.SELECT
+    });
+
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
