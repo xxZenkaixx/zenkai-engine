@@ -86,6 +86,52 @@ router.get('/:clientId/detail', async (req, res) => {
   }
 });
 
+// * Aggregate performance summary for a client.
+router.get('/:clientId/summary', async (req, res) => {
+  try {
+    const { clientId } = req.params;
+
+    if (!clientId) {
+      return res.status(400).json({ error: 'clientId is required' });
+    }
+
+    const [stats] = await sequelize.query(`
+      SELECT
+        COUNT(*) AS total_sets,
+        MAX(DATE(completed_at)) AS most_recent_date,
+        COUNT(DISTINCT exercise_instance_id) AS distinct_exercises
+      FROM logged_sets
+      WHERE client_id = :clientId
+    `, {
+      replacements: { clientId },
+      type: QueryTypes.SELECT
+    });
+
+    const [{ total_workouts }] = await sequelize.query(`
+      SELECT COUNT(*) AS total_workouts
+      FROM (
+        SELECT DISTINCT DATE(ls.completed_at), pd.id
+        FROM logged_sets ls
+        JOIN exercise_instances ei ON ls.exercise_instance_id = ei.id
+        JOIN program_days pd ON ei.program_day_id = pd.id
+        WHERE ls.client_id = :clientId
+      ) AS sessions
+    `, {
+      replacements: { clientId },
+      type: QueryTypes.SELECT
+    });
+
+    res.json({
+      total_workouts: parseInt(total_workouts, 10),
+      total_sets: parseInt(stats.total_sets, 10),
+      most_recent_date: stats.most_recent_date,
+      distinct_exercises: parseInt(stats.distinct_exercises, 10)
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // * Distinct exercises a client has logged, with most recent date.
 router.get('/:clientId/exercises', async (req, res) => {
   try {

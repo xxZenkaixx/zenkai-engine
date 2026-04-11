@@ -14,6 +14,12 @@ export const fetchWorkoutDetail = async (clientId, date, programDayId) => {
   return res.json();
 };
 
+export const fetchPerformanceSummary = async (clientId) => {
+  const res = await fetch(`${BASE_URL}/${clientId}/summary`);
+  if (!res.ok) throw new Error('Failed to fetch performance summary');
+  return res.json();
+};
+
 export const fetchExerciseList = async (clientId) => {
   const res = await fetch(`${BASE_URL}/${clientId}/exercises`);
   if (!res.ok) throw new Error('Failed to fetch exercise list');
