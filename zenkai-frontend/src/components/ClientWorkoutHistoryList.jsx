@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { fetchWorkoutSessions } from '../api/historyApi';
+import ClientWorkoutSessionDetail from './ClientWorkoutSessionDetail';
 
 export default function ClientWorkoutHistoryList({ clientId }) {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [selectedSession, setSelectedSession] = useState(null);
 
   useEffect(() => {
     if (!clientId) return;
@@ -31,14 +33,34 @@ export default function ClientWorkoutHistoryList({ clientId }) {
           return (
             <li
               key={key}
-              style={{ cursor: 'pointer' }}
-              onClick={() => console.log({ date: s.date, program_day_id: s.program_day_id, program_id: s.program_id })}
+              style={{
+                cursor: 'pointer',
+                fontWeight:
+                  selectedSession?.date === s.date &&
+                  selectedSession?.program_day_id === s.program_day_id
+                    ? 'bold'
+                    : 'normal'
+              }}
+              onClick={() => {
+                const isSame =
+                  selectedSession?.date === s.date &&
+                  selectedSession?.program_day_id === s.program_day_id;
+                setSelectedSession(isSame ? null : s);
+              }}
             >
               {s.date} — {label} — {s.total_sets} sets
             </li>
           );
         })}
       </ul>
+
+      {selectedSession && (
+        <ClientWorkoutSessionDetail
+          clientId={clientId}
+          date={selectedSession.date}
+          programDayId={selectedSession.program_day_id}
+        />
+      )}
     </div>
   );
 }
