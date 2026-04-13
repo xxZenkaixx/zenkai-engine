@@ -12,6 +12,7 @@ export default function ClientWorkoutHistoryList({ clientId }) {
     if (!clientId) return;
     setLoading(true);
     setError(null);
+    setSelectedSession(null);
 
     fetchWorkoutSessions(clientId)
       .then((data) => setSessions(Array.isArray(data) ? data : []))
