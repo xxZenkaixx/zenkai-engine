@@ -4,12 +4,14 @@
 import { useState } from 'react';
 import { createProgram, updateProgram, deleteProgram } from '../api/programApi';
 import ProgramDayList from './ProgramDayList';
+import WorkoutPreview from './WorkoutPreview';
 
 export default function ProgramList({ programs, onProgramsChanged }) {
   const [name, setName] = useState('');
   const [weeks, setWeeks] = useState('');
   const [deloadWeeks, setDeloadWeeks] = useState('');
   const [selectedProgramId, setSelectedProgramId] = useState(null);
+  const [previewProgramId, setPreviewProgramId] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [editFields, setEditFields] = useState({ name: '', weeks: '', deload_weeks: '' });
   const [loading, setLoading] = useState(false);
@@ -176,6 +178,9 @@ export default function ProgramList({ programs, onProgramsChanged }) {
                 </span>
                 <button onClick={() => handleEditStart(p)}>Edit</button>
                 <button onClick={() => handleDelete(p.id)}>Delete</button>
+                <button onClick={() => setPreviewProgramId(previewProgramId === p.id ? null : p.id)}>
+                  {previewProgramId === p.id ? 'Close Preview' : 'Preview'}
+                </button>
               </>
             )}
           </li>
@@ -183,6 +188,7 @@ export default function ProgramList({ programs, onProgramsChanged }) {
       </ul>
 
       {selectedProgramId && <ProgramDayList programId={selectedProgramId} />}
+      {previewProgramId && <WorkoutPreview programId={previewProgramId} />}
     </div>
   );
 }
