@@ -28,7 +28,7 @@ export default function App() {
       {view === 'clientHome' && activeClientId && (
         <>
           <button onClick={() => setView('admin')}>Back to Admin</button>
-          <ClientHome clientId={activeClientId} onStartWorkout={handleStartWorkout} />
+          <ClientHome clientId={activeClientId} onStartWorkout={handleStartWorkout} onBack={() => setView('admin')} />
         </>
       )}
 

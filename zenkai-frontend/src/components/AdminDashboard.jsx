@@ -131,12 +131,12 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
             onAssigned={handleAssigned}
           />
 
-          <button onClick={() => onStartWorkout(selectedClientId)}>
-            Start Workout for Client
+          <button className="btn-primary" onClick={() => onViewClientHome(selectedClientId)}>
+            Open Client View
           </button>
 
-          <button onClick={() => onViewClientHome(selectedClientId)}>
-            View Client Home
+          <button className="btn-ghost" onClick={() => onStartWorkout(selectedClientId)}>
+            Start Workout (Direct)
           </button>
 
           <PerformanceSummary clientId={selectedClientId} />

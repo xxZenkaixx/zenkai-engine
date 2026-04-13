@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { fetchActiveProgram } from '../api/clientProgramApi';
 import { fetchWorkoutSessions } from '../api/historyApi';
+import WorkoutPreview from './WorkoutPreview';
+import ClientWorkoutSessionDetail from './ClientWorkoutSessionDetail';
 import './ClientHome.css';
 
 function getThisWeek() {
@@ -24,16 +26,20 @@ function formatDateKey(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-export default function ClientHome({ clientId, onStartWorkout }) {
+export default function ClientHome({ clientId, onStartWorkout, onBack }) {
   const [activeProgram, setActiveProgram] = useState(null);
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedSession, setSelectedSession] = useState(null);
+  const [showPreview, setShowPreview] = useState(false);
 
   const weekDays = useMemo(() => getThisWeek(), []);
 
   useEffect(() => {
     if (!clientId) return;
     setLoading(true);
+    setSelectedSession(null);
+    setShowPreview(false);
 
     Promise.all([
       fetchActiveProgram(clientId),
@@ -66,6 +72,7 @@ export default function ClientHome({ clientId, onStartWorkout }) {
   const recentSessions = sessions.slice(0, 4);
   const programName = activeProgram?.Program?.name;
   const programWeeks = activeProgram?.Program?.weeks;
+  const programId = activeProgram?.Program?.id;
 
   if (loading) {
     return (
@@ -78,13 +85,24 @@ export default function ClientHome({ clientId, onStartWorkout }) {
   return (
     <div className="ch-wrap">
       <div className="ch-topbar">
+        <button className="ch-back-btn" onClick={onBack}>← Back</button>
         <div>
           <h1 className="ch-title">My Training</h1>
           {programName && (
             <p className="ch-sub">{programName} · {programWeeks} weeks</p>
           )}
         </div>
+        {programId && (
+          <button className="ch-secondary-btn" onClick={() => setShowPreview(v => !v)}>
+            {showPreview ? 'Hide Program' : 'View Program'}
+          </button>
+        )}
       </div>
+      {showPreview && programId && (
+        <div className="ch-preview-wrap">
+          <WorkoutPreview programId={programId} />
+        </div>
+      )}
 
       <div className="ch-grid">
         <div className="ch-col">
@@ -141,7 +159,11 @@ export default function ClientHome({ clientId, onStartWorkout }) {
               recentSessions.map((s) => {
                 const label = s.day_name || `Day ${s.day_number}`;
                 return (
-                  <div key={`${s.date}-${s.program_day_id}`} className="ch-history-row">
+                  <div
+                    key={`${s.date}-${s.program_day_id}`}
+                    className="ch-history-row"
+                    onClick={() => setSelectedSession(s)}
+                  >
                     <div className="ch-history-info">
                       <div className="ch-history-name">{s.date} — {label}</div>
                       <div className="ch-history-meta">{s.total_sets} sets</div>
@@ -154,6 +176,17 @@ export default function ClientHome({ clientId, onStartWorkout }) {
           </div>
         </div>
       </div>
+      {selectedSession && (
+        <div style={{ marginTop: '24px' }}>
+          <button className="ch-back-btn" onClick={() => setSelectedSession(null)}>← Back to Overview</button>
+          <ClientWorkoutSessionDetail
+            clientId={clientId}
+            date={selectedSession.date}
+            programDayId={selectedSession.program_day_id}
+            dayLabel={selectedSession.day_name || `Day ${selectedSession.day_number}`}
+          />
+        </div>
+      )}
     </div>
   );
 }
