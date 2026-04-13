@@ -80,7 +80,7 @@ export default function WorkoutHistory({ clientId }) {
                         <li key={s.set_number}>
                           Set {s.set_number}: {s.completed_reps} reps
                           {s.completed_weight != null
-                            ? ` @ ${parseFloat(s.completed_weight)} lbs`
+                            ? ` @ ${parseFloat(s.completed_weight)} lb`
                             : ''}
                         </li>
                       ))}

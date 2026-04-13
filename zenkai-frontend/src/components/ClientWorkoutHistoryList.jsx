@@ -48,7 +48,7 @@ export default function ClientWorkoutHistoryList({ clientId }) {
                 setSelectedSession(isSame ? null : s);
               }}
             >
-              {s.date} — {label} — {s.total_sets} sets
+              {s.date} | {label} | {s.total_sets} sets
             </li>
           );
         })}
@@ -59,6 +59,7 @@ export default function ClientWorkoutHistoryList({ clientId }) {
           clientId={clientId}
           date={selectedSession.date}
           programDayId={selectedSession.program_day_id}
+          dayLabel={selectedSession.day_name || `Day ${selectedSession.day_number}`}
         />
       )}
     </div>

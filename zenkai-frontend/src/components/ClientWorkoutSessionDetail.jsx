@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { fetchWorkoutDetail } from '../api/historyApi';
 
-export default function ClientWorkoutSessionDetail({ clientId, date, programDayId }) {
+export default function ClientWorkoutSessionDetail({ clientId, date, programDayId, dayLabel }) {
   const [exercises, setExercises] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -24,7 +24,7 @@ export default function ClientWorkoutSessionDetail({ clientId, date, programDayI
 
   return (
     <div>
-      <h4>{date}</h4>
+      <h4>{date}{dayLabel ? ` | ${dayLabel}` : ''}</h4>
 
       {exercises.map((ex) => (
         <div key={`${ex.exercise_name}-${ex.order_index}`}>
