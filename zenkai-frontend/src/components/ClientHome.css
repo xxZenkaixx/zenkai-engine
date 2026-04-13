@@ -1,0 +1,214 @@
+.ch-wrap {
+  min-height: 100vh;
+  background: #050505;
+  color: #ffffff;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+  padding: 32px 24px;
+  box-sizing: border-box;
+}
+
+@media (max-width: 600px) {
+  .ch-wrap { padding: 20px 16px; }
+}
+
+.ch-loading {
+  color: #888;
+  font-size: 14px;
+  padding: 40px;
+  text-align: center;
+}
+
+.ch-topbar {
+  margin-bottom: 28px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #2a2a2a;
+}
+
+.ch-title {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -1px;
+  margin: 0 0 4px;
+}
+
+.ch-sub {
+  font-size: 13px;
+  color: #888888;
+  margin: 0;
+}
+
+.ch-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 768px) {
+  .ch-grid { grid-template-columns: 1fr; }
+}
+
+.ch-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ch-card {
+  background: #111111;
+  border: 1px solid #2a2a2a;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.ch-card-title {
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: #444444;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.ch-card-sub {
+  font-size: 13px;
+  color: #888888;
+  margin-bottom: 16px;
+}
+
+.ch-week-strip {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.ch-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 4px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  gap: 4px;
+}
+
+.ch-day-label {
+  font-size: 10px;
+  color: #444444;
+  letter-spacing: 0.5px;
+}
+
+.ch-day-num {
+  font-size: 13px;
+  font-weight: 600;
+  color: #888888;
+}
+
+.ch-day-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.ch-day--done .ch-day-num { color: #ffffff; }
+.ch-day--done .ch-day-dot { background: #c8ff00; }
+
+.ch-day--today { border-color: #c8ff00; }
+.ch-day--today .ch-day-num { color: #c8ff00; }
+.ch-day--today .ch-day-dot { background: #c8ff00; }
+
+.ch-cta-btn {
+  width: 100%;
+  padding: 13px;
+  background: #c8ff00;
+  color: #000000;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.3px;
+  transition: background 0.15s;
+}
+
+.ch-cta-btn:hover { background: #d4ff1a; }
+
+.ch-lift-row {
+  display: flex;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid #1a1a1a;
+}
+
+.ch-lift-row:last-child { border-bottom: none; }
+
+.ch-lift-info { flex: 1; }
+
+.ch-lift-name {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.ch-lift-meta {
+  font-size: 12px;
+  color: #888888;
+}
+
+.ch-lift-weight {
+  font-size: 22px;
+  font-weight: 700;
+  color: #c8ff00;
+}
+
+.ch-lift-unit {
+  font-size: 12px;
+  color: #888888;
+  margin-left: 2px;
+}
+
+.ch-history-row {
+  display: flex;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid #1a1a1a;
+  gap: 12px;
+}
+
+.ch-history-row:last-child { border-bottom: none; }
+
+.ch-history-info { flex: 1; }
+
+.ch-history-name {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 3px;
+}
+
+.ch-history-meta {
+  font-size: 12px;
+  color: #888888;
+}
+
+.ch-tag {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ch-tag--green {
+  background: rgba(200, 255, 0, 0.1);
+  color: #c8ff00;
+}
+
+.ch-empty {
+  font-size: 13px;
+  color: #888888;
+  margin: 8px 0 0;
+}

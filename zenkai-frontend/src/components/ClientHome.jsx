@@ -1,0 +1,159 @@
+import { useState, useEffect, useMemo } from 'react';
+import { fetchActiveProgram } from '../api/clientProgramApi';
+import { fetchWorkoutSessions } from '../api/historyApi';
+import './ClientHome.css';
+
+function getThisWeek() {
+  const today = new Date();
+  const dow = today.getDay();
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1));
+
+  const todayKey = formatDateKey(today);
+  const labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    const key = formatDateKey(d);
+    return { key, label: labels[i], dayNum: d.getDate(), isToday: key === todayKey };
+  });
+}
+
+function formatDateKey(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+export default function ClientHome({ clientId, onStartWorkout }) {
+  const [activeProgram, setActiveProgram] = useState(null);
+  const [sessions, setSessions] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const weekDays = useMemo(() => getThisWeek(), []);
+
+  useEffect(() => {
+    if (!clientId) return;
+    setLoading(true);
+
+    Promise.all([
+      fetchActiveProgram(clientId),
+      fetchWorkoutSessions(clientId)
+    ])
+      .then(([program, sess]) => {
+        setActiveProgram(program || null);
+        setSessions(Array.isArray(sess) ? sess : []);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [clientId]);
+
+  const sessionDateSet = useMemo(() => new Set(sessions.map((s) => s.date)), [sessions]);
+
+  const compoundLifts = useMemo(() => {
+    if (!activeProgram?.Program?.ProgramDays) return [];
+    const seen = new Set();
+    return activeProgram.Program.ProgramDays
+      .flatMap((day) => day.ExerciseInstances || [])
+      .filter((ex) => {
+        if (ex.type !== 'compound' || ex.target_weight == null) return false;
+        if (seen.has(ex.name)) return false;
+        seen.add(ex.name);
+        return true;
+      })
+      .slice(0, 4);
+  }, [activeProgram]);
+
+  const recentSessions = sessions.slice(0, 4);
+  const programName = activeProgram?.Program?.name;
+  const programWeeks = activeProgram?.Program?.weeks;
+
+  if (loading) {
+    return (
+      <div className="ch-wrap">
+        <p className="ch-loading">Loading...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="ch-wrap">
+      <div className="ch-topbar">
+        <div>
+          <h1 className="ch-title">My Training</h1>
+          {programName && (
+            <p className="ch-sub">{programName} · {programWeeks} weeks</p>
+          )}
+        </div>
+      </div>
+
+      <div className="ch-grid">
+        <div className="ch-col">
+          <div className="ch-card">
+            <div className="ch-card-title">This Week</div>
+            {programName && <div className="ch-card-sub">{programName}</div>}
+
+            <div className="ch-week-strip">
+              {weekDays.map((day) => {
+                const done = sessionDateSet.has(day.key);
+                let cls = 'ch-day';
+                if (day.isToday) cls += ' ch-day--today';
+                if (done) cls += ' ch-day--done';
+                return (
+                  <div key={day.key} className={cls}>
+                    <div className="ch-day-label">{day.label}</div>
+                    <div className="ch-day-num">{day.dayNum}</div>
+                    <div className="ch-day-dot" />
+                  </div>
+                );
+              })}
+            </div>
+
+            <button className="ch-cta-btn" onClick={() => onStartWorkout(clientId)}>
+              Start Today's Workout →
+            </button>
+          </div>
+
+          {compoundLifts.length > 0 && (
+            <div className="ch-card">
+              <div className="ch-card-title">Primary Lifts — Current Weight</div>
+              {compoundLifts.map((ex) => (
+                <div key={ex.id} className="ch-lift-row">
+                  <div className="ch-lift-info">
+                    <div className="ch-lift-name">{ex.name}</div>
+                    <div className="ch-lift-meta">Working Weight</div>
+                  </div>
+                  <div className="ch-lift-weight">
+                    {parseFloat(ex.target_weight)}
+                    <span className="ch-lift-unit">lb</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="ch-col">
+          <div className="ch-card">
+            <div className="ch-card-title">Recent History</div>
+            {recentSessions.length === 0 ? (
+              <p className="ch-empty">No sessions logged yet.</p>
+            ) : (
+              recentSessions.map((s) => {
+                const label = s.day_name || `Day ${s.day_number}`;
+                return (
+                  <div key={`${s.date}-${s.program_day_id}`} className="ch-history-row">
+                    <div className="ch-history-info">
+                      <div className="ch-history-name">{s.date} — {label}</div>
+                      <div className="ch-history-meta">{s.total_sets} sets</div>
+                    </div>
+                    <span className="ch-tag ch-tag--green">Done</span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

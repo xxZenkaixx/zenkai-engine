@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import AdminDashboard from './components/AdminDashboard';
 import ClientWorkoutView from './components/ClientWorkoutView';
+import ClientHome from './components/ClientHome';
 
 export default function App() {
   const [view, setView] = useState('admin');
@@ -13,10 +14,22 @@ export default function App() {
     setView('workout');
   };
 
+  const handleViewClientHome = (clientId) => {
+    setActiveClientId(clientId);
+    setView('clientHome');
+  };
+
   return (
     <div>
       {view === 'admin' && (
-        <AdminDashboard onStartWorkout={handleStartWorkout} />
+        <AdminDashboard onStartWorkout={handleStartWorkout} onViewClientHome={handleViewClientHome} />
+      )}
+
+      {view === 'clientHome' && activeClientId && (
+        <>
+          <button onClick={() => setView('admin')}>Back to Admin</button>
+          <ClientHome clientId={activeClientId} onStartWorkout={handleStartWorkout} />
+        </>
       )}
 
       {view === 'workout' && activeClientId && (

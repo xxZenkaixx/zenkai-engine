@@ -8,12 +8,13 @@ import { fetchActiveProgram } from '../api/clientProgramApi';
 import ClientList from './ClientList';
 import WorkoutHistory from './WorkoutHistory';
 import ClientWorkoutHistoryList from './ClientWorkoutHistoryList';
+import CalendarView from './CalendarView';
 import ExercisePerformanceHistory from './ExercisePerformanceHistory';
 import PerformanceSummary from './PerformanceSummary';
 import ProgramList from './ProgramList';
 import ClientProgramAssignment from './ClientProgramAssignment';
 
-export default function AdminDashboard({ onStartWorkout }) {
+export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
   const [clients, setClients] = useState([]);
   const [programs, setPrograms] = useState([]);
   const [selectedClientId, setSelectedClientId] = useState(null);
@@ -132,6 +133,10 @@ export default function AdminDashboard({ onStartWorkout }) {
 
           <button onClick={() => onStartWorkout(selectedClientId)}>
             Start Workout for Client
+          </button>
+
+          <button onClick={() => onViewClientHome(selectedClientId)}>
+            View Client Home
           </button>
 
           <PerformanceSummary clientId={selectedClientId} />
