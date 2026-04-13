@@ -5,6 +5,36 @@ const router = express.Router();
 const { sequelize } = require('../models');
 const { QueryTypes } = require('sequelize');
 
+// * Session list for a client with total set counts, newest first.
+router.get('/:clientId/workouts', async (req, res) => {
+  try {
+    const { clientId } = req.params;
+
+    const rows = await sequelize.query(`
+      SELECT
+        DATE(ls.completed_at) AS date,
+        pd.id AS program_day_id,
+        pd.name AS day_name,
+        pd.day_number,
+        pd.program_id,
+        COUNT(ls.id) AS total_sets
+      FROM logged_sets ls
+      JOIN exercise_instances ei ON ls.exercise_instance_id = ei.id
+      JOIN program_days pd ON ei.program_day_id = pd.id
+      WHERE ls.client_id = :clientId
+      GROUP BY DATE(ls.completed_at), pd.id, pd.name, pd.day_number, pd.program_id
+      ORDER BY DATE(ls.completed_at) DESC
+    `, {
+      replacements: { clientId },
+      type: QueryTypes.SELECT
+    });
+
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // * Distinct workout sessions for a client, newest first.
 // * Session identity: (DATE(completed_at), program_day_id)
 router.get('/:clientId', async (req, res) => {

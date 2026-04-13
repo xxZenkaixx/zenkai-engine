@@ -7,6 +7,7 @@ import { fetchPrograms } from '../api/programApi';
 import { fetchActiveProgram } from '../api/clientProgramApi';
 import ClientList from './ClientList';
 import WorkoutHistory from './WorkoutHistory';
+import ClientWorkoutHistoryList from './ClientWorkoutHistoryList';
 import ExercisePerformanceHistory from './ExercisePerformanceHistory';
 import PerformanceSummary from './PerformanceSummary';
 import ProgramList from './ProgramList';
@@ -134,6 +135,7 @@ export default function AdminDashboard({ onStartWorkout }) {
           </button>
 
           <PerformanceSummary clientId={selectedClientId} />
+          <ClientWorkoutHistoryList clientId={selectedClientId} />
           <WorkoutHistory clientId={selectedClientId} />
           <ExercisePerformanceHistory clientId={selectedClientId} />
         </div>

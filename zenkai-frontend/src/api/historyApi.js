@@ -31,3 +31,9 @@ export const fetchExercisePerformance = async (clientId, exerciseInstanceId) => 
   if (!res.ok) throw new Error('Failed to fetch exercise performance');
   return res.json();
 };
+
+export const fetchWorkoutSessions = async (clientId) => {
+  const res = await fetch(`${BASE_URL}/${clientId}/workouts`);
+  if (!res.ok) throw new Error('Failed to fetch workout sessions');
+  return res.json();
+};
