@@ -5,16 +5,18 @@ import { useState, useEffect } from 'react';
 import { fetchClients } from '../api/clientApi';
 import { fetchPrograms } from '../api/programApi';
 import { fetchActiveProgram } from '../api/clientProgramApi';
+import AdminLayout from './AdminLayout';
 import ClientList from './ClientList';
 import WorkoutHistory from './WorkoutHistory';
 import ClientWorkoutHistoryList from './ClientWorkoutHistoryList';
-import CalendarView from './CalendarView';
 import ExercisePerformanceHistory from './ExercisePerformanceHistory';
 import PerformanceSummary from './PerformanceSummary';
 import ProgramList from './ProgramList';
 import ClientProgramAssignment from './ClientProgramAssignment';
 
 export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
+  const [adminSection, setAdminSection] = useState('dashboard');
+
   const [clients, setClients] = useState([]);
   const [programs, setPrograms] = useState([]);
   const [selectedClientId, setSelectedClientId] = useState(null);
@@ -32,7 +34,6 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
           fetchClients(),
           fetchPrograms()
         ]);
-
         setClients(clientData);
         setPrograms(programData);
       } catch (err) {
@@ -41,30 +42,25 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
         setLoading(false);
       }
     };
-
     loadData();
   }, []);
 
-  // * Fetch active program when client changes
   useEffect(() => {
     if (!selectedClientId) {
       setActiveProgram(null);
       return;
     }
-
     const load = async () => {
       setActiveProgramLoading(true);
-
       try {
         const data = await fetchActiveProgram(selectedClientId);
         setActiveProgram(data || null);
-      } catch (err) {
+      } catch {
         setActiveProgram(null);
       } finally {
         setActiveProgramLoading(false);
       }
     };
-
     load();
   }, [selectedClientId]);
 
@@ -87,69 +83,180 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
 
   const handleAssigned = async () => {
     await handleProgramsChanged();
-
     if (selectedClientId) {
       const data = await fetchActiveProgram(selectedClientId);
       setActiveProgram(data || null);
     }
   };
 
-  if (loading) return <p>Loading...</p>;
-  if (error) return <p>Error: {error}</p>;
+  if (loading) {
+    return (
+      <AdminLayout activeSection={adminSection} onSectionChange={setAdminSection}>
+        <p style={{ color: '#888' }}>Loading...</p>
+      </AdminLayout>
+    );
+  }
 
-  return (
+  if (error) {
+    return (
+      <AdminLayout activeSection={adminSection} onSectionChange={setAdminSection}>
+        <p style={{ color: '#ff4444' }}>Error: {error}</p>
+      </AdminLayout>
+    );
+  }
+
+  // * Derived from loaded clients array — safe, no extra fetch
+  const selectedClient = clients.find(c => c.id === selectedClientId) || null;
+
+  // * Client detail block — shared between Dashboard and Clients sections
+  const clientDetail = selectedClientId && (
     <div>
-      <h1>Admin Dashboard</h1>
+      <h3 style={{ color: '#aaa', fontSize: '13px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', margin: '24px 0 12px' }}>
+        Active Program
+      </h3>
 
-      <ClientList
-        clients={clients}
+      {activeProgramLoading && <p style={{ color: '#666' }}>Loading...</p>}
+
+      {!activeProgramLoading && activeProgram?.Program && (
+        <p style={{ color: '#e0e0e0', margin: '0 0 12px' }}>
+          <strong>{activeProgram.Program.name}</strong>
+          <span style={{ color: '#555', marginLeft: 8 }}>{activeProgram.Program.weeks} weeks</span>
+        </p>
+      )}
+
+      {!activeProgramLoading && !activeProgram && (
+        <p style={{ color: '#555', margin: '0 0 12px' }}>No active program assigned.</p>
+      )}
+
+      <ClientProgramAssignment
         selectedClientId={selectedClientId}
-        onSelectClient={setSelectedClientId}
-        onClientCreated={handleClientCreated}
-        onClientDeleted={handleClientDeleted}
+        programs={programs}
+        onAssigned={handleAssigned}
       />
 
-      {selectedClientId && (
-        <div>
-          <h3>Active Program</h3>
+      <div style={{ display: 'flex', gap: 10, margin: '16px 0' }}>
+        <button className="btn-primary" onClick={() => onViewClientHome(selectedClientId)}>
+          Open Client View
+        </button>
+        <button className="btn-ghost" onClick={() => onStartWorkout(selectedClientId)}>
+          Start Workout (Direct)
+        </button>
+      </div>
 
-          {activeProgramLoading && <p>Loading...</p>}
+      <PerformanceSummary clientId={selectedClientId} />
+      <ClientWorkoutHistoryList clientId={selectedClientId} />
+      <WorkoutHistory clientId={selectedClientId} />
+      <ExercisePerformanceHistory clientId={selectedClientId} />
+    </div>
+  );
 
-          {!activeProgramLoading && activeProgram?.Program && (
-            <p>
-              <strong>{activeProgram.Program.name}</strong> — {activeProgram.Program.weeks} weeks
-            </p>
+  return (
+    <AdminLayout activeSection={adminSection} onSectionChange={setAdminSection}>
+
+      {/* ── Dashboard ── */}
+      {adminSection === 'dashboard' && (
+        <div className="admin-dashboard">
+          <div className="admin-dashboard__header">
+            <h2 className="admin-section-title">Admin Home</h2>
+            <p className="admin-dashboard__sub">Manage clients, assign programs, and track progress.</p>
+          </div>
+
+          <div className="admin-stat-row">
+            <div className="admin-stat-card">
+              <span className="admin-stat-card__value">{clients.length}</span>
+              <span className="admin-stat-card__label">Clients</span>
+            </div>
+            <div className="admin-stat-card">
+              <span className="admin-stat-card__value">{programs.length}</span>
+              <span className="admin-stat-card__label">Programs</span>
+            </div>
+          </div>
+
+          <div className="admin-quick-actions">
+            <p className="admin-quick-actions__label">Quick Actions</p>
+            <div className="admin-quick-actions__row">
+              <button
+                className="admin-action-btn admin-action-btn--primary"
+                onClick={() => setAdminSection('programs')}
+              >
+                Programs →
+              </button>
+              <button
+                className="admin-action-btn"
+                onClick={() => setAdminSection('clients')}
+              >
+                Clients →
+              </button>
+            </div>
+          </div>
+
+          {selectedClient && (
+            <div className="admin-client-snapshot">
+              <p className="admin-client-snapshot__label">Selected Client</p>
+              <div className="admin-client-snapshot__card">
+                <div className="admin-client-snapshot__name">{selectedClient.name}</div>
+                <div className="admin-client-snapshot__program">
+                  {activeProgramLoading && <span style={{ color: '#555' }}>Loading program...</span>}
+                  {!activeProgramLoading && activeProgram?.Program && (
+                    <span>
+                      <span className="admin-client-snapshot__prog-name">{activeProgram.Program.name}</span>
+                      <span className="admin-client-snapshot__prog-meta"> · {activeProgram.Program.weeks} weeks</span>
+                    </span>
+                  )}
+                  {!activeProgramLoading && !activeProgram && (
+                    <span style={{ color: '#444' }}>No program assigned</span>
+                  )}
+                </div>
+                <div className="admin-client-snapshot__actions">
+                  <button className="btn-primary" onClick={() => onViewClientHome(selectedClientId)}>
+                    Open Client View
+                  </button>
+                  <button className="btn-ghost" onClick={() => onStartWorkout(selectedClientId)}>
+                    Start Workout
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
-
-          {!activeProgramLoading && !activeProgram && (
-            <p>No active program assigned.</p>
-          )}
-
-          <ClientProgramAssignment
-            selectedClientId={selectedClientId}
-            programs={programs}
-            onAssigned={handleAssigned}
-          />
-
-          <button className="btn-primary" onClick={() => onViewClientHome(selectedClientId)}>
-            Open Client View
-          </button>
-
-          <button className="btn-ghost" onClick={() => onStartWorkout(selectedClientId)}>
-            Start Workout (Direct)
-          </button>
-
-          <PerformanceSummary clientId={selectedClientId} />
-          <ClientWorkoutHistoryList clientId={selectedClientId} />
-          <WorkoutHistory clientId={selectedClientId} />
-          <ExercisePerformanceHistory clientId={selectedClientId} />
         </div>
       )}
 
-      <ProgramList
-        programs={programs}
-        onProgramsChanged={handleProgramsChanged}
-      />
-    </div>
+      {/* ── Clients ── */}
+      {adminSection === 'clients' && (
+        <div>
+          <h2 className="admin-section-title">Clients</h2>
+          <ClientList
+            clients={clients}
+            selectedClientId={selectedClientId}
+            onSelectClient={setSelectedClientId}
+            onClientCreated={handleClientCreated}
+            onClientDeleted={handleClientDeleted}
+          />
+          {clientDetail}
+        </div>
+      )}
+
+      {/* ── Programs ── */}
+      {adminSection === 'programs' && (
+        <div>
+          <h2 className="admin-section-title">Programs</h2>
+          <ProgramList
+            programs={programs}
+            clients={clients}
+            onProgramsChanged={handleProgramsChanged}
+            onAssigned={handleAssigned}
+          />
+        </div>
+      )}
+
+      {/* ── Exercise Library (parked) ── */}
+      {adminSection === 'exerciseLibrary' && (
+        <div className="admin-parked-panel">
+          <p className="admin-parked-panel__title">Exercise Library</p>
+          <p className="admin-parked-panel__sub">Parked — coming in a future release.</p>
+        </div>
+      )}
+
+    </AdminLayout>
   );
 }

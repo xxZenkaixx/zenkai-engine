@@ -180,146 +180,184 @@ export default function ExerciseInstanceForm({ dayId }) {
   const se = (field, val) => setEditFields({ ...editFields, [field]: val });
 
   return (
-    <div>
-      <h4>Exercises</h4>
-      <ul>
+    <div className="ex-form">
+      <div className="ex-list">
+        {exercises.length === 0 && (
+          <p className="ex-list__empty">No exercises yet.</p>
+        )}
         {exercises.map((ex, index) => (
-          <li key={ex.id}>
+          <div key={ex.id} className="ex-row">
             {editingId === ex.id ? (
-              <>
-                <input placeholder='Name' value={editFields.name} onChange={(e) => se('name', e.target.value)} />
-                {editErrors.name && <span style={{ color: 'red' }}>{editErrors.name}</span>}
-
-                <select value={editFields.type} onChange={(e) => se('type', e.target.value)}>
-                  <option value='compound'>Compound</option>
-                  <option value='accessory'>Accessory</option>
-                  <option value='custom'>Custom</option>
-                </select>
-                {editErrors.type && <span style={{ color: 'red' }}>{editErrors.type}</span>}
-
-                <select value={editFields.equipment_type} onChange={(e) => se('equipment_type', e.target.value)}>
-                  <option value='barbell'>Barbell</option>
-                  <option value='dumbbell'>Dumbbell</option>
-                  <option value='machine'>Machine</option>
-                  <option value='cable'>Cable</option>
-                </select>
+              <div className="ex-edit-form">
+                <div className="ex-edit-form__row">
+                  <input
+                    className="prog-input ex-edit-form__name"
+                    placeholder="Exercise name *"
+                    value={editFields.name}
+                    onChange={(e) => se('name', e.target.value)}
+                  />
+                  <select className="prog-input" value={editFields.type} onChange={(e) => se('type', e.target.value)}>
+                    <option value="compound">Compound</option>
+                    <option value="accessory">Accessory</option>
+                    <option value="custom">Custom</option>
+                  </select>
+                  <select className="prog-input" value={editFields.equipment_type} onChange={(e) => se('equipment_type', e.target.value)}>
+                    <option value="barbell">Barbell</option>
+                    <option value="dumbbell">Dumbbell</option>
+                    <option value="machine">Machine</option>
+                    <option value="cable">Cable</option>
+                  </select>
+                </div>
 
                 {editFields.type === 'custom' && (
-                  <>
-                    <select value={editFields.progression_mode} onChange={(e) => se('progression_mode', e.target.value)}>
-                      <option value=''>Select progression mode *</option>
-                      <option value='percent'>Percent</option>
-                      <option value='absolute'>Absolute</option>
+                  <div className="ex-edit-form__row">
+                    <select className="prog-input" value={editFields.progression_mode} onChange={(e) => se('progression_mode', e.target.value)}>
+                      <option value="">Progression mode *</option>
+                      <option value="percent">Percent</option>
+                      <option value="absolute">Absolute</option>
                     </select>
-                    {editErrors.progression_mode && <span style={{ color: 'red' }}>{editErrors.progression_mode}</span>}
-                    <input placeholder='Progression value *' value={editFields.progression_value} onChange={(e) => se('progression_value', e.target.value)} />
-                    {editErrors.progression_value && <span style={{ color: 'red' }}>{editErrors.progression_value}</span>}
-                  </>
+                    <input
+                      className="prog-input"
+                      placeholder="Progression value *"
+                      value={editFields.progression_value}
+                      onChange={(e) => se('progression_value', e.target.value)}
+                    />
+                  </div>
                 )}
 
                 {editFields.equipment_type === 'cable' && (
-                  <>
-                    <input placeholder='Base stack weight' value={editFields.base_stack_weight} onChange={(e) => se('base_stack_weight', e.target.value)} />
-                    <input placeholder='Stack step value' value={editFields.stack_step_value} onChange={(e) => se('stack_step_value', e.target.value)} />
-                    <input placeholder='Micro step value' value={editFields.micro_step_value} onChange={(e) => se('micro_step_value', e.target.value)} />
-                    <input placeholder='Max micro levels' value={editFields.max_micro_levels} onChange={(e) => se('max_micro_levels', e.target.value)} />
-                    <select value={editFields.cable_unit} onChange={(e) => se('cable_unit', e.target.value)}>
-                      <option value='lb'>lb</option>
-                      <option value='kg'>kg</option>
+                  <div className="ex-edit-form__row">
+                    <input className="prog-input" placeholder="Base stack" value={editFields.base_stack_weight} onChange={(e) => se('base_stack_weight', e.target.value)} />
+                    <input className="prog-input" placeholder="Stack step" value={editFields.stack_step_value} onChange={(e) => se('stack_step_value', e.target.value)} />
+                    <input className="prog-input" placeholder="Micro step" value={editFields.micro_step_value} onChange={(e) => se('micro_step_value', e.target.value)} />
+                    <input className="prog-input" placeholder="Max micro levels" value={editFields.max_micro_levels} onChange={(e) => se('max_micro_levels', e.target.value)} />
+                    <select className="prog-input" value={editFields.cable_unit} onChange={(e) => se('cable_unit', e.target.value)}>
+                      <option value="lb">lb</option>
+                      <option value="kg">kg</option>
                     </select>
-                  </>
+                  </div>
                 )}
 
-                <input placeholder='Sets' value={editFields.target_sets} onChange={(e) => se('target_sets', e.target.value)} />
-                {editErrors.target_sets && <span style={{ color: 'red' }}>{editErrors.target_sets}</span>}
-                <input placeholder='Reps' value={editFields.target_reps} onChange={(e) => se('target_reps', e.target.value)} />
-                {editErrors.target_reps && <span style={{ color: 'red' }}>{editErrors.target_reps}</span>}
-                <input placeholder='Weight (optional)' value={editFields.target_weight} onChange={(e) => se('target_weight', e.target.value)} />
-                <input placeholder='Rest seconds' value={editFields.rest_seconds} onChange={(e) => se('rest_seconds', e.target.value)} />
-                {editErrors.rest_seconds && <span style={{ color: 'red' }}>{editErrors.rest_seconds}</span>}
-                <input placeholder='Order index' value={editFields.order_index} onChange={(e) => se('order_index', e.target.value)} />
-                {editErrors.order_index && <span style={{ color: 'red' }}>{editErrors.order_index}</span>}
-                <input placeholder='Notes (optional)' value={editFields.notes} onChange={(e) => se('notes', e.target.value)} />
+                <div className="ex-edit-form__row">
+                  <input className="prog-input" placeholder="Sets *" value={editFields.target_sets} onChange={(e) => se('target_sets', e.target.value)} />
+                  <input className="prog-input" placeholder="Reps *" value={editFields.target_reps} onChange={(e) => se('target_reps', e.target.value)} />
+                  <input className="prog-input" placeholder="Weight (optional)" value={editFields.target_weight} onChange={(e) => se('target_weight', e.target.value)} />
+                  <input className="prog-input" placeholder="Rest (sec) *" value={editFields.rest_seconds} onChange={(e) => se('rest_seconds', e.target.value)} />
+                </div>
 
-                <button onClick={() => handleEditSave(ex.id)}>Save</button>
-                <button onClick={() => { setEditingId(null); setEditFields(EMPTY_FORM); setEditErrors(EMPTY_ERRORS); setError(null); }}>Cancel</button>
-              </>
+                <div className="ex-edit-form__row">
+                  <input className="prog-input ex-edit-form__notes" placeholder="Notes (optional)" value={editFields.notes} onChange={(e) => se('notes', e.target.value)} />
+                  <input className="prog-input" placeholder="Order #" value={editFields.order_index} onChange={(e) => se('order_index', e.target.value)} />
+                </div>
+
+                {(editErrors.name || editErrors.type || editErrors.target_sets || editErrors.target_reps || editErrors.rest_seconds || editErrors.progression_mode || editErrors.progression_value) && (
+                  <p className="ex-error">
+                    {editErrors.name || editErrors.type || editErrors.target_sets || editErrors.target_reps || editErrors.rest_seconds || editErrors.progression_mode || editErrors.progression_value}
+                  </p>
+                )}
+
+                <div className="ex-edit-form__actions">
+                  <button className="prog-btn prog-btn--save" onClick={() => handleEditSave(ex.id)}>Save</button>
+                  <button className="prog-btn" onClick={() => { setEditingId(null); setEditFields(EMPTY_FORM); setEditErrors(EMPTY_ERRORS); setError(null); }}>Cancel</button>
+                </div>
+              </div>
             ) : (
-              <>
-                <span>
-                  {ex.order_index}. {ex.name} ({ex.type}) [{ex.equipment_type || 'barbell'}] — {ex.target_sets}x{ex.target_reps}
-                  {ex.equipment_type === 'cable' && ex.cable_setup_locked
-                    ? ` @ ${(parseFloat(ex.base_stack_weight) + (parseInt(ex.current_micro_level || 0) * parseFloat(ex.micro_step_value))).toFixed(1)} ${ex.cable_unit}`
-                    : ex.target_weight != null ? ` @ ${ex.target_weight} lb` : ''}
-                </span>
-                <button onClick={() => handleMoveUp(index)} disabled={index === 0}>Up</button>
-                <button onClick={() => handleMoveDown(index)} disabled={index === exercises.length - 1}>Down</button>
-                <button onClick={() => handleEditStart(ex)}>Edit</button>
-                <button onClick={() => handleDelete(ex.id)}>Delete</button>
-              </>
+              <div className="ex-row__inner">
+                <div className="ex-row__info">
+                  <span className="ex-row__name">{ex.name}</span>
+                  <span className="ex-row__meta">
+                    {ex.type} · {ex.equipment_type || 'barbell'} · {ex.target_sets}×{ex.target_reps}
+                    {ex.equipment_type === 'cable' && ex.cable_setup_locked
+                      ? ` · ${(parseFloat(ex.base_stack_weight) + (parseInt(ex.current_micro_level || 0) * parseFloat(ex.micro_step_value))).toFixed(1)} ${ex.cable_unit}`
+                      : ex.target_weight != null ? ` · ${ex.target_weight} lb` : ''}
+                  </span>
+                </div>
+                <div className="ex-row__controls">
+                  <button className="prog-btn" onClick={() => handleMoveUp(index)} disabled={index === 0}>↑</button>
+                  <button className="prog-btn" onClick={() => handleMoveDown(index)} disabled={index === exercises.length - 1}>↓</button>
+                  <button className="prog-btn" onClick={() => handleEditStart(ex)}>Edit</button>
+                  <button className="prog-btn prog-btn--danger" onClick={() => handleDelete(ex.id)}>Delete</button>
+                </div>
+              </div>
             )}
-          </li>
+          </div>
         ))}
-      </ul>
+      </div>
 
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-      <h5>Add Exercise</h5>
+      {error && <p className="ex-error">{error}</p>}
 
-      <input placeholder='Name *' value={form.name} onChange={(e) => sf('name', e.target.value)} />
-      {formErrors.name && <span style={{ color: 'red' }}>{formErrors.name}</span>}
+      <div className="ex-add-form">
+        <p className="ex-add-form__label">Add Exercise</p>
 
-      <select value={form.type} onChange={(e) => sf('type', e.target.value)}>
-        <option value='compound'>Compound</option>
-        <option value='accessory'>Accessory</option>
-        <option value='custom'>Custom</option>
-      </select>
-      {formErrors.type && <span style={{ color: 'red' }}>{formErrors.type}</span>}
-
-      <select value={form.equipment_type} onChange={(e) => sf('equipment_type', e.target.value)}>
-        <option value='barbell'>Barbell</option>
-        <option value='dumbbell'>Dumbbell</option>
-        <option value='machine'>Machine</option>
-        <option value='cable'>Cable</option>
-      </select>
-
-      {form.type === 'custom' && (
-        <>
-          <select value={form.progression_mode} onChange={(e) => sf('progression_mode', e.target.value)}>
-            <option value=''>Select progression mode *</option>
-            <option value='percent'>Percent</option>
-            <option value='absolute'>Absolute</option>
+        <div className="ex-add-form__row">
+          <input
+            className="prog-input ex-add-form__name"
+            placeholder="Exercise name *"
+            value={form.name}
+            onChange={(e) => sf('name', e.target.value)}
+          />
+          <select className="prog-input" value={form.type} onChange={(e) => sf('type', e.target.value)}>
+            <option value="compound">Compound</option>
+            <option value="accessory">Accessory</option>
+            <option value="custom">Custom</option>
           </select>
-          {formErrors.progression_mode && <span style={{ color: 'red' }}>{formErrors.progression_mode}</span>}
-          <input placeholder='Progression value *' value={form.progression_value} onChange={(e) => sf('progression_value', e.target.value)} />
-          {formErrors.progression_value && <span style={{ color: 'red' }}>{formErrors.progression_value}</span>}
-        </>
-      )}
-
-      {form.equipment_type === 'cable' && (
-        <>
-          <input placeholder='Base stack weight' value={form.base_stack_weight} onChange={(e) => sf('base_stack_weight', e.target.value)} />
-          <input placeholder='Stack step value' value={form.stack_step_value} onChange={(e) => sf('stack_step_value', e.target.value)} />
-          <input placeholder='Micro step value' value={form.micro_step_value} onChange={(e) => sf('micro_step_value', e.target.value)} />
-          <input placeholder='Max micro levels' value={form.max_micro_levels} onChange={(e) => sf('max_micro_levels', e.target.value)} />
-          <select value={form.cable_unit} onChange={(e) => sf('cable_unit', e.target.value)}>
-            <option value='lb'>lb</option>
-            <option value='kg'>kg</option>
+          <select className="prog-input" value={form.equipment_type} onChange={(e) => sf('equipment_type', e.target.value)}>
+            <option value="barbell">Barbell</option>
+            <option value="dumbbell">Dumbbell</option>
+            <option value="machine">Machine</option>
+            <option value="cable">Cable</option>
           </select>
-        </>
-      )}
+        </div>
 
-      <input placeholder='Sets *' value={form.target_sets} onChange={(e) => sf('target_sets', e.target.value)} />
-      {formErrors.target_sets && <span style={{ color: 'red' }}>{formErrors.target_sets}</span>}
-      <input placeholder='Reps *' value={form.target_reps} onChange={(e) => sf('target_reps', e.target.value)} />
-      {formErrors.target_reps && <span style={{ color: 'red' }}>{formErrors.target_reps}</span>}
-      <input placeholder='Weight (optional)' value={form.target_weight} onChange={(e) => sf('target_weight', e.target.value)} />
-      <input placeholder='Rest seconds *' value={form.rest_seconds} onChange={(e) => sf('rest_seconds', e.target.value)} />
-      {formErrors.rest_seconds && <span style={{ color: 'red' }}>{formErrors.rest_seconds}</span>}
-      <input placeholder='Order index (auto if blank)' value={form.order_index} onChange={(e) => sf('order_index', e.target.value)} />
-      {formErrors.order_index && <span style={{ color: 'red' }}>{formErrors.order_index}</span>}
-      <input placeholder='Notes (optional)' value={form.notes} onChange={(e) => sf('notes', e.target.value)} />
+        {form.type === 'custom' && (
+          <div className="ex-add-form__row">
+            <select className="prog-input" value={form.progression_mode} onChange={(e) => sf('progression_mode', e.target.value)}>
+              <option value="">Progression mode *</option>
+              <option value="percent">Percent</option>
+              <option value="absolute">Absolute</option>
+            </select>
+            <input
+              className="prog-input"
+              placeholder="Progression value *"
+              value={form.progression_value}
+              onChange={(e) => sf('progression_value', e.target.value)}
+            />
+          </div>
+        )}
 
-      <button onClick={handleCreate} disabled={loading}>{loading ? 'Saving...' : 'Add Exercise'}</button>
+        {form.equipment_type === 'cable' && (
+          <div className="ex-add-form__row">
+            <input className="prog-input" placeholder="Base stack" value={form.base_stack_weight} onChange={(e) => sf('base_stack_weight', e.target.value)} />
+            <input className="prog-input" placeholder="Stack step" value={form.stack_step_value} onChange={(e) => sf('stack_step_value', e.target.value)} />
+            <input className="prog-input" placeholder="Micro step" value={form.micro_step_value} onChange={(e) => sf('micro_step_value', e.target.value)} />
+            <input className="prog-input" placeholder="Max micro levels" value={form.max_micro_levels} onChange={(e) => sf('max_micro_levels', e.target.value)} />
+            <select className="prog-input" value={form.cable_unit} onChange={(e) => sf('cable_unit', e.target.value)}>
+              <option value="lb">lb</option>
+              <option value="kg">kg</option>
+            </select>
+          </div>
+        )}
+
+        <div className="ex-add-form__row">
+          <input className="prog-input" placeholder="Sets *" value={form.target_sets} onChange={(e) => sf('target_sets', e.target.value)} />
+          <input className="prog-input" placeholder="Reps *" value={form.target_reps} onChange={(e) => sf('target_reps', e.target.value)} />
+          <input className="prog-input" placeholder="Weight (optional)" value={form.target_weight} onChange={(e) => sf('target_weight', e.target.value)} />
+          <input className="prog-input" placeholder="Rest (sec) *" value={form.rest_seconds} onChange={(e) => sf('rest_seconds', e.target.value)} />
+        </div>
+
+        <div className="ex-add-form__row">
+          <input className="prog-input ex-add-form__notes" placeholder="Notes (optional)" value={form.notes} onChange={(e) => sf('notes', e.target.value)} />
+          <button className="ex-add-btn" onClick={handleCreate} disabled={loading}>
+            {loading ? 'Adding...' : '+ Add'}
+          </button>
+        </div>
+
+        {(formErrors.name || formErrors.type || formErrors.target_sets || formErrors.target_reps || formErrors.rest_seconds || formErrors.progression_mode || formErrors.progression_value) && (
+          <p className="ex-error">
+            {formErrors.name || formErrors.type || formErrors.target_sets || formErrors.target_reps || formErrors.rest_seconds || formErrors.progression_mode || formErrors.progression_value}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

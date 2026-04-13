@@ -104,82 +104,89 @@ export default function ProgramDayList({ programId }) {
   };
 
   return (
-    <div>
-      <h3>Days</h3>
+    <div className="prog-daylist">
+      <div className="pdl-header">
+        <span className="pdl-header__title">Days</span>
+      </div>
 
-      <input
-        type="number"
-        placeholder="Day number"
-        value={dayNumber}
-        onChange={(e) => setDayNumber(e.target.value)}
-      />
+      <div className="pdl-create-row">
+        <input
+          className="prog-input pdl-create-row__num"
+          type="number"
+          placeholder="Day #"
+          value={dayNumber}
+          onChange={(e) => setDayNumber(e.target.value)}
+        />
+        <input
+          className="prog-input pdl-create-row__name"
+          placeholder="Day name (optional)"
+          value={dayName}
+          onChange={(e) => setDayName(e.target.value)}
+        />
+        <button className="pdl-add-btn" onClick={handleCreate} disabled={loading}>
+          {loading ? 'Adding...' : '+ Add Day'}
+        </button>
+      </div>
 
-      <input
-        placeholder="Day name (optional)"
-        value={dayName}
-        onChange={(e) => setDayName(e.target.value)}
-      />
+      {error && <p className="prog-error">{error}</p>}
 
-      <button onClick={handleCreate} disabled={loading}>
-        {loading ? 'Creating...' : 'Add Day'}
-      </button>
-
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-
-      <ul>
+      <ul className="pdl-list">
+        {days.length === 0 && (
+          <li className="pdl-list__empty">No days yet. Add one above.</li>
+        )}
         {days.map((d) => (
-          <li key={d.id}>
+          <li
+            key={d.id}
+            className={`pdl-day${selectedDayId === d.id ? ' pdl-day--selected' : ''}`}
+          >
             {editingId === d.id ? (
-              <>
+              <div className="pdl-day__edit">
                 <input
+                  className="prog-input"
                   type="number"
+                  placeholder="Day #"
                   value={editFields.day_number}
-                  onChange={(e) =>
-                    setEditFields({
-                      ...editFields,
-                      day_number: e.target.value
-                    })
-                  }
+                  onChange={(e) => setEditFields({ ...editFields, day_number: e.target.value })}
                 />
-
                 <input
+                  className="prog-input"
                   placeholder="Day name (optional)"
                   value={editFields.name}
-                  onChange={(e) =>
-                    setEditFields({
-                      ...editFields,
-                      name: e.target.value
-                    })
-                  }
+                  onChange={(e) => setEditFields({ ...editFields, name: e.target.value })}
                 />
-
-                <button onClick={() => handleEditSave(d.id)}>Save</button>
-                <button onClick={handleEditCancel}>Cancel</button>
-              </>
+                <div className="pdl-day__edit-actions">
+                  <button className="prog-btn prog-btn--save" onClick={() => handleEditSave(d.id)}>
+                    Save
+                  </button>
+                  <button className="prog-btn" onClick={handleEditCancel}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
             ) : (
-              <>
-                <span
-                  onClick={() => setSelectedDayId(d.id)}
-                  style={{
-                    fontWeight:
-                      selectedDayId === d.id ? 'bold' : 'normal',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Day {d.day_number}
-                  {d.name ? ` — ${d.name}` : ''}
-                </span>
-
-                <button onClick={() => handleEditStart(d)}>Edit</button>
-                <button onClick={() => handleDelete(d.id)}>Delete</button>
-              </>
+              <div className="pdl-day__row" onClick={() => setSelectedDayId(d.id)}>
+                <div className="pdl-day__info">
+                  <span className="pdl-day__num">Day {d.day_number}</span>
+                  {d.name && <span className="pdl-day__name">{d.name}</span>}
+                </div>
+                <div className="pdl-day__actions" onClick={(e) => e.stopPropagation()}>
+                  <button className="prog-btn" onClick={() => handleEditStart(d)}>
+                    Edit
+                  </button>
+                  <button className="prog-btn prog-btn--danger" onClick={() => handleDelete(d.id)}>
+                    Delete
+                  </button>
+                </div>
+              </div>
             )}
           </li>
         ))}
       </ul>
 
       {selectedDayId && (
-        <ExerciseInstanceForm dayId={selectedDayId} />
+        <div className="pdl-exercises">
+          <ExerciseInstanceForm dayId={selectedDayId} />
+        </div>
       )}
     </div>
   );
