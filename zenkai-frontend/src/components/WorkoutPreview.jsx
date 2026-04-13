@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { fetchProgramDays } from '../api/programDayApi';
+import './WorkoutPreview.css';
 
 function formatWeight(exercise) {
   if (exercise.equipment_type === 'cable' && exercise.cable_setup_locked) {
@@ -65,51 +66,53 @@ export default function WorkoutPreview({ programId }) {
   );
 
   if (!programId) return null;
-  if (loading) return <p>Loading preview...</p>;
-  if (error) return <p style={{ color: 'red' }}>{error}</p>;
+  if (loading) return <div className="wp-wrap"><p className="wp-loading">Loading preview...</p></div>;
+  if (error) return <div className="wp-wrap"><p className="wp-error">{error}</p></div>;
 
   return (
-    <div>
-      <h4>Workout Preview</h4>
+    <div className="wp-wrap">
+      <div className="wp-section-label">Program Days</div>
 
       {days.length === 0 ? (
-        <p>No program days found.</p>
+        <p className="wp-empty">No program days found.</p>
       ) : (
-        <ul>
+        <div className="wp-day-tabs">
           {days.map((day) => (
-            <li key={day.id}>
-              <button type="button" onClick={() => setSelectedDayId(day.id)}>
-                Day {day.day_number}
-                {day.name ? ` — ${day.name}` : ''}
-              </button>
-            </li>
+            <button
+              key={day.id}
+              type="button"
+              className={`wp-day-tab${selectedDayId === day.id ? ' wp-day-tab--active' : ''}`}
+              onClick={() => setSelectedDayId(day.id)}
+            >
+              Day {day.day_number}{day.name ? ` — ${day.name}` : ''}
+            </button>
           ))}
-        </ul>
+        </div>
       )}
 
       {selectedDay && (
-        <div>
-          <h5>
-            Day {selectedDay.day_number}
-            {selectedDay.name ? ` — ${selectedDay.name}` : ''}
-          </h5>
+        <div className="wp-day-card">
+          <div className="wp-day-header">
+            Day {selectedDay.day_number}{selectedDay.name ? ` — ${selectedDay.name}` : ''}
+          </div>
 
-          <ul>
-            {[...(selectedDay.ExerciseInstances || [])]
+          {(selectedDay.ExerciseInstances || []).length === 0 ? (
+            <p className="wp-empty">No exercises for this day.</p>
+          ) : (
+            [...(selectedDay.ExerciseInstances || [])]
               .sort((a, b) => a.order_index - b.order_index)
               .map((exercise) => (
-                <li key={exercise.id}>
-                  <div>
-                    <strong>
-                      {exercise.order_index}. {exercise.name}
-                    </strong>
+                <div key={exercise.id} className="wp-ex-row">
+                  <span className="wp-ex-index">{exercise.order_index}.</span>
+                  <span className="wp-ex-name">{exercise.name}</span>
+                  <div className="wp-ex-meta">
+                    <span className="wp-ex-badge">{exercise.target_sets ?? '—'} sets</span>
+                    <span className="wp-ex-badge">{formatRepRange(exercise)} reps</span>
+                    <span className="wp-ex-badge wp-ex-badge--weight">{formatWeight(exercise)}</span>
                   </div>
-                  <div>Sets: {exercise.target_sets ?? '—'}</div>
-                  <div>Weight: {formatWeight(exercise)}</div>
-                  <div>Reps: {formatRepRange(exercise)}</div>
-                </li>
-              ))}
-          </ul>
+                </div>
+              ))
+          )}
         </div>
       )}
     </div>

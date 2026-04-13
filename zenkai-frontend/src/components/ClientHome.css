@@ -14,7 +14,7 @@
 }
 
 .ch-loading {
-  color: #666666;
+  color: #9ca3af;
   font-size: 14px;
   padding: 60px;
   text-align: center;
@@ -35,7 +35,7 @@
 
 .ch-sub {
   font-size: 13px;
-  color: #666666;
+  color: #9ca3af;
   margin: 0;
   letter-spacing: 0.2px;
 }
@@ -70,7 +70,7 @@
 .ch-card-title {
   font-size: 10px;
   letter-spacing: 1.2px;
-  color: #555555;
+  color: #9ca3af;
   text-transform: uppercase;
   margin-bottom: 14px;
   font-weight: 600;
@@ -78,7 +78,7 @@
 
 .ch-card-sub {
   font-size: 13px;
-  color: #666666;
+  color: #9ca3af;
   margin-bottom: 18px;
   letter-spacing: 0.1px;
 }
@@ -106,7 +106,7 @@
 
 .ch-day-label {
   font-size: 10px;
-  color: #555555;
+  color: #9ca3af;
   letter-spacing: 0.5px;
   font-weight: 500;
 }
@@ -114,7 +114,7 @@
 .ch-day-num {
   font-size: 14px;
   font-weight: 600;
-  color: #666666;
+  color: #9ca3af;
 }
 
 .ch-day-dot {
@@ -194,7 +194,7 @@
 
 .ch-lift-meta {
   font-size: 11px;
-  color: #555555;
+  color: #9ca3af;
   letter-spacing: 0.3px;
 }
 
@@ -208,7 +208,7 @@
 
 .ch-lift-unit {
   font-size: 11px;
-  color: #666666;
+  color: #9ca3af;
   margin-left: 3px;
   font-weight: 500;
 }
@@ -235,7 +235,7 @@
 
 .ch-history-meta {
   font-size: 12px;
-  color: #555555;
+  color: #9ca3af;
   letter-spacing: 0.2px;
 }
 
@@ -260,7 +260,7 @@
 /* ── EMPTY STATE ── */
 .ch-empty {
   font-size: 13px;
-  color: #555555;
+  color: #9ca3af;
   margin: 12px 0 0;
 }
 
@@ -284,7 +284,7 @@
 }
 
 .ch-back-btn:hover {
-  border-color: #555555;
+  border-color: #9ca3af;
   color: #cccccc;
 }
 
