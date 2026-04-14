@@ -183,7 +183,7 @@ export default function ExerciseInstanceForm({ dayId }) {
     <div className="ex-form">
       <div className="ex-list">
         {exercises.length === 0 && (
-          <p className="ex-list__empty">No exercises yet.</p>
+          <p className="ex-list__empty">No exercises yet — add your first exercise below.</p>
         )}
         {exercises.map((ex, index) => (
           <div key={ex.id} className="ex-row">

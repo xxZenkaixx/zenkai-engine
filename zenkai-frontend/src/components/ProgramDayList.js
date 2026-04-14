@@ -40,7 +40,7 @@ export default function ProgramDayList({ programId }) {
     setError(null);
 
     try {
-      await createProgramDay({
+      const created = await createProgramDay({
         program_id: programId,
         day_number: parseInt(dayNumber),
         name: dayName.trim()
@@ -49,6 +49,7 @@ export default function ProgramDayList({ programId }) {
       setDayNumber('');
       setDayName('');
       await loadDays();
+      setSelectedDayId(created.id);
     } catch (err) {
       setError(err.message);
     } finally {
