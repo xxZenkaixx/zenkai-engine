@@ -28,6 +28,9 @@ export default function ProgramDayList({ programId }) {
     try {
       const data = await fetchProgramDays(programId);
       setDays(data);
+      if (data.length > 0) {
+        setSelectedDayId((prev) => prev === null ? data[0].id : prev);
+      }
     } catch (err) {
       setError(err.message);
     }

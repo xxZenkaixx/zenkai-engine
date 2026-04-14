@@ -1,7 +1,7 @@
 // * Top-level admin view. Owns clients, programs, selectedClientId, and activeProgram state.
 // * Keeps program builder independent from client selection.
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { fetchClients } from '../api/clientApi';
 import { fetchPrograms } from '../api/programApi';
 import { fetchActiveProgram } from '../api/clientProgramApi';
@@ -16,8 +16,22 @@ import ProgramBuilder from './ProgramBuilder';
 import ClientProgramAssignment from './ClientProgramAssignment';
 
 export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
-  const [adminSection, setAdminSection] = useState('dashboard');
+  const [adminSection, setAdminSection] = useState(() => {
+    const saved = localStorage.getItem('adminSection');
+    if (
+      saved === 'dashboard' ||
+      saved === 'clients' ||
+      saved === 'programs' ||
+      saved === 'programBuilder'
+    ) return saved;
+    return 'dashboard';
+  });
   const [builderProgram, setBuilderProgram] = useState(null);
+  const builderRestoreAttempted = useRef(false);
+
+  useEffect(() => {
+    localStorage.setItem('adminSection', adminSection);
+  }, [adminSection]);
 
   const [clients, setClients] = useState([]);
   const [programs, setPrograms] = useState([]);
@@ -28,6 +42,32 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (builderRestoreAttempted.current) return;
+    if (!programs.length) return;
+
+    builderRestoreAttempted.current = true;
+
+    const get = (k) => localStorage.getItem(k);
+    const storedSection = get('adminSection');
+    if (storedSection !== 'programBuilder') return;
+
+    const storedId = get('builderProgramId');
+    if (!storedId) {
+      setAdminSection('programs');
+      return;
+    }
+
+    const found = programs.find((p) => p.id === storedId);
+
+    if (found) {
+      setBuilderProgram(found);
+      setAdminSection('programBuilder');
+    } else {
+      setAdminSection('programs');
+    }
+  }, [programs]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -94,6 +134,7 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
   const handleOpenBuilder = (program) => {
     setBuilderProgram(program);
     setAdminSection('programBuilder');
+    localStorage.setItem('builderProgramId', program.id);
   };
 
   const handleBuilderBack = () => {
