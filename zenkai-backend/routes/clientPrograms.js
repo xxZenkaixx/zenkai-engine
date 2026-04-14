@@ -32,10 +32,20 @@ router.get('/:clientId', async (req, res) => {
   }
 });
 
-// Creates a client-program assignment and marks it active
+// Assigns a program to a client.
+// * If an active assignment already exists for this client + program, returns it unchanged.
+// * Prevents duplicate rows and keeps client_exercise_targets stable across re-launches.
 router.post('/', async (req, res) => {
   try {
     const { client_id, program_id, start_date } = req.body;
+
+    const existing = await ClientProgram.findOne({
+      where: { client_id, program_id, active: true }
+    });
+
+    if (existing) {
+      return res.status(200).json(existing);
+    }
 
     const assignment = await ClientProgram.create({
       client_id,

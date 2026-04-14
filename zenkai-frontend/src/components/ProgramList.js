@@ -6,6 +6,7 @@ import { createProgram, updateProgram, deleteProgram } from '../api/programApi';
 import { assignProgram } from '../api/clientProgramApi';
 import ProgramDayList from './ProgramDayList';
 import WorkoutPreview from './WorkoutPreview';
+import ClientTargetEditor from './ClientTargetEditor';
 
 export default function ProgramList({ programs, clients = [], onProgramsChanged, onAssigned }) {
   const [name, setName] = useState('');
@@ -22,10 +23,10 @@ export default function ProgramList({ programs, clients = [], onProgramsChanged,
   const [launchLoading, setLaunchLoading] = useState(false);
   const [launchError, setLaunchError] = useState(null);
   const [launchSuccess, setLaunchSuccess] = useState(false);
+  const [launchedClientProgramId, setLaunchedClientProgramId] = useState(null);
 
   const parseDeloadWeeks = (value) => {
     if (!value.trim()) return [];
-
     return value
       .split(',')
       .map((w) => Number(w.trim()))
@@ -34,28 +35,19 @@ export default function ProgramList({ programs, clients = [], onProgramsChanged,
 
   const handleCreate = async () => {
     const parsedWeeks = Number(weeks);
-
-    if (!name.trim() || !Number.isInteger(parsedWeeks) || parsedWeeks <= 0) {
-      return;
-    }
-
+    if (!name.trim() || !Number.isInteger(parsedWeeks) || parsedWeeks <= 0) return;
     setLoading(true);
     setError(null);
-
     try {
       await createProgram({
         name: name.trim(),
         weeks: parsedWeeks,
         deload_weeks: parseDeloadWeeks(deloadWeeks)
       });
-
       setName('');
       setWeeks('');
       setDeloadWeeks('');
-
-      if (onProgramsChanged) {
-        await onProgramsChanged();
-      }
+      if (onProgramsChanged) await onProgramsChanged();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -63,24 +55,17 @@ export default function ProgramList({ programs, clients = [], onProgramsChanged,
     }
   };
 
-  // * Clear selection if the deleted program is currently open
   const handleDelete = async (id) => {
     setError(null);
-
     try {
       await deleteProgram(id);
-
       if (selectedProgramId === id) {
         setSelectedProgramId(null);
+        setLaunchedClientProgramId(null);
+        setLaunchSuccess(false);
       }
-
-      if (editingId === id) {
-        setEditingId(null);
-      }
-
-      if (onProgramsChanged) {
-        await onProgramsChanged();
-      }
+      if (editingId === id) setEditingId(null);
+      if (onProgramsChanged) await onProgramsChanged();
     } catch (err) {
       setError(err.message);
     }
@@ -104,12 +89,14 @@ export default function ProgramList({ programs, clients = [], onProgramsChanged,
     setLaunchLoading(true);
     setLaunchError(null);
     setLaunchSuccess(false);
+    setLaunchedClientProgramId(null);
     try {
-      await assignProgram({
+      const result = await assignProgram({
         client_id: launchClientId,
         program_id: selectedProgramId,
-        start_date: new Date().toISOString().split('T')[0],
+        start_date: new Date().toISOString().split('T')[0]
       });
+      setLaunchedClientProgramId(result.id);
       setLaunchSuccess(true);
       setLaunchClientId('');
       if (onAssigned) await onAssigned();
@@ -122,25 +109,16 @@ export default function ProgramList({ programs, clients = [], onProgramsChanged,
 
   const handleEditSave = async (id) => {
     const parsedWeeks = Number(editFields.weeks);
-
-    if (!editFields.name.trim() || !Number.isInteger(parsedWeeks) || parsedWeeks <= 0) {
-      return;
-    }
-
+    if (!editFields.name.trim() || !Number.isInteger(parsedWeeks) || parsedWeeks <= 0) return;
     setError(null);
-
     try {
       await updateProgram(id, {
         name: editFields.name.trim(),
         weeks: parsedWeeks,
         deload_weeks: parseDeloadWeeks(editFields.deload_weeks)
       });
-
       setEditingId(null);
-
-      if (onProgramsChanged) {
-        await onProgramsChanged();
-      }
+      if (onProgramsChanged) await onProgramsChanged();
     } catch (err) {
       setError(err.message);
     }
@@ -186,7 +164,13 @@ export default function ProgramList({ programs, clients = [], onProgramsChanged,
             <li
               key={p.id}
               className={`prog-list__item${selectedProgramId === p.id ? ' prog-list__item--active' : ''}`}
-              onClick={() => { if (editingId !== p.id) setSelectedProgramId(p.id); }}
+              onClick={() => {
+                if (editingId !== p.id) {
+                  setSelectedProgramId(p.id);
+                  setLaunchedClientProgramId(null);
+                  setLaunchSuccess(false);
+                }
+              }}
             >
               {editingId === p.id ? (
                 <div className="prog-list__edit-form">
@@ -282,13 +266,10 @@ export default function ProgramList({ programs, clients = [], onProgramsChanged,
                   >
                     <option value="">Select client...</option>
                     {clients.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
+                      <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
                   </select>
                 </div>
-
                 <button
                   className="prog-launch-btn"
                   onClick={handleLaunch}
@@ -297,12 +278,15 @@ export default function ProgramList({ programs, clients = [], onProgramsChanged,
                   {launchLoading ? 'Launching...' : 'Launch Program'}
                 </button>
               </div>
-
               {launchError && <p className="prog-launch-error">{launchError}</p>}
               {launchSuccess && (
-                <p className="prog-launch-success">Program launched successfully.</p>
+                <p className="prog-launch-success">Launched. Set starting weights below.</p>
               )}
             </div>
+
+            {launchedClientProgramId && (
+              <ClientTargetEditor clientProgramId={launchedClientProgramId} />
+            )}
 
             {previewProgramId === selectedProgramId && (
               <WorkoutPreview programId={selectedProgramId} />

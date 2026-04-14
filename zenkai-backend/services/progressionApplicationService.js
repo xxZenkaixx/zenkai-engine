@@ -1,21 +1,26 @@
 // Progression application service.
 // * Post-workout only — evaluates logged performance and persists next targets.
+// * Reads client-specific cable state from client_exercise_targets (falls back to template).
+// * Writes ALL next targets to client_exercise_targets — NEVER to exercise_instances.
 // * Does NOT modify logged_sets or existing program structure.
-// * Calls progressionService for calculations — no logic duplicated here.
 'use strict';
 
-const { LoggedSet, ExerciseInstance, ExerciseProgression } = require('../models');
+const {
+  LoggedSet,
+  ExerciseInstance,
+  ExerciseProgression,
+  ClientProgram,
+  ClientExerciseTarget
+} = require('../models');
 const { calculateNextWeight } = require('./progressionService');
 const { Op } = require('sequelize');
 
-// * Parses "8-12" style rep range string into { min, max }
 function parseRepRange(target_reps) {
   const parts = target_reps.split('-').map(Number);
   if (parts.length === 2) return { min: parts[0], max: parts[1] };
   return { min: parts[0], max: parts[0] };
 }
 
-// * Groups an array of logged sets by exercise_instance_id
 function groupByInstance(sets) {
   return sets.reduce((acc, set) => {
     const key = set.exercise_instance_id;
@@ -25,8 +30,6 @@ function groupByInstance(sets) {
   }, {});
 }
 
-// * Returns only the latest workout's sets for a client + day
-// * "Latest" = most recent completed_at date among all sets for that day
 async function fetchLatestSetsForDay(clientId, programDayId) {
   const instances = await ExerciseInstance.findAll({
     where: { program_day_id: programDayId },
@@ -46,7 +49,6 @@ async function fetchLatestSetsForDay(clientId, programDayId) {
 
   if (!allSets.length) return [];
 
-  // * Find the most recent date and filter to only that session
   const latestDate = allSets[0].completed_at;
   const latestDay = new Date(latestDate).toDateString();
 
@@ -55,12 +57,17 @@ async function fetchLatestSetsForDay(clientId, programDayId) {
   );
 }
 
-// * Core function — evaluates and persists progression for a completed workout
 async function applyProgressionForWorkout(clientId, programDayId) {
+  // * Resolve active assignment — needed to scope client_exercise_targets reads
+  const assignment = await ClientProgram.findOne({
+    where: { client_id: clientId, active: true }
+  });
+  if (!assignment) throw new Error('No active program assignment found for client.');
+  const clientProgramId = assignment.id;
+
   const sets = await fetchLatestSetsForDay(clientId, programDayId);
   if (!sets.length) throw new Error('No logged sets found for this client and program day.');
 
-  // * Drop sets with missing reps
   const validSets = sets.filter((s) => s.completed_reps != null);
   const grouped = groupByInstance(validSets);
 
@@ -68,6 +75,19 @@ async function applyProgressionForWorkout(clientId, programDayId) {
   const instances = await ExerciseInstance.findAll({
     where: { id: { [Op.in]: instanceIds } }
   });
+
+  // * Load client-specific targets — cable state read path
+  const clientTargets = await ClientExerciseTarget.findAll({
+    where: {
+      client_program_id: clientProgramId,
+      exercise_instance_id: { [Op.in]: instanceIds }
+    }
+  });
+
+  const clientTargetMap = clientTargets.reduce((acc, t) => {
+    acc[t.exercise_instance_id] = t;
+    return acc;
+  }, {});
 
   const instanceMap = instances.reduce((acc, i) => {
     acc[i.id] = i;
@@ -79,13 +99,11 @@ async function applyProgressionForWorkout(clientId, programDayId) {
   for (const instanceId of instanceIds) {
     const instance = instanceMap[instanceId];
 
-    // ! Skip if instance not found
     if (!instance) {
       results.push({ exercise_instance_id: instanceId, outcome: 'skipped', reason: 'instance not found' });
       continue;
     }
 
-    // * custom exercises are skipped — no progression applied
     if (instance.type === 'custom') {
       results.push({ exercise_instance_id: instanceId, outcome: 'skipped', reason: 'custom exercise' });
       continue;
@@ -93,13 +111,8 @@ async function applyProgressionForWorkout(clientId, programDayId) {
 
     const instanceSets = grouped[instanceId];
 
-    // ! skip if no completed_weight snapshot exists
     if (instanceSets[0].completed_weight == null) {
-      results.push({
-        exercise_instance_id: instanceId,
-        outcome: 'skipped',
-        reason: 'missing completed_weight'
-      });
+      results.push({ exercise_instance_id: instanceId, outcome: 'skipped', reason: 'missing completed_weight' });
       continue;
     }
 
@@ -114,10 +127,12 @@ async function applyProgressionForWorkout(clientId, programDayId) {
     let next_weight = null;
     let next_cable_state = null;
 
-    // * only calculate if change is needed
     if (outcome === 'increase' || outcome === 'decrease') {
       try {
         if (instance.equipment_type === 'cable') {
+          // * Dynamic state: prefer client-specific, fall back to template
+          const clientCableState = clientTargetMap[instanceId]?.cable_state || null;
+
           const result = await calculateNextWeight({
             type: instance.type,
             equipment_type: 'cable',
@@ -126,16 +141,17 @@ async function applyProgressionForWorkout(clientId, programDayId) {
             rep_range_max: max,
             completed_reps_array: completedReps,
             cable_state: {
-              base_stack_weight: instance.base_stack_weight,
+              base_stack_weight:   clientCableState?.base_stack_weight   ?? instance.base_stack_weight,
+              current_micro_level: clientCableState?.current_micro_level ?? instance.current_micro_level,
+              // * Static setup — always from template, never client-specific
               stack_step_value: instance.stack_step_value,
               micro_step_value: instance.micro_step_value,
-              max_micro_levels: instance.max_micro_levels,
-              current_micro_level: instance.current_micro_level
+              max_micro_levels: instance.max_micro_levels
             }
           });
           next_cable_state = result;
         } else {
-          // * use completed_weight snapshot from logged sets (source of truth)
+          // * Use completed_weight from logged sets — already client-specific
           const baseWeight = instanceSets[0].completed_weight;
 
           next_weight = await calculateNextWeight({
@@ -148,18 +164,13 @@ async function applyProgressionForWorkout(clientId, programDayId) {
           });
         }
       } catch (err) {
-        // ! Calculation failed — skip this instance with warning
         results.push({ exercise_instance_id: instanceId, outcome: 'skipped', reason: err.message });
         continue;
       }
     }
 
-    // * enforce one record per client + exercise_instance
     await ExerciseProgression.destroy({
-      where: {
-        client_id: clientId,
-        exercise_instance_id: instanceId
-      }
+      where: { client_id: clientId, exercise_instance_id: instanceId }
     });
 
     await ExerciseProgression.create({
@@ -180,11 +191,16 @@ async function applyProgressionForWorkout(clientId, programDayId) {
   return results;
 }
 
-// * Reads stored progression results and applies them to future exercise_instance targets.
-// * Separated from applyProgressionForWorkout intentionally — mutation layer is distinct from evaluation layer.
-// * Only processes unapplied rows (applied_at IS NULL). Stamps applied_at after mutation.
-// * Skips malformed cable state. Does not touch logged_sets.
+// * Reads staged ExerciseProgression rows and writes results to client_exercise_targets.
+// * NEVER writes to exercise_instances — template data must not be mutated by client progression.
+// * applied_at guard prevents double-application.
 async function mutateTargetsFromProgressions(clientId, programDayId) {
+  const assignment = await ClientProgram.findOne({
+    where: { client_id: clientId, active: true }
+  });
+  if (!assignment) return [];
+  const clientProgramId = assignment.id;
+
   const instances = await ExerciseInstance.findAll({
     where: { program_day_id: programDayId },
     attributes: ['id']
@@ -206,7 +222,6 @@ async function mutateTargetsFromProgressions(clientId, programDayId) {
     order: [['created_at', 'DESC']]
   });
 
-  // * Keep only the latest unapplied record per exercise instance
   const latestMap = new Map();
   for (const prog of progressions) {
     if (!latestMap.has(prog.exercise_instance_id)) {
@@ -216,7 +231,6 @@ async function mutateTargetsFromProgressions(clientId, programDayId) {
 
   const filteredProgressions = Array.from(latestMap.values());
 
-  // * Stamp older duplicate unapplied rows so they cannot be picked up on later runs
   const latestIds = new Set(filteredProgressions.map((prog) => prog.id));
   for (const prog of progressions) {
     if (!latestIds.has(prog.id)) {
@@ -230,32 +244,38 @@ async function mutateTargetsFromProgressions(clientId, programDayId) {
     if (prog.next_cable_state) {
       const { base_stack_weight, current_micro_level } = prog.next_cable_state;
 
-      // ! skip if cable state is malformed or missing required numeric fields
       if (typeof base_stack_weight !== 'number' || typeof current_micro_level !== 'number') {
         await prog.update({ applied_at: new Date() });
-
-        results.push({
-          exercise_instance_id: prog.exercise_instance_id,
-          applied: 'skipped',
-          reason: 'malformed cable state'
-        });
-
+        results.push({ exercise_instance_id: prog.exercise_instance_id, applied: 'skipped', reason: 'malformed cable state' });
         continue;
       }
 
-      await ExerciseInstance.update(
-        { base_stack_weight, current_micro_level },
-        { where: { id: prog.exercise_instance_id } }
-      );
+      // * Write to client_exercise_targets — template untouched
+      const [record, created] = await ClientExerciseTarget.findOrCreate({
+        where: {
+          client_program_id: clientProgramId,
+          exercise_instance_id: prog.exercise_instance_id
+        },
+        defaults: { cable_state: { base_stack_weight, current_micro_level } }
+      });
+      if (!created) {
+        await record.update({ cable_state: { base_stack_weight, current_micro_level } });
+      }
 
     } else if (prog.next_weight != null) {
-      await ExerciseInstance.update(
-        { target_weight: prog.next_weight },
-        { where: { id: prog.exercise_instance_id } }
-      );
+      // * Write to client_exercise_targets — template untouched
+      const [record, created] = await ClientExerciseTarget.findOrCreate({
+        where: {
+          client_program_id: clientProgramId,
+          exercise_instance_id: prog.exercise_instance_id
+        },
+        defaults: { target_weight: prog.next_weight }
+      });
+      if (!created) {
+        await record.update({ target_weight: prog.next_weight });
+      }
     }
 
-    // * Stamp the row as applied — prevents re-application
     await prog.update({ applied_at: new Date() });
 
     results.push({

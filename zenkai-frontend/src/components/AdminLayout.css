@@ -954,3 +954,113 @@
   font-size: 12px;
   margin: 0;
 }
+
+/* ── Client Target Editor ── */
+.cte-wrap {
+  background: #0c1200;
+  border: 1px solid #2a3a00;
+  border-radius: 12px;
+  padding: 24px 28px;
+  margin-bottom: 32px;
+}
+
+.cte-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #c8ff00;
+  margin: 0 0 6px;
+}
+
+.cte-sub {
+  font-size: 12px;
+  color: #445500;
+  margin: 0 0 20px;
+}
+
+.cte-loading {
+  font-size: 13px;
+  color: #555;
+  margin: 0 0 12px;
+}
+
+.cte-day {
+  margin-bottom: 20px;
+}
+
+.cte-day:last-child {
+  margin-bottom: 0;
+}
+
+.cte-day__title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #556600;
+  margin: 0 0 8px;
+}
+
+.cte-exercise-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.cte-empty {
+  font-size: 12px;
+  color: #333;
+  margin: 0;
+}
+
+.cte-ex-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #0a0f00;
+  border: 1px solid #1e2800;
+  border-radius: 8px;
+  padding: 10px 14px;
+  gap: 12px;
+}
+
+.cte-ex-row__info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.cte-ex-row__name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ccc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cte-ex-row__meta {
+  font-size: 11px;
+  color: #445500;
+}
+
+.cte-ex-row__controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.cte-ex-row__field {
+  width: 88px;
+  text-align: right;
+}
+
+.cte-ex-row__saved {
+  font-size: 11px;
+  font-weight: 600;
+  color: #c8ff00;
+  white-space: nowrap;
+}
