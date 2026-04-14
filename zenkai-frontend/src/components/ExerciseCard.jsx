@@ -25,6 +25,7 @@ export default function ExerciseCard({
   onSetLogged,
   onExerciseUpdated,
   onLoggedSetsChange,
+  isLastIncomplete,
   cardRef,
   nextSetRef
 }) {
@@ -118,7 +119,10 @@ export default function ExerciseCard({
       });
       setLoggedSets((prev) => [...prev, saved].sort((a, b) => a.set_number - b.set_number));
       setCompletedReps('');
-      onSetLogged(rest_seconds, id);
+      const isLastSet = nextSetNumber === target_sets;
+      if (!(isLastIncomplete && isLastSet)) {
+        onSetLogged(rest_seconds, id);
+      }
     } catch (err) { setError(err.message); } finally { setLoading(false); }
   };
 
@@ -136,56 +140,92 @@ export default function ExerciseCard({
   // * Cable exercise with no setup yet — block logging, show setup form
   if (needsCableSetup) {
     return (
-      <div ref={cardRef}>
-        <h3>{name}</h3>
-        <p>Cable setup required before logging.</p>
-        <input type='number' placeholder='Base stack weight *' value={cableForm.base_stack_weight} onChange={(e) => setCableForm({ ...cableForm, base_stack_weight: e.target.value })} />
-        <input type='number' placeholder='Stack step value *' value={cableForm.stack_step_value} onChange={(e) => setCableForm({ ...cableForm, stack_step_value: e.target.value })} />
-        <input type='number' placeholder='Micro step value *' value={cableForm.micro_step_value} onChange={(e) => setCableForm({ ...cableForm, micro_step_value: e.target.value })} />
-        <input type='number' placeholder='Max micro levels *' value={cableForm.max_micro_levels} onChange={(e) => setCableForm({ ...cableForm, max_micro_levels: e.target.value })} />
-        <select value={cableForm.cable_unit} onChange={(e) => setCableForm({ ...cableForm, cable_unit: e.target.value })}>
-          <option value='lb'>lb</option>
-          <option value='kg'>kg</option>
-        </select>
-        {cableError && <p style={{ color: 'red' }}>{cableError}</p>}
-        <button onClick={handleCableSetupSave} disabled={savingCable}>{savingCable ? 'Saving...' : 'Save Cable Setup'}</button>
+      <div className="ec-card" ref={cardRef}>
+        <div className="ec-header">
+          <p className="ec-name">{name}</p>
+        </div>
+        <div className="ec-cable-setup">
+          <p className="ec-cable-setup__title">Cable Setup Required</p>
+          <div className="ec-cable-setup__fields">
+            <input className="ec-cable-input" type="text" inputMode="decimal" placeholder="Base stack weight *" value={cableForm.base_stack_weight} onChange={(e) => setCableForm({ ...cableForm, base_stack_weight: e.target.value })} />
+            <input className="ec-cable-input" type="text" inputMode="decimal" placeholder="Stack step value *" value={cableForm.stack_step_value} onChange={(e) => setCableForm({ ...cableForm, stack_step_value: e.target.value })} />
+            <input
+              className="ec-cable-input"
+              type="text"
+              inputMode="decimal"
+              placeholder="Micro step value *"
+              value={cableForm.micro_step_value}
+              onChange={(e) => setCableForm({ ...cableForm, micro_step_value: e.target.value })}
+            />
+            <input className="ec-cable-input" type="text" inputMode="numeric" placeholder="Max micro levels *" value={cableForm.max_micro_levels} onChange={(e) => setCableForm({ ...cableForm, max_micro_levels: e.target.value })} />
+            <select className="ec-cable-input" value={cableForm.cable_unit} onChange={(e) => setCableForm({ ...cableForm, cable_unit: e.target.value })}>
+              <option value="lb">lb</option>
+              <option value="kg">kg</option>
+            </select>
+          </div>
+          {cableError && <p className="ec-cable-error">{cableError}</p>}
+          <button className="ec-cable-save-btn" onClick={handleCableSetupSave} disabled={savingCable}>
+            {savingCable ? 'Saving...' : 'Save Cable Setup'}
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div ref={cardRef}>
-      <h3>{name}</h3>
-      {isCable && cable_setup_locked
-        ? <p>Target: {cableDisplayWeight.toFixed(1)} {cable_unit} — {target_reps} reps</p>
-        : effectiveWeight != null
-          ? <p>Target: {effectiveWeight} lb — {target_reps} reps</p>
-          : <p>Target: {target_reps} reps</p>
-      }
-      {notes && <p>{notes}</p>}
+    <div className={`ec-card${allSetsComplete ? ' ec-card--complete' : ''}`} ref={cardRef}>
+      <div className="ec-header">
+        <p className="ec-name">{name}</p>
+        <p className="ec-target">
+          {target_sets}×{target_reps}
+          {effectiveWeight != null && (
+            <> · <span className="ec-target__weight">
+              {isCable && cable_setup_locked
+                ? `${cableDisplayWeight.toFixed(1)} ${cable_unit}`
+                : `${effectiveWeight} lb`}
+            </span></>
+          )}
+        </p>
+        {notes && <p className="ec-notes">{notes}</p>}
+      </div>
 
-      <LastPerformanceSnapshot exerciseInstanceId={id} clientId={clientId} />
+      <LastPerformanceSnapshot exerciseInstanceId={id} clientId={clientId} targetWeight={effectiveWeight} />
 
-      {loggedSets.map((s, i) => (
-        <LoggedSetRow key={s.id} setNumber={i + 1} loggedSet={s} onEdit={handleEditSet} />
-      ))}
+      {loggedSets.length > 0 && (
+        <div className="ec-sets">
+          {loggedSets.map((s, i) => (
+            <LoggedSetRow key={s.id} setNumber={i + 1} loggedSet={s} onEdit={handleEditSet} />
+          ))}
+        </div>
+      )}
 
       {!allSetsComplete && (
-        <div ref={nextSetRef}>
-          <p>Set {nextSetNumber} of {target_sets}</p>
+        <div className="ec-next-set" ref={nextSetRef}>
+          <p className="ec-set-counter">Set {nextSetNumber} of {target_sets}</p>
           {nextSetLocked ? (
-            <p>Rest: {timerRemaining}s</p>
+            <p className="ec-timer-inline">
+              {timerRemaining}<span className="ec-timer-inline__label">s rest</span>
+            </p>
           ) : (
-            <>
-              <input type='number' placeholder='Completed reps' value={completedReps} onChange={(e) => setCompletedReps(e.target.value)} />
-              <button onClick={handleLogSet} disabled={loading}>{loading ? 'Saving...' : 'Log Set'}</button>
-            </>
+            <div className="ec-log-row">
+              <input
+                className="ec-reps-input"
+                type="text"
+                inputMode="numeric"
+                placeholder="reps"
+                value={completedReps}
+                onChange={(e) => setCompletedReps(e.target.value)}
+              />
+              <button className="ec-log-btn" onClick={handleLogSet} disabled={loading}>
+                {loading ? 'Saving...' : 'Log Set'}
+              </button>
+            </div>
           )}
         </div>
       )}
 
-      {allSetsComplete && <p>All sets complete.</p>}
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+      {allSetsComplete && <p className="ec-complete">✓ All sets complete</p>}
+      {error && <p className="ec-error">{error}</p>}
 
       <HistoryPanel exerciseInstanceId={id} clientId={clientId} targetWeight={effectiveWeight} />
     </div>
@@ -203,17 +243,26 @@ function LoggedSetRow({ setNumber, loggedSet, onEdit }) {
   const handleDone = () => { onEdit(loggedSet.id, value); setEditing(false); };
 
   return (
-    <div>
-      <span>Set {setNumber}: </span>
+    <div className="ec-set-row">
+      <span className="ec-set-row__num">Set {setNumber}</span>
       {editing ? (
         <>
-          <input type='number' value={value} onChange={(e) => setValue(e.target.value)} />
-          <button onClick={handleDone}>Done</button>
+          <input
+            className="ec-set-row__edit-input"
+            type="text"
+            inputMode="numeric"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+          />
+          <button className="ec-set-row__done-btn" onClick={handleDone}>Done</button>
         </>
       ) : (
         <>
-          <span>{loggedSet.completed_reps} reps</span>
-          <button onClick={() => setEditing(true)}>Edit</button>
+          <span className="ec-set-row__reps">{loggedSet.completed_reps} reps</span>
+          {loggedSet.completed_weight != null && (
+            <span className="ec-set-row__weight">@ {loggedSet.completed_weight} lb</span>
+          )}
+          <button className="ec-set-row__edit-btn" onClick={() => setEditing(true)}>edit</button>
         </>
       )}
     </div>

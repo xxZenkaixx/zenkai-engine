@@ -70,6 +70,18 @@ export default function ClientHome({ clientId, onStartWorkout, onBack }) {
   }, [activeProgram]);
 
   const recentSessions = sessions.slice(0, 4);
+
+  const nextDayId = useMemo(() => {
+    const days = activeProgram?.Program?.ProgramDays;
+    if (!days || days.length === 0) return null;
+    const sorted = [...days].sort((a, b) => a.day_number - b.day_number);
+    if (sessions.length === 0) return sorted[0].id;
+    const lastDayId = sessions[0].program_day_id;
+    const lastIndex = sorted.findIndex((d) => d.id === lastDayId);
+    const nextIndex = lastIndex === -1 ? 0 : (lastIndex + 1) % sorted.length;
+    return sorted[nextIndex].id;
+  }, [activeProgram, sessions]);
+
   const programName = activeProgram?.Program?.name;
   const programWeeks = activeProgram?.Program?.weeks;
   const programId = activeProgram?.Program?.id;
@@ -126,7 +138,7 @@ export default function ClientHome({ clientId, onStartWorkout, onBack }) {
               })}
             </div>
 
-            <button className="ch-cta-btn" onClick={() => onStartWorkout(clientId)}>
+            <button className="ch-cta-btn" onClick={() => onStartWorkout(clientId, nextDayId)}>
               Start Today's Workout →
             </button>
           </div>

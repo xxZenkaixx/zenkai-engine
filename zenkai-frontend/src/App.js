@@ -7,10 +7,12 @@ import ClientHome from './components/ClientHome';
 export default function App() {
   const [view, setView] = useState('admin');
   const [activeClientId, setActiveClientId] = useState(null);
+  const [activeDayId, setActiveDayId] = useState(null);
 
   // * switch into workout view for selected client
-  const handleStartWorkout = (clientId) => {
+  const handleStartWorkout = (clientId, dayId = null) => {
     setActiveClientId(clientId);
+    setActiveDayId(dayId);
     setView('workout');
   };
 
@@ -38,7 +40,11 @@ export default function App() {
             Back to Admin
           </button>
 
-          <ClientWorkoutView clientId={activeClientId} />
+          <ClientWorkoutView
+            clientId={activeClientId}
+            initialDayId={activeDayId}
+            onWorkoutFinished={() => setView('clientHome')}
+          />
         </>
       )}
     </div>

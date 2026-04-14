@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { fetchClients } from '../api/clientApi';
 import { fetchPrograms } from '../api/programApi';
-import { fetchActiveProgram } from '../api/clientProgramApi';
+import { fetchActiveProgram, deactivateProgram, fetchAssignmentHistory } from '../api/clientProgramApi';
 import AdminLayout from './AdminLayout';
 import ClientList from './ClientList';
 import WorkoutHistory from './WorkoutHistory';
@@ -39,6 +39,7 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
 
   const [activeProgram, setActiveProgram] = useState(null);
   const [activeProgramLoading, setActiveProgramLoading] = useState(false);
+  const [assignmentHistory, setAssignmentHistory] = useState([]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -90,15 +91,21 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
   useEffect(() => {
     if (!selectedClientId) {
       setActiveProgram(null);
+      setAssignmentHistory([]);
       return;
     }
     const load = async () => {
       setActiveProgramLoading(true);
       try {
-        const data = await fetchActiveProgram(selectedClientId);
-        setActiveProgram(data || null);
+        const [programData, historyData] = await Promise.all([
+          fetchActiveProgram(selectedClientId),
+          fetchAssignmentHistory(selectedClientId)
+        ]);
+        setActiveProgram(programData || null);
+        setAssignmentHistory(Array.isArray(historyData) ? historyData : []);
       } catch {
         setActiveProgram(null);
+        setAssignmentHistory([]);
       } finally {
         setActiveProgramLoading(false);
       }
@@ -126,9 +133,32 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
   const handleAssigned = async () => {
     await handleProgramsChanged();
     if (selectedClientId) {
-      const data = await fetchActiveProgram(selectedClientId);
-      setActiveProgram(data || null);
+      const [programData, historyData] = await Promise.all([
+        fetchActiveProgram(selectedClientId),
+        fetchAssignmentHistory(selectedClientId)
+      ]);
+      setActiveProgram(programData || null);
+      setAssignmentHistory(Array.isArray(historyData) ? historyData : []);
     }
+  };
+
+  const handleDeactivateProgram = async (clientId) => {
+    try {
+      await deactivateProgram(clientId);
+      setActiveProgram(null);
+    } catch {}
+  };
+
+  const handleActivateProgram = async (assignmentId) => {
+    try {
+      await fetch(`http://localhost:3001/api/client-programs/${assignmentId}/activate`, { method: 'PATCH' });
+      const [programData, historyData] = await Promise.all([
+        fetchActiveProgram(selectedClientId),
+        fetchAssignmentHistory(selectedClientId)
+      ]);
+      setActiveProgram(programData || null);
+      setAssignmentHistory(Array.isArray(historyData) ? historyData : []);
+    } catch {}
   };
 
   const handleOpenBuilder = (program) => {
@@ -172,9 +202,14 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
       {activeProgramLoading && <p style={{ color: '#666' }}>Loading...</p>}
 
       {!activeProgramLoading && activeProgram?.Program && (
-        <p style={{ color: '#e0e0e0', margin: '0 0 12px' }}>
-          <strong>{activeProgram.Program.name}</strong>
-          <span style={{ color: '#555', marginLeft: 8 }}>{activeProgram.Program.weeks} weeks</span>
+        <p style={{ color: '#e0e0e0', margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span>
+            <strong>{activeProgram.Program.name}</strong>
+            <span style={{ color: '#555', marginLeft: 8 }}>{activeProgram.Program.weeks} weeks</span>
+          </span>
+          <button className="btn-ghost" style={{ fontSize: '12px', padding: '2px 10px' }} onClick={() => handleDeactivateProgram(selectedClientId)}>
+            Remove
+          </button>
         </p>
       )}
 
@@ -187,6 +222,25 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
         programs={programs}
         onAssigned={handleAssigned}
       />
+
+      {assignmentHistory.length > 0 && (
+        <div style={{ marginTop: 20 }}>
+          <h3 style={{ color: '#aaa', fontSize: '13px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 10px' }}>
+            Program History
+          </h3>
+          {assignmentHistory.map((a) => (
+            <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '6px 0' }}>
+              <span style={{ color: a.active ? '#c8ff00' : '#555' }}>{a.Program?.name}</span>
+              <span style={{ color: '#444', fontSize: '12px' }}>{a.Program?.weeks}w</span>
+              <span style={{ color: '#333', fontSize: '12px' }}>{a.start_date}</span>
+              {a.active
+                ? <span style={{ color: '#c8ff00', fontSize: '11px', fontWeight: 600 }}>ACTIVE</span>
+                : <button className="btn-ghost" style={{ fontSize: '11px', padding: '2px 8px' }} onClick={() => handleActivateProgram(a.id)}>Activate</button>
+              }
+            </div>
+          ))}
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: 10, margin: '16px 0' }}>
         <button className="btn-primary" onClick={() => onViewClientHome(selectedClientId)}>

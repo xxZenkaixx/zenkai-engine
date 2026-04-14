@@ -1120,6 +1120,14 @@
   flex: 1;
 }
 
+.ex-row__notes {
+  font-size: 11px;
+  color: #666;
+  font-style: italic;
+  margin-top: 2px;
+  display: block;
+}
+
 .pdl-day__hint {
   position: absolute;
   left: 50%;

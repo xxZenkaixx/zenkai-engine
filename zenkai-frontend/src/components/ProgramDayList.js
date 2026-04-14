@@ -127,7 +127,7 @@ export default function ProgramDayList({ programId }) {
           value={dayName}
           onChange={(e) => setDayName(e.target.value)}
         />
-        <button className="pdl-add-btn" onClick={handleCreate} disabled={loading}>
+        <button className="pdl-add-btn" onClick={handleCreate} disabled={loading || !(parseInt(dayNumber) > 0)}>
           {loading ? 'Adding...' : '+ Add Day'}
         </button>
       </div>

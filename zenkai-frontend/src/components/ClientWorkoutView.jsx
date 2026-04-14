@@ -6,8 +6,9 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { fetchActiveProgram } from '../api/clientProgramApi';
 import ExerciseCard from './ExerciseCard';
 import { applyProgression } from '../api/progressionApi';
+import './ClientWorkoutView.css';
 
-export default function ClientWorkoutView({ clientId }) {
+export default function ClientWorkoutView({ clientId, onWorkoutFinished, initialDayId }) {
   const [programData, setProgramData] = useState(null);
   const [selectedDayId, setSelectedDayId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -42,8 +43,10 @@ export default function ClientWorkoutView({ clientId }) {
       const data = await fetchActiveProgram(clientId);
       setProgramData(data);
 
-      const firstDayId = data?.Program?.ProgramDays?.[0]?.id || null;
-      setSelectedDayId(firstDayId);
+      const days = data?.Program?.ProgramDays || [];
+      const sortedDays = [...days].sort((a, b) => a.day_number - b.day_number);
+      const firstDayId = sortedDays[0]?.id || null;
+      setSelectedDayId((prev) => prev || initialDayId || firstDayId);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -114,6 +117,7 @@ export default function ClientWorkoutView({ clientId }) {
     try {
       await applyProgression(clientId, selectedDayId);
       setWorkoutFinished(true);
+      if (onWorkoutFinished) onWorkoutFinished();
     } catch (err) {
       setFinishError(err.message);
     } finally {
@@ -168,40 +172,47 @@ export default function ClientWorkoutView({ clientId }) {
     }, 1000);
   };
 
-  if (loading) return <p>Loading workout...</p>;
-  if (error) return <p>Error: {error}</p>;
-  if (!programData) return <p>No active program assigned.</p>;
-  if (!program) return <p>Program data unavailable.</p>;
+  if (loading) return <p className="cwv-loading">Loading workout...</p>;
+  if (error) return <p className="cwv-error">Error: {error}</p>;
+  if (!programData) return <p className="cwv-empty">No active program assigned.</p>;
+  if (!program) return <p className="cwv-empty">Program data unavailable.</p>;
 
   return (
-    <div>
+    <div className="cwv-shell">
       {timerActive && (
-        <div style={{ position: 'sticky', top: 0, zIndex: 10 }}>
-          <p>Rest: {timerRemaining}s</p>
+        <div className="cwv-timer-bar">
+          <span className="cwv-timer-bar__label">Rest</span>
+          <span className="cwv-timer-bar__time">{timerRemaining}</span>
+          <span className="cwv-timer-bar__unit">s</span>
         </div>
       )}
 
-      <h2>{program.name}</h2>
-      <p>{program.weeks} weeks</p>
+      <div className="cwv-program-header">
+        <h2 className="cwv-program-header__name">{program.name}</h2>
+        <span className="cwv-program-header__meta">{program.weeks} weeks</span>
+      </div>
 
-      <div>
+      <div className="cwv-day-tabs">
         {days.map((day) => (
           <button
             key={day.id}
+            className={`cwv-day-tab${selectedDayId === day.id ? ' cwv-day-tab--active' : ''}`}
             onClick={() => setSelectedDayId(day.id)}
-            style={{ fontWeight: selectedDayId === day.id ? 'bold' : 'normal' }}
           >
             {day.name || `Day ${day.day_number}`}
           </button>
         ))}
       </div>
 
-      <div>
-        <button onClick={handleFinishWorkout} disabled={finishingWorkout || workoutFinished}>
+      <div className="cwv-finish-bar">
+        <button
+          className={`cwv-finish-btn${workoutFinished ? ' cwv-finish-btn--done' : ''}`}
+          onClick={handleFinishWorkout}
+          disabled={finishingWorkout || workoutFinished}
+        >
           {finishingWorkout ? 'Finishing...' : workoutFinished ? 'Workout Complete' : 'Finish Workout'}
         </button>
-
-        {finishError && <p style={{ color: 'red' }}>{finishError}</p>}
+        {finishError && <p className="cwv-finish-error">{finishError}</p>}
       </div>
 
       {selectedDayId && (() => {
@@ -210,27 +221,34 @@ export default function ClientWorkoutView({ clientId }) {
           (a, b) => a.order_index - b.order_index
         );
 
-        if (exercises.length === 0) return <p>No exercises on this day.</p>;
+        if (exercises.length === 0) return <p className="cwv-empty">No exercises on this day.</p>;
 
-        return exercises.map((ex) => (
-          <ExerciseCard
-            key={ex.id}
-            exercise={ex}
-            clientId={clientId}
-            timerActive={timerActive}
-            timerRemaining={timerRemaining}
-            timerExerciseId={timerExerciseId}
-            onSetLogged={startTimer}
-            onExerciseUpdated={load}
-            onLoggedSetsChange={handleLoggedSetsChange}
-            cardRef={(el) => {
-              cardRefs.current[ex.id] = el;
-            }}
-            nextSetRef={(el) => {
-              nextSetRefs.current[ex.id] = el;
-            }}
-          />
-        ));
+        const incompleteIds = new Set(
+          exercises
+            .filter((ex) => (exerciseLoggedCounts[ex.id] ?? 0) < (ex.target_sets ?? 0))
+            .map((ex) => ex.id)
+        );
+
+        return (
+          <div className="cwv-exercise-list">
+            {exercises.map((ex) => (
+              <ExerciseCard
+                key={ex.id}
+                exercise={ex}
+                clientId={clientId}
+                timerActive={timerActive}
+                timerRemaining={timerRemaining}
+                timerExerciseId={timerExerciseId}
+                onSetLogged={startTimer}
+                onExerciseUpdated={load}
+                onLoggedSetsChange={handleLoggedSetsChange}
+                isLastIncomplete={incompleteIds.size === 1 && incompleteIds.has(ex.id)}
+                cardRef={(el) => { cardRefs.current[ex.id] = el; }}
+                nextSetRef={(el) => { nextSetRefs.current[ex.id] = el; }}
+              />
+            ))}
+          </div>
+        );
       })()}
     </div>
   );

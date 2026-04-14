@@ -90,7 +90,8 @@ function buildPayload(fields) {
     micro_step_value: isCable && fields.micro_step_value !== '' ? parseFloat(fields.micro_step_value) : null,
     max_micro_levels: isCable && fields.max_micro_levels !== '' ? parseInt(fields.max_micro_levels) : null,
     cable_unit: isCable ? fields.cable_unit : null,
-    cable_setup_locked: isCable ? cableSetupComplete(fields) : false
+    cable_setup_locked: isCable ? cableSetupComplete(fields) : false,
+    ...(isCable ? { current_micro_level: 0 } : {})
   };
 }
 
@@ -271,6 +272,7 @@ export default function ExerciseInstanceForm({ dayId }) {
                       ? ` · ${(parseFloat(ex.base_stack_weight) + (parseInt(ex.current_micro_level || 0) * parseFloat(ex.micro_step_value))).toFixed(1)} ${ex.cable_unit}`
                       : ex.target_weight != null ? ` · ${ex.target_weight} lb` : ''}
                   </span>
+                  {ex.notes && <span className="ex-row__notes">{ex.notes}</span>}
                 </div>
                 <div className="ex-row__controls">
                   <button className="prog-btn" onClick={() => handleMoveUp(index)} disabled={index === 0}>↑</button>

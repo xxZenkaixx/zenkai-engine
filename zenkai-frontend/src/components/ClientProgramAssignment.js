@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { assignProgram } from '../api/clientProgramApi';
 
-export default function ClientProgramAssignment({ selectedClientId, programs }) {
+export default function ClientProgramAssignment({ selectedClientId, programs, onAssigned }) {
   const [selectedProgramId, setSelectedProgramId] = useState('');
   const [startDate, setStartDate] = useState('');
   const [loading, setLoading] = useState(false);
@@ -30,6 +30,7 @@ export default function ClientProgramAssignment({ selectedClientId, programs }) 
       setSuccess(true);
       setSelectedProgramId('');
       setStartDate('');
+      if (onAssigned) onAssigned();
     } catch (err) {
       setError(err.message);
     } finally {
