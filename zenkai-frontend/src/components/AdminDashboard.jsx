@@ -12,10 +12,12 @@ import ClientWorkoutHistoryList from './ClientWorkoutHistoryList';
 import ExercisePerformanceHistory from './ExercisePerformanceHistory';
 import PerformanceSummary from './PerformanceSummary';
 import ProgramList from './ProgramList';
+import ProgramBuilder from './ProgramBuilder';
 import ClientProgramAssignment from './ClientProgramAssignment';
 
 export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
   const [adminSection, setAdminSection] = useState('dashboard');
+  const [builderProgram, setBuilderProgram] = useState(null);
 
   const [clients, setClients] = useState([]);
   const [programs, setPrograms] = useState([]);
@@ -89,9 +91,20 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
     }
   };
 
+  const handleOpenBuilder = (program) => {
+    setBuilderProgram(program);
+    setAdminSection('programBuilder');
+  };
+
+  const handleBuilderBack = () => {
+    setAdminSection('programs');
+  };
+
+  const navSection = adminSection === 'programBuilder' ? 'programs' : adminSection;
+
   if (loading) {
     return (
-      <AdminLayout activeSection={adminSection} onSectionChange={setAdminSection}>
+      <AdminLayout activeSection={navSection} onSectionChange={setAdminSection}>
         <p style={{ color: '#888' }}>Loading...</p>
       </AdminLayout>
     );
@@ -99,7 +112,7 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
 
   if (error) {
     return (
-      <AdminLayout activeSection={adminSection} onSectionChange={setAdminSection}>
+      <AdminLayout activeSection={navSection} onSectionChange={setAdminSection}>
         <p style={{ color: '#ff4444' }}>Error: {error}</p>
       </AdminLayout>
     );
@@ -151,7 +164,7 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
   );
 
   return (
-    <AdminLayout activeSection={adminSection} onSectionChange={setAdminSection}>
+    <AdminLayout activeSection={navSection} onSectionChange={setAdminSection}>
 
       {/* ── Dashboard ── */}
       {adminSection === 'dashboard' && (
@@ -245,8 +258,14 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
             clients={clients}
             onProgramsChanged={handleProgramsChanged}
             onAssigned={handleAssigned}
+            onOpenBuilder={handleOpenBuilder}
           />
         </div>
+      )}
+
+      {/* ── Program Builder ── */}
+      {adminSection === 'programBuilder' && builderProgram && (
+        <ProgramBuilder program={builderProgram} onBack={handleBuilderBack} />
       )}
 
       {/* ── Exercise Library (parked) ── */}

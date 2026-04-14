@@ -169,6 +169,9 @@ export default function ProgramDayList({ programId }) {
                   <span className="pdl-day__num">Day {d.day_number}</span>
                   {d.name && <span className="pdl-day__name">{d.name}</span>}
                 </div>
+                {selectedDayId !== d.id && (
+                  <span className="pdl-day__hint">Click to add exercises</span>
+                )}
                 <div className="pdl-day__actions" onClick={(e) => e.stopPropagation()}>
                   <button className="prog-btn" onClick={() => handleEditStart(d)}>
                     Edit

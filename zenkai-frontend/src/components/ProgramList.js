@@ -8,7 +8,7 @@ import ProgramDayList from './ProgramDayList';
 import WorkoutPreview from './WorkoutPreview';
 import ClientTargetEditor from './ClientTargetEditor';
 
-export default function ProgramList({ programs, clients = [], onProgramsChanged, onAssigned }) {
+export default function ProgramList({ programs, clients = [], onProgramsChanged, onAssigned, onOpenBuilder }) {
   const [name, setName] = useState('');
   const [weeks, setWeeks] = useState('');
   const [deloadWeeks, setDeloadWeeks] = useState('');
@@ -39,7 +39,7 @@ export default function ProgramList({ programs, clients = [], onProgramsChanged,
     setLoading(true);
     setError(null);
     try {
-      await createProgram({
+      const created = await createProgram({
         name: name.trim(),
         weeks: parsedWeeks,
         deload_weeks: parseDeloadWeeks(deloadWeeks)
@@ -48,6 +48,7 @@ export default function ProgramList({ programs, clients = [], onProgramsChanged,
       setWeeks('');
       setDeloadWeeks('');
       if (onProgramsChanged) await onProgramsChanged();
+      if (onOpenBuilder) onOpenBuilder(created);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -247,6 +248,12 @@ export default function ProgramList({ programs, clients = [], onProgramsChanged,
                 onClick={() => setPreviewProgramId(previewProgramId === selectedProgramId ? null : selectedProgramId)}
               >
                 {previewProgramId === selectedProgramId ? 'Close Preview' : 'Preview'}
+              </button>
+              <button
+                className="prog-btn prog-btn--primary"
+                onClick={() => onOpenBuilder && onOpenBuilder(programs.find(p => p.id === selectedProgramId))}
+              >
+                Open Builder
               </button>
             </div>
 
