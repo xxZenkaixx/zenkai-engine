@@ -18,10 +18,8 @@ export default function ClientList({
 
   const handleCreate = async () => {
     if (!name.trim()) return;
-
     setLoading(true);
     setError(null);
-
     try {
       await createClient({ name: name.trim() });
       setName('');
@@ -47,9 +45,7 @@ export default function ClientList({
 
   const handleEditSave = async (id) => {
     if (!editName.trim()) return;
-
     setError(null);
-
     try {
       await updateClient(id, { name: editName.trim() });
       setEditingId(null);
@@ -60,10 +56,8 @@ export default function ClientList({
     }
   };
 
-  // * Parent must clear selected client and active program display if needed.
   const handleDelete = async (id) => {
     setError(null);
-
     try {
       await deleteClient(id);
       if (onClientDeleted) onClientDeleted(id);
@@ -73,51 +67,64 @@ export default function ClientList({
   };
 
   return (
-    <div>
-      <h2>Clients</h2>
+    <div className="cl-panel">
+      <div className="cl-create-row">
+        <input
+          className="cl-create-input"
+          type="text"
+          placeholder="New client name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+        />
+        <button
+          className="cl-create-btn"
+          onClick={handleCreate}
+          disabled={loading || !name.trim()}
+        >
+          {loading ? '...' : '+ Add'}
+        </button>
+      </div>
 
-      <input
-        type="text"
-        placeholder="Client name"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-      />
+      {error && <p className="cl-error">{error}</p>}
 
-      <button onClick={handleCreate} disabled={loading}>
-        {loading ? 'Creating...' : 'Add Client'}
-      </button>
-
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-
-      <ul>
+      <ul className="cl-list">
+        {clients.length === 0 && (
+          <li className="cl-empty">No clients yet.</li>
+        )}
         {clients.map((client) => (
-          <li key={client.id}>
+          <li
+            key={client.id}
+            className={`cl-item${selectedClientId === client.id ? ' cl-item--selected' : ''}`}
+          >
             {editingId === client.id ? (
-              <>
+              <div className="cl-item__edit">
                 <input
+                  className="cl-create-input"
                   type="text"
                   value={editName}
+                  autoFocus
                   onChange={(e) => setEditName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleEditSave(client.id)}
                 />
-                <button onClick={() => handleEditSave(client.id)}>Save</button>
-                <button onClick={handleEditCancel}>Cancel</button>
-              </>
+                <div className="cl-item__edit-actions">
+                  <button className="prog-btn prog-btn--save" onClick={() => handleEditSave(client.id)}>Save</button>
+                  <button
+                    className="prog-btn"
+                    onClick={handleEditCancel}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
             ) : (
-              <>
-                <span
-                  onClick={() => onSelectClient(client.id)}
-                  style={{
-                    fontWeight:
-                      selectedClientId === client.id ? 'bold' : 'normal',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {client.name}
-                </span>
-
-                <button onClick={() => handleEditStart(client)}>Edit</button>
-                <button onClick={() => handleDelete(client.id)}>Delete</button>
-              </>
+              <div className="cl-item__row" onClick={() => onSelectClient(client.id)}>
+                <span className="cl-item__name">{client.name}</span>
+                <div className="cl-item__actions" onClick={(e) => e.stopPropagation()}>
+                  <button className="prog-btn" onClick={() => handleEditStart(client)}>Edit</button>
+                  <button className="prog-btn prog-btn--danger" onClick={() => handleDelete(client.id)}>Delete</button>
+                </div>
+              </div>
             )}
           </li>
         ))}

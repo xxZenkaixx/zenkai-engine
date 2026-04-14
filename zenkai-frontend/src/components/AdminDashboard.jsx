@@ -333,14 +333,24 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
       {adminSection === 'clients' && (
         <div>
           <h2 className="admin-section-title">Clients</h2>
-          <ClientList
-            clients={clients}
-            selectedClientId={selectedClientId}
-            onSelectClient={setSelectedClientId}
-            onClientCreated={handleClientCreated}
-            onClientDeleted={handleClientDeleted}
-          />
-          {clientDetail}
+          <div className="cl-layout">
+            <div className="cl-sidebar">
+              <ClientList
+                clients={clients}
+                selectedClientId={selectedClientId}
+                onSelectClient={setSelectedClientId}
+                onClientCreated={handleClientCreated}
+                onClientDeleted={handleClientDeleted}
+              />
+            </div>
+            <div className="cl-detail">
+              {clientDetail || (
+                <div className="cl-detail__empty">
+                  <p className="cl-detail__empty-text">Select a client to view details</p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
