@@ -1,6 +1,7 @@
 // * Handles API calls for logging and editing sets.
+import { API_BASE } from './base';
 
-const BASE_URL = 'http://localhost:3001/api/sets';
+const BASE_URL = `${API_BASE}/api/sets`;
 
 // * log a completed set
 export const logSet = async (data) => {

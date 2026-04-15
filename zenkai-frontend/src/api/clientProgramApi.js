@@ -1,6 +1,7 @@
 // * Handles API calls for assigning programs to clients and fetching active program.
+import { API_BASE } from './base';
 
-const BASE_URL = 'http://localhost:3001/api/client-programs';
+const BASE_URL = `${API_BASE}/api/client-programs`;
 
 export const assignProgram = async (data) => {
   const res = await fetch(BASE_URL, {

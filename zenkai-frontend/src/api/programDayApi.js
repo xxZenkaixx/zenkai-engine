@@ -1,6 +1,7 @@
 // * Handles API calls for program day CRUD.
+import { API_BASE } from './base';
 
-const BASE_URL = 'http://localhost:3001/api/program-days';
+const BASE_URL = `${API_BASE}/api/program-days`;
 
 export const fetchProgramDays = async (programId) => {
   const res = await fetch(`${BASE_URL}/program/${programId}`);

@@ -1,6 +1,7 @@
 // * Handles API calls for exercise instance CRUD and reordering.
+import { API_BASE } from './base';
 
-const BASE_URL = 'http://localhost:3001/api/exercise-instances';
+const BASE_URL = `${API_BASE}/api/exercise-instances`;
 
 export const fetchExerciseInstances = async (dayId) => {
   const res = await fetch(`${BASE_URL}/day/${dayId}`);
@@ -20,7 +21,7 @@ export const createExerciseInstance = async (data) => {
 };
 
 export async function updateExerciseInstance(id, updates) {
-  const res = await fetch(`http://localhost:3001/api/exercise-instances/${id}`, {
+  const res = await fetch(`${BASE_URL}/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(updates)

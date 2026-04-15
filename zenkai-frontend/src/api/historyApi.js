@@ -1,4 +1,6 @@
-const BASE_URL = 'http://localhost:3001/api/history';
+import { API_BASE } from './base';
+
+const BASE_URL = `${API_BASE}/api/history`;
 
 export const fetchWorkoutHistory = async (clientId) => {
   const res = await fetch(`${BASE_URL}/${clientId}`);

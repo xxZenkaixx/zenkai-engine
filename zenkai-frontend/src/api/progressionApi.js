@@ -1,7 +1,8 @@
 // * Triggers post-workout progression evaluation and target mutation.
 // * Sends clientId and programDayId — matches existing backend contract.
+import { API_BASE } from './base';
 
-const BASE_URL = 'http://localhost:3001/api/progression';
+const BASE_URL = `${API_BASE}/api/progression`;
 
 export const applyProgression = async (clientId, programDayId) => {
   const res = await fetch(`${BASE_URL}/apply`, {

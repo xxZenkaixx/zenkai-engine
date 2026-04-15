@@ -1,4 +1,6 @@
-const BASE = 'http://localhost:3001/api/client-exercise-targets';
+import { API_BASE } from './base';
+
+const BASE = `${API_BASE}/api/client-exercise-targets`;
 
 export const fetchClientTargets = async (clientProgramId) => {
   const res = await fetch(`${BASE}/${clientProgramId}`);
