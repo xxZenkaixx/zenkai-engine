@@ -74,7 +74,7 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
   }, []);
 
   const program = programData?.Program;
-  const days = program?.ProgramDays || [];
+  const days = [...(program?.ProgramDays || [])].sort((a, b) => a.day_number - b.day_number);
   const selectedDay = days.find((d) => d.id === selectedDayId);
   const selectedExercises = selectedDay?.ExerciseInstances || [];
 
