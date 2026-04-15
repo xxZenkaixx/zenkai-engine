@@ -3,13 +3,14 @@ import { useState } from 'react';
 import AdminDashboard from './components/AdminDashboard';
 import ClientWorkoutView from './components/ClientWorkoutView';
 import ClientHome from './components/ClientHome';
+import LandingPage from './components/LandingPage';
 
 export default function App() {
+  const [landed, setLanded] = useState(false);
   const [view, setView] = useState('admin');
   const [activeClientId, setActiveClientId] = useState(null);
   const [activeDayId, setActiveDayId] = useState(null);
 
-  // * switch into workout view for selected client
   const handleStartWorkout = (clientId, dayId = null) => {
     setActiveClientId(clientId);
     setActiveDayId(dayId);
@@ -21,6 +22,8 @@ export default function App() {
     setView('clientHome');
   };
 
+  if (!landed) return <LandingPage onDone={() => setLanded(true)} />;
+
   return (
     <div>
       {view === 'admin' && (
@@ -30,7 +33,11 @@ export default function App() {
       {view === 'clientHome' && activeClientId && (
         <>
           <button onClick={() => setView('admin')}>Back to Admin</button>
-          <ClientHome clientId={activeClientId} onStartWorkout={handleStartWorkout} onBack={() => setView('admin')} />
+          <ClientHome
+            clientId={activeClientId}
+            onStartWorkout={handleStartWorkout}
+            onBack={() => setView('admin')}
+          />
         </>
       )}
 

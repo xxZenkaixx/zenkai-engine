@@ -1377,3 +1377,40 @@
 .admin-nav--collapsed .admin-nav__item--active .admin-nav__item-dot {
   background: #c8ff00;
 }
+
+.admin-nav--collapsed .admin-nav__list li {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* ── Clients page responsive ── */
+@media (max-width: 640px) {
+  .cl-layout {
+    flex-direction: column;
+  }
+
+  .cl-sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #1c1c1c;
+    padding-right: 0;
+    margin-right: 0;
+    padding-bottom: 20px;
+    margin-bottom: 20px;
+  }
+
+  .cl-detail__empty {
+    min-height: 120px;
+  }
+}
+
+@media (max-width: 860px) {
+  .cl-layout {
+    flex-wrap: wrap;
+  }
+
+  .cl-sidebar {
+    min-width: 100%;
+  }
+}
