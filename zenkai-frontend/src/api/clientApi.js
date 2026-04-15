@@ -1,6 +1,6 @@
 // * Handles API calls for client CRUD.
 
-const BASE_URL = 'http://localhost:3001/api/clients';
+const BASE_URL = `${process.env.REACT_APP_API_URL}/api/clients`;
 
 export const fetchClients = async () => {
   const res = await fetch(BASE_URL);
