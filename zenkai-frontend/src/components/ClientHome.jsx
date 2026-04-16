@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { fetchActiveProgram } from '../api/clientProgramApi';
 import { fetchWorkoutSessions } from '../api/historyApi';
+import { formatWeight } from '../utils/weightUtils';
 import WorkoutPreview from './WorkoutPreview';
 import ClientWorkoutSessionDetail from './ClientWorkoutSessionDetail';
 import './ClientHome.css';
@@ -153,8 +154,7 @@ export default function ClientHome({ clientId, onStartWorkout, onBack }) {
                     <div className="ch-lift-meta">Working Weight</div>
                   </div>
                   <div className="ch-lift-weight">
-                    {parseFloat(ex.target_weight)}
-                    <span className="ch-lift-unit">lb</span>
+                    {formatWeight(parseFloat(ex.target_weight), ex.equipment_type)}
                   </div>
                 </div>
               ))}

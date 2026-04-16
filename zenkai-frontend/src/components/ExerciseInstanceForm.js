@@ -28,7 +28,9 @@ const EMPTY_FORM = {
   stack_step_value: '',
   micro_step_value: '',
   max_micro_levels: '',
-  cable_unit: 'lb'
+  cable_unit: 'lb',
+  backoff_enabled: false,
+  backoff_percent: 10
 };
 
 const EMPTY_ERRORS = {
@@ -91,7 +93,9 @@ function buildPayload(fields) {
     max_micro_levels: isCable && fields.max_micro_levels !== '' ? parseInt(fields.max_micro_levels) : null,
     cable_unit: isCable ? fields.cable_unit : null,
     cable_setup_locked: isCable ? cableSetupComplete(fields) : false,
-    ...(isCable ? { current_micro_level: 0 } : {})
+    ...(isCable ? { current_micro_level: 0 } : {}),
+    backoff_enabled: fields.backoff_enabled,
+    backoff_percent: fields.backoff_enabled ? parseInt(fields.backoff_percent) : null,
   };
 }
 
@@ -141,7 +145,9 @@ export default function ExerciseInstanceForm({ dayId }) {
       progression_mode: ex.progression_mode ?? '', progression_value: ex.progression_value ?? '',
       base_stack_weight: ex.base_stack_weight ?? '', stack_step_value: ex.stack_step_value ?? '',
       micro_step_value: ex.micro_step_value ?? '', max_micro_levels: ex.max_micro_levels ?? '',
-      cable_unit: ex.cable_unit ?? 'lb'
+      cable_unit: ex.cable_unit ?? 'lb',
+      backoff_enabled: ex.backoff_enabled || false,
+      backoff_percent: ex.backoff_percent ?? 10,
     });
   };
 
@@ -247,6 +253,38 @@ export default function ExerciseInstanceForm({ dayId }) {
                 </div>
 
                 <div className="ex-edit-form__row">
+                  <label
+                    style={{
+                      color: '#888',
+                      fontSize: 13,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={editFields.backoff_enabled}
+                      onChange={(e) => se('backoff_enabled', e.target.checked)}
+                    />
+                    Back-off sets
+                  </label>
+
+                  {editFields.backoff_enabled && (
+                    <select
+                      className="prog-input"
+                      value={editFields.backoff_percent}
+                      onChange={(e) => se('backoff_percent', e.target.value)}
+                    >
+                      <option value={10}>10% reduction</option>
+                      <option value={15}>15% reduction</option>
+                      <option value={20}>20% reduction</option>
+                    </select>
+                  )}
+                </div>
+
+                <div className="ex-edit-form__row">
                   <input className="prog-input ex-edit-form__notes" placeholder="Notes (optional)" value={editFields.notes} onChange={(e) => se('notes', e.target.value)} />
                   <input className="prog-input" placeholder="Order #" value={editFields.order_index} onChange={(e) => se('order_index', e.target.value)} />
                 </div>
@@ -345,6 +383,24 @@ export default function ExerciseInstanceForm({ dayId }) {
           <input className="prog-input" placeholder="Reps *" value={form.target_reps} onChange={(e) => sf('target_reps', e.target.value)} />
           <input className="prog-input" placeholder="Weight (optional)" value={form.target_weight} onChange={(e) => sf('target_weight', e.target.value)} />
           <input className="prog-input" placeholder="Rest (sec) *" value={form.rest_seconds} onChange={(e) => sf('rest_seconds', e.target.value)} />
+        </div>
+
+        <div className="ex-add-form__row">
+          <label style={{ color: '#888', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={form.backoff_enabled}
+              onChange={(e) => sf('backoff_enabled', e.target.checked)}
+            />
+            Back-off sets
+          </label>
+          {form.backoff_enabled && (
+            <select className="prog-input" value={form.backoff_percent} onChange={(e) => sf('backoff_percent', e.target.value)}>
+              <option value={10}>10% reduction</option>
+              <option value={15}>15% reduction</option>
+              <option value={20}>20% reduction</option>
+            </select>
+          )}
         </div>
 
         <div className="ex-add-form__row">

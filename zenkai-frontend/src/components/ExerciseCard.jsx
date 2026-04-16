@@ -5,6 +5,7 @@
 import { useState, useEffect } from 'react';
 import { logSet, editSet, fetchLoggedSets } from '../api/loggedSetApi';
 import { updateExerciseInstance } from '../api/exerciseInstanceApi';
+import { roundWeight, getBackoffWeight, formatWeight } from '../utils/weightUtils';
 import HistoryPanel from './HistoryPanel';
 import LastPerformanceSnapshot from './LastPerformanceSnapshot';
 
@@ -42,7 +43,9 @@ export default function ExerciseCard({
     base_stack_weight,
     micro_step_value,
     current_micro_level,
-    cable_unit
+    cable_unit,
+    backoff_enabled,
+    backoff_percent
   } = exercise;
 
   const isCable = equipment_type === 'cable';
@@ -60,6 +63,7 @@ export default function ExerciseCard({
 
   const [loggedSets, setLoggedSets] = useState([]);
   const [completedReps, setCompletedReps] = useState('');
+  const [completedWeight, setCompletedWeight] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -83,6 +87,29 @@ export default function ExerciseCard({
   }, [id, clientId]);
 
   const nextSetNumber = loggedSets.length + 1;
+
+  useEffect(() => {
+    if (effectiveWeight == null) return;
+
+    let displayWeight;
+
+    if (!backoff_enabled) {
+      // no backoff → always trainer weight
+      displayWeight = effectiveWeight;
+    } else if (nextSetNumber === 1) {
+      // first set → always trainer weight
+      displayWeight = effectiveWeight;
+    } else {
+      // backoff sets only
+      displayWeight = getBackoffWeight(
+        effectiveWeight,
+        backoff_percent,
+        equipment_type
+      );
+    }
+
+    setCompletedWeight(displayWeight != null ? String(displayWeight) : '');
+  }, [nextSetNumber, effectiveWeight, backoff_enabled, backoff_percent, equipment_type]);
   const allSetsComplete = loggedSets.length >= target_sets;
   const nextSetLocked = timerActive && timerExerciseId === id;
 
@@ -114,8 +141,7 @@ export default function ExerciseCard({
         client_id: clientId,
         set_number: nextSetNumber,
         completed_reps: parsedReps,
-        // * Snapshot weight at log time — cable uses computed display weight
-        completed_weight: effectiveWeight
+        completed_weight: completedWeight !== '' ? parseFloat(completedWeight) : effectiveWeight
       });
       setLoggedSets((prev) => [...prev, saved].sort((a, b) => a.set_number - b.set_number));
       setCompletedReps('');
@@ -182,7 +208,7 @@ export default function ExerciseCard({
             <> · <span className="ec-target__weight">
               {isCable && cable_setup_locked
                 ? `${cableDisplayWeight.toFixed(1)} ${cable_unit}`
-                : `${effectiveWeight} lb`}
+                : formatWeight(effectiveWeight, equipment_type)}
             </span></>
           )}
         </p>
@@ -208,17 +234,50 @@ export default function ExerciseCard({
             </p>
           ) : (
             <div className="ec-log-row">
-              <input
-                className="ec-reps-input"
-                type="text"
-                inputMode="numeric"
-                placeholder="reps"
-                value={completedReps}
-                onChange={(e) => setCompletedReps(e.target.value)}
-              />
-              <button className="ec-log-btn" onClick={handleLogSet} disabled={loading}>
-                {loading ? 'Saving...' : 'Log Set'}
-              </button>
+              {!isCable && effectiveWeight != null && (
+                <p className="ec-prescribed">
+                  Prescribed:{' '}
+                  {formatWeight(
+                    backoff_enabled && nextSetNumber > 1
+                      ? getBackoffWeight(
+                          effectiveWeight,
+                          backoff_percent,
+                          equipment_type
+                        )
+                      : roundWeight(effectiveWeight, equipment_type),
+                    equipment_type
+                  )}
+                </p>
+              )}
+
+              <div className="ec-log-inputs">
+                <input
+                  className="ec-reps-input"
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="reps"
+                  value={completedReps}
+                  onChange={(e) => setCompletedReps(e.target.value)}
+                />
+
+                {!isCable && effectiveWeight != null && (
+                  <input
+                    className="ec-weight-input"
+                    type="text"
+                    inputMode="decimal"
+                    value={completedWeight}
+                    onChange={(e) => setCompletedWeight(e.target.value)}
+                  />
+                )}
+
+                <button
+                  className="ec-log-btn"
+                  onClick={handleLogSet}
+                  disabled={loading}
+                >
+                  {loading ? 'Saving...' : 'Log Set'}
+                </button>
+              </div>
             </div>
           )}
         </div>
