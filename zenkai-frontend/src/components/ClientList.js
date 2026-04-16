@@ -8,7 +8,8 @@ export default function ClientList({
   selectedClientId,
   onSelectClient,
   onClientCreated,
-  onClientDeleted
+  onClientDeleted,
+  selectionOnly = false
 }) {
   const [name, setName] = useState('');
   const [editingId, setEditingId] = useState(null);
@@ -68,23 +69,25 @@ export default function ClientList({
 
   return (
     <div className="cl-panel">
-      <div className="cl-create-row">
-        <input
-          className="cl-create-input"
-          type="text"
-          placeholder="New client name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
-        />
-        <button
-          className="cl-create-btn"
-          onClick={handleCreate}
-          disabled={loading || !name.trim()}
-        >
-          {loading ? '...' : '+ Add'}
-        </button>
-      </div>
+      {!selectionOnly && (
+        <div className="cl-create-row">
+          <input
+            className="cl-create-input"
+            type="text"
+            placeholder="New client name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+          />
+          <button
+            className="cl-create-btn"
+            onClick={handleCreate}
+            disabled={loading || !name.trim()}
+          >
+            {loading ? '...' : '+ Add'}
+          </button>
+        </div>
+      )}
 
       {error && <p className="cl-error">{error}</p>}
 
@@ -120,10 +123,12 @@ export default function ClientList({
             ) : (
               <div className="cl-item__row" onClick={() => onSelectClient(client.id)}>
                 <span className="cl-item__name">{client.name}</span>
-                <div className="cl-item__actions" onClick={(e) => e.stopPropagation()}>
-                  <button className="prog-btn" onClick={() => handleEditStart(client)}>Edit</button>
-                  <button className="prog-btn prog-btn--danger" onClick={() => handleDelete(client.id)}>Delete</button>
-                </div>
+                {!selectionOnly && (
+                  <div className="cl-item__actions" onClick={(e) => e.stopPropagation()}>
+                    <button className="prog-btn" onClick={() => handleEditStart(client)}>Edit</button>
+                    <button className="prog-btn prog-btn--danger" onClick={() => handleDelete(client.id)}>Delete</button>
+                  </div>
+                )}
               </div>
             )}
           </li>

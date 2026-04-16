@@ -241,7 +241,7 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
       )}
 
       <div style={{ display: 'flex', gap: 10, margin: '16px 0' }}>
-        <button className="btn-primary" onClick={() => onViewClientHome(selectedClientId)}>
+        <button className="btn-primary" onClick={() => onViewClientHome(selectedClientId, selectedClient?.name)}>
           Open Client View
         </button>
         <button className="btn-ghost" onClick={() => onStartWorkout(selectedClientId)}>
@@ -311,7 +311,7 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
                   )}
                 </div>
                 <div className="admin-client-snapshot__actions">
-                  <button className="btn-primary" onClick={() => onViewClientHome(selectedClientId)}>
+                  <button className="btn-primary" onClick={() => onViewClientHome(selectedClientId, selectedClient?.name)}>
                     Open Client View
                   </button>
                   <button className="btn-ghost" onClick={() => onStartWorkout(selectedClientId)}>
@@ -371,16 +371,41 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
             Select a client to open their portal.
           </p>
 
-          <ClientList
-            clients={clients}
-            selectedClientId={selectedClientId}
-            onSelectClient={(id) => {
-              setSelectedClientId(id);
-              onViewClientHome(id);
-            }}
-            onClientCreated={handleClientCreated}
-            onClientDeleted={handleClientDeleted}
-          />
+          <div style={{
+            background: '#111',
+            border: '1px solid #2a2a2a',
+            borderRadius: '10px',
+            padding: '16px 20px',
+            marginBottom: '20px'
+          }}>
+            <p style={{ color: '#e0e0e0', fontSize: '14px', fontWeight: 600, margin: '0 0 4px' }}>
+              Launch a client portal
+            </p>
+            <p style={{ color: '#aaa', fontSize: '13px', margin: 0 }}>
+              Select a client below to open their training view.
+            </p>
+          </div>
+
+          <div style={{
+            maxWidth: '440px',
+            background: '#111',
+            border: '1px solid #2a2a2a',
+            borderRadius: '10px',
+            padding: '8px 0',
+          }}>
+            <ClientList
+              clients={clients}
+              selectionOnly={true}
+              selectedClientId={selectedClientId}
+              onSelectClient={(id) => {
+                setSelectedClientId(id);
+                const client = clients.find(c => c.id === id);
+                onViewClientHome(id, client?.name);
+              }}
+              onClientCreated={handleClientCreated}
+              onClientDeleted={handleClientDeleted}
+            />
+          </div>
         </div>
       )}
 

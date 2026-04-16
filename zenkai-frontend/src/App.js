@@ -9,6 +9,7 @@ export default function App() {
   const [landed, setLanded] = useState(false);
   const [view, setView] = useState('admin');
   const [activeClientId, setActiveClientId] = useState(null);
+  const [activeClientName, setActiveClientName] = useState(null);
   const [activeDayId, setActiveDayId] = useState(null);
 
   const handleStartWorkout = (clientId, dayId = null) => {
@@ -17,8 +18,9 @@ export default function App() {
     setView('workout');
   };
 
-  const handleViewClientHome = (clientId) => {
+  const handleViewClientHome = (clientId, clientName = null) => {
     setActiveClientId(clientId);
+    setActiveClientName(clientName);
     setView('clientHome');
   };
 
@@ -35,6 +37,7 @@ export default function App() {
           <button onClick={() => setView('admin')}>Back to Admin</button>
           <ClientHome
             clientId={activeClientId}
+            clientName={activeClientName}
             onStartWorkout={handleStartWorkout}
             onBack={() => {
               localStorage.setItem('adminSection', 'clientPortal');

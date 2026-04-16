@@ -6,6 +6,7 @@ import WorkoutPreview from './WorkoutPreview';
 import ClientWorkoutSessionDetail from './ClientWorkoutSessionDetail';
 import PerformanceSummary from './PerformanceSummary';
 import ExercisePerformanceHistory from './ExercisePerformanceHistory';
+import ClientWorkoutHistoryList from './ClientWorkoutHistoryList';
 import './ClientHome.css';
 
 function getThisWeek() {
@@ -29,19 +30,18 @@ function formatDateKey(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-export default function ClientHome({ clientId, onStartWorkout, onBack }) {
+export default function ClientHome({ clientId, clientName, onStartWorkout, onBack }) {
   const [activeProgram, setActiveProgram] = useState(null);
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedSession, setSelectedSession] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [activeView, setActiveView] = useState('dashboard');
 
   const weekDays = useMemo(() => getThisWeek(), []);
 
   useEffect(() => {
     if (!clientId) return;
     setLoading(true);
-    setSelectedSession(null);
     setShowPreview(false);
 
     Promise.all([
@@ -102,7 +102,7 @@ export default function ClientHome({ clientId, onStartWorkout, onBack }) {
       <div className="ch-topbar">
         <button className="ch-back-btn" onClick={onBack}>← Back</button>
         <div>
-          <h1 className="ch-title">My Training</h1>
+          <h1 className="ch-title">{clientName ? `${clientName}'s Portal` : 'My Training'}</h1>
           {programName && (
             <p className="ch-sub">{programName} · {programWeeks} weeks</p>
           )}
@@ -119,9 +119,23 @@ export default function ClientHome({ clientId, onStartWorkout, onBack }) {
         </div>
       )}
 
-      <h2 style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '1.5px', textTransform: 'uppercase', color: '#aaa', margin: '24px 0 12px 0' }}>
-        Dashboard
-      </h2>
+      <div style={{ display: 'flex', gap: '8px', margin: '16px 0 4px' }}>
+        <button
+          className={activeView === 'dashboard' ? 'ch-cta-btn' : 'ch-secondary-btn'}
+          onClick={() => setActiveView('dashboard')}
+        >
+          Dashboard
+        </button>
+        <button
+          className={activeView === 'history' ? 'ch-cta-btn' : 'ch-secondary-btn'}
+          onClick={() => setActiveView('history')}
+        >
+          History
+        </button>
+      </div>
+
+      {activeView === 'dashboard' && (
+        <>
       <div className="ch-grid">
         <div className="ch-col">
           <div className="ch-card">
@@ -179,7 +193,7 @@ export default function ClientHome({ clientId, onStartWorkout, onBack }) {
                   <div
                     key={`${s.date}-${s.program_day_id}`}
                     className="ch-history-row"
-                    onClick={() => setSelectedSession(s)}
+                    onClick={() => setActiveView('history')}
                   >
                     <div className="ch-history-info">
                       <div className="ch-history-name">{s.date} — {label}</div>
@@ -198,19 +212,21 @@ export default function ClientHome({ clientId, onStartWorkout, onBack }) {
           Performance
         </h2>
         <PerformanceSummary clientId={clientId} />
-        <ExercisePerformanceHistory clientId={clientId} />
       </div>
 
-      {selectedSession && (
-        <div style={{ marginTop: '24px' }}>
-          <button className="ch-back-btn" onClick={() => setSelectedSession(null)}>← Back to Overview</button>
-          <ClientWorkoutSessionDetail
-            clientId={clientId}
-            date={selectedSession.date}
-            programDayId={selectedSession.program_day_id}
-            dayLabel={selectedSession.day_name || `Day ${selectedSession.day_number}`}
-          />
-        </div>
+        </>
+      )}
+
+      {activeView === 'history' && (
+        <>
+          <ClientWorkoutHistoryList clientId={clientId} />
+          <div style={{ marginTop: '32px' }}>
+            <h2 style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '1.5px', textTransform: 'uppercase', color: '#aaa', margin: '0 0 12px 0' }}>
+              Exercise History
+            </h2>
+            <ExercisePerformanceHistory clientId={clientId} />
+          </div>
+        </>
       )}
     </div>
   );
