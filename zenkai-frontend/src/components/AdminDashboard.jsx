@@ -7,10 +7,7 @@ import { fetchPrograms } from '../api/programApi';
 import { fetchActiveProgram, deactivateProgram, fetchAssignmentHistory } from '../api/clientProgramApi';
 import AdminLayout from './AdminLayout';
 import ClientList from './ClientList';
-import WorkoutHistory from './WorkoutHistory';
 import ClientWorkoutHistoryList from './ClientWorkoutHistoryList';
-import ExercisePerformanceHistory from './ExercisePerformanceHistory';
-import PerformanceSummary from './PerformanceSummary';
 import ProgramList from './ProgramList';
 import ProgramBuilder from './ProgramBuilder';
 import ClientProgramAssignment from './ClientProgramAssignment';
@@ -22,7 +19,8 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
       saved === 'dashboard' ||
       saved === 'clients' ||
       saved === 'programs' ||
-      saved === 'programBuilder'
+      saved === 'programBuilder' ||
+      saved === 'clientPortal'
     ) return saved;
     return 'dashboard';
   });
@@ -251,10 +249,7 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
         </button>
       </div>
 
-      <PerformanceSummary clientId={selectedClientId} />
       <ClientWorkoutHistoryList clientId={selectedClientId} />
-      <WorkoutHistory clientId={selectedClientId} />
-      <ExercisePerformanceHistory clientId={selectedClientId} />
     </div>
   );
 
@@ -364,6 +359,27 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
             onProgramsChanged={handleProgramsChanged}
             onAssigned={handleAssigned}
             onOpenBuilder={handleOpenBuilder}
+          />
+        </div>
+      )}
+
+      {/* ── Client Portal ── */}
+      {adminSection === 'clientPortal' && (
+        <div>
+          <h2 className="admin-section-title">Client Portal</h2>
+          <p style={{ color: '#aaa', fontSize: '13px', marginBottom: '16px' }}>
+            Select a client to open their portal.
+          </p>
+
+          <ClientList
+            clients={clients}
+            selectedClientId={selectedClientId}
+            onSelectClient={(id) => {
+              setSelectedClientId(id);
+              onViewClientHome(id);
+            }}
+            onClientCreated={handleClientCreated}
+            onClientDeleted={handleClientDeleted}
           />
         </div>
       )}

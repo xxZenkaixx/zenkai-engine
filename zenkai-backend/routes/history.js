@@ -79,6 +79,7 @@ router.get('/:clientId/detail', async (req, res) => {
         ei.id AS exercise_instance_id,
         ei.name AS exercise_name,
         ei.order_index,
+        ls.id AS set_id,
         ls.set_number,
         ls.completed_reps,
         ls.completed_weight
@@ -103,6 +104,7 @@ router.get('/:clientId/detail', async (req, res) => {
         };
       }
       exerciseMap[row.exercise_instance_id].sets.push({
+        set_id: row.set_id,
         set_number: row.set_number,
         completed_reps: row.completed_reps,
         completed_weight: row.completed_weight

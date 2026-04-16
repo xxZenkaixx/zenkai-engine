@@ -46,3 +46,4 @@ export const deleteProgram = async (id) => {
   if (res.status === 204) return null;
   return res.json();
 };
+

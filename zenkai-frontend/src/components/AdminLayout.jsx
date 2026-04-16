@@ -2,10 +2,10 @@ import { useState } from 'react';
 import './AdminLayout.css';
 
 const NAV_ITEMS = [
-  { id: 'dashboard', label: 'Dashboard' },
-  { id: 'clients',   label: 'Clients' },
-  { id: 'programs',  label: 'Programs' },
-  { id: 'exerciseLibrary', label: 'Exercise Library', parked: true },
+  { id: 'dashboard',    label: 'Dashboard' },
+  { id: 'clients',      label: 'Clients' },
+  { id: 'programs',     label: 'Programs' },
+  { id: 'clientPortal', label: 'Client Portal' },
 ];
 
 export default function AdminLayout({ activeSection, onSectionChange, children }) {

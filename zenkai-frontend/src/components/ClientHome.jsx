@@ -4,6 +4,8 @@ import { fetchWorkoutSessions } from '../api/historyApi';
 import { formatWeight } from '../utils/weightUtils';
 import WorkoutPreview from './WorkoutPreview';
 import ClientWorkoutSessionDetail from './ClientWorkoutSessionDetail';
+import PerformanceSummary from './PerformanceSummary';
+import ExercisePerformanceHistory from './ExercisePerformanceHistory';
 import './ClientHome.css';
 
 function getThisWeek() {
@@ -117,6 +119,9 @@ export default function ClientHome({ clientId, onStartWorkout, onBack }) {
         </div>
       )}
 
+      <h2 style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '1.5px', textTransform: 'uppercase', color: '#aaa', margin: '24px 0 12px 0' }}>
+        Dashboard
+      </h2>
       <div className="ch-grid">
         <div className="ch-col">
           <div className="ch-card">
@@ -188,6 +193,14 @@ export default function ClientHome({ clientId, onStartWorkout, onBack }) {
           </div>
         </div>
       </div>
+      <div style={{ marginTop: '32px' }}>
+        <h2 style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '1.5px', textTransform: 'uppercase', color: '#aaa', margin: '0 0 12px 0' }}>
+          Performance
+        </h2>
+        <PerformanceSummary clientId={clientId} />
+        <ExercisePerformanceHistory clientId={clientId} />
+      </div>
+
       {selectedSession && (
         <div style={{ marginTop: '24px' }}>
           <button className="ch-back-btn" onClick={() => setSelectedSession(null)}>← Back to Overview</button>

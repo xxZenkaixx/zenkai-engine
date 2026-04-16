@@ -36,7 +36,10 @@ export default function App() {
           <ClientHome
             clientId={activeClientId}
             onStartWorkout={handleStartWorkout}
-            onBack={() => setView('admin')}
+            onBack={() => {
+              localStorage.setItem('adminSection', 'clientPortal');
+              setView('admin');
+            }}
           />
         </>
       )}
