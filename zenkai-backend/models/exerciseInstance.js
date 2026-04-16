@@ -116,6 +116,15 @@ module.exports = (sequelize) => {
         type: DataTypes.BOOLEAN,
         allowNull: false,
         defaultValue: false
+      },
+      backoff_enabled: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false
+      },
+      backoff_percent: {
+        type: DataTypes.INTEGER,
+        allowNull: true
       }
     },
     {

@@ -44,25 +44,24 @@ router.post('/', async (req, res) => {
       return res.status(404).json({ error: 'Exercise instance not found' });
     }
 
-    // * determine effective weight (source of truth)
+    // * use client-provided weight if sent; otherwise compute from DB
     let completed_weight = null;
 
-    if (instance.equipment_type === 'cable') {
+    if (req.body.completed_weight != null) {
+      completed_weight = parseFloat(req.body.completed_weight);
+    } else if (instance.equipment_type === 'cable') {
       completed_weight =
         instance.base_stack_weight +
         instance.current_micro_level * instance.micro_step_value;
     } else {
-      // ! enforce weight must exist for non-cable
       if (instance.target_weight == null) {
         console.error('POST /loggedSets BLOCKED: missing target_weight', {
           exercise_instance_id
         });
-
         return res.status(400).json({
           error: 'Missing target_weight on exercise instance'
         });
       }
-
       completed_weight = instance.target_weight;
     }
 
