@@ -26,9 +26,10 @@ const EMPTY_FORM = {
   progression_value: '',
   base_stack_weight: '',
   stack_step_value: '',
-  micro_step_value: '',
   max_micro_levels: '',
   cable_unit: 'lb',
+  micro_type: 'none',
+  micro_display_label: '',
   backoff_enabled: false,
   backoff_percent: 10
 };
@@ -67,7 +68,6 @@ function cableSetupComplete(fields) {
   return (
     fields.base_stack_weight !== '' &&
     fields.stack_step_value !== '' &&
-    fields.micro_step_value !== '' &&
     fields.max_micro_levels !== '' &&
     fields.cable_unit !== ''
   );
@@ -89,9 +89,10 @@ function buildPayload(fields) {
     progression_value: isCustom && fields.progression_value !== '' ? parseFloat(fields.progression_value) : null,
     base_stack_weight: isCable && fields.base_stack_weight !== '' ? parseFloat(fields.base_stack_weight) : null,
     stack_step_value: isCable && fields.stack_step_value !== '' ? parseFloat(fields.stack_step_value) : null,
-    micro_step_value: isCable && fields.micro_step_value !== '' ? parseFloat(fields.micro_step_value) : null,
     max_micro_levels: isCable && fields.max_micro_levels !== '' ? parseInt(fields.max_micro_levels) : null,
     cable_unit: isCable ? fields.cable_unit : null,
+    micro_type: isCable ? fields.micro_type : null,
+    micro_display_label: isCable && fields.micro_display_label !== '' ? fields.micro_display_label : null,
     cable_setup_locked: isCable ? cableSetupComplete(fields) : false,
     ...(isCable ? { current_micro_level: 0 } : {}),
     backoff_enabled: fields.backoff_enabled,
@@ -144,8 +145,10 @@ export default function ExerciseInstanceForm({ dayId }) {
       rest_seconds: ex.rest_seconds, order_index: ex.order_index, notes: ex.notes ?? '',
       progression_mode: ex.progression_mode ?? '', progression_value: ex.progression_value ?? '',
       base_stack_weight: ex.base_stack_weight ?? '', stack_step_value: ex.stack_step_value ?? '',
-      micro_step_value: ex.micro_step_value ?? '', max_micro_levels: ex.max_micro_levels ?? '',
+      max_micro_levels: ex.max_micro_levels ?? '',
       cable_unit: ex.cable_unit ?? 'lb',
+      micro_type: ex.micro_type ?? 'none',
+      micro_display_label: ex.micro_display_label ?? '',
       backoff_enabled: ex.backoff_enabled || false,
       backoff_percent: ex.backoff_percent ?? 10,
     });
@@ -234,14 +237,47 @@ export default function ExerciseInstanceForm({ dayId }) {
 
                 {editFields.equipment_type === 'cable' && (
                   <div className="ex-edit-form__row">
-                    <input className="prog-input" placeholder="Base stack" value={editFields.base_stack_weight} onChange={(e) => se('base_stack_weight', e.target.value)} />
-                    <input className="prog-input" placeholder="Stack step" value={editFields.stack_step_value} onChange={(e) => se('stack_step_value', e.target.value)} />
-                    <input className="prog-input" placeholder="Micro step" value={editFields.micro_step_value} onChange={(e) => se('micro_step_value', e.target.value)} />
-                    <input className="prog-input" placeholder="Max micro levels" value={editFields.max_micro_levels} onChange={(e) => se('max_micro_levels', e.target.value)} />
-                    <select className="prog-input" value={editFields.cable_unit} onChange={(e) => se('cable_unit', e.target.value)}>
+                    <input
+                      className="prog-input"
+                      placeholder="Base stack"
+                      value={editFields.base_stack_weight}
+                      onChange={(e) => se('base_stack_weight', e.target.value)}
+                    />
+                    <input
+                      className="prog-input"
+                      placeholder="Stack step"
+                      value={editFields.stack_step_value}
+                      onChange={(e) => se('stack_step_value', e.target.value)}
+                    />
+                    <input
+                      className="prog-input"
+                      placeholder="Max micro levels"
+                      value={editFields.max_micro_levels}
+                      onChange={(e) => se('max_micro_levels', e.target.value)}
+                    />
+                    <select
+                      className="prog-input"
+                      value={editFields.cable_unit}
+                      onChange={(e) => se('cable_unit', e.target.value)}
+                    >
                       <option value="lb">lb</option>
                       <option value="kg">kg</option>
                     </select>
+                    <select
+                      className="prog-input"
+                      value={editFields.micro_type}
+                      onChange={(e) => se('micro_type', e.target.value)}
+                    >
+                      <option value="none">No micro</option>
+                      <option value="slider">Slider</option>
+                      <option value="knob">Knob</option>
+                    </select>
+                    <input
+                      className="prog-input"
+                      placeholder="Micro label (optional)"
+                      value={editFields.micro_display_label}
+                      onChange={(e) => se('micro_display_label', e.target.value)}
+                    />
                   </div>
                 )}
 
@@ -367,14 +403,47 @@ export default function ExerciseInstanceForm({ dayId }) {
 
         {form.equipment_type === 'cable' && (
           <div className="ex-add-form__row">
-            <input className="prog-input" placeholder="Base stack" value={form.base_stack_weight} onChange={(e) => sf('base_stack_weight', e.target.value)} />
-            <input className="prog-input" placeholder="Stack step" value={form.stack_step_value} onChange={(e) => sf('stack_step_value', e.target.value)} />
-            <input className="prog-input" placeholder="Micro step" value={form.micro_step_value} onChange={(e) => sf('micro_step_value', e.target.value)} />
-            <input className="prog-input" placeholder="Max micro levels" value={form.max_micro_levels} onChange={(e) => sf('max_micro_levels', e.target.value)} />
-            <select className="prog-input" value={form.cable_unit} onChange={(e) => sf('cable_unit', e.target.value)}>
+            <input
+              className="prog-input"
+              placeholder="Base stack"
+              value={form.base_stack_weight}
+              onChange={(e) => sf('base_stack_weight', e.target.value)}
+            />
+            <input
+              className="prog-input"
+              placeholder="Stack step"
+              value={form.stack_step_value}
+              onChange={(e) => sf('stack_step_value', e.target.value)}
+            />
+            <input
+              className="prog-input"
+              placeholder="Max micro levels"
+              value={form.max_micro_levels}
+              onChange={(e) => sf('max_micro_levels', e.target.value)}
+            />
+            <select
+              className="prog-input"
+              value={form.cable_unit}
+              onChange={(e) => sf('cable_unit', e.target.value)}
+            >
               <option value="lb">lb</option>
               <option value="kg">kg</option>
             </select>
+            <select
+              className="prog-input"
+              value={form.micro_type}
+              onChange={(e) => sf('micro_type', e.target.value)}
+            >
+              <option value="none">No micro</option>
+              <option value="slider">Slider</option>
+              <option value="knob">Knob</option>
+            </select>
+            <input
+              className="prog-input"
+              placeholder="Micro label (optional)"
+              value={form.micro_display_label}
+              onChange={(e) => sf('micro_display_label', e.target.value)}
+            />
           </div>
         )}
 

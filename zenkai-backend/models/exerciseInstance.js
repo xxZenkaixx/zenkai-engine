@@ -117,6 +117,14 @@ module.exports = (sequelize) => {
         allowNull: false,
         defaultValue: false
       },
+      micro_type: {
+        type: DataTypes.STRING,
+        allowNull: true
+      },
+      micro_display_label: {
+        type: DataTypes.STRING,
+        allowNull: true
+      },
       backoff_enabled: {
         type: DataTypes.BOOLEAN,
         allowNull: false,

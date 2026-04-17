@@ -145,7 +145,6 @@ async function applyProgressionForWorkout(clientId, programDayId) {
               current_micro_level: clientCableState?.current_micro_level ?? instance.current_micro_level,
               // * Static setup — always from template, never client-specific
               stack_step_value: instance.stack_step_value,
-              micro_step_value: instance.micro_step_value,
               max_micro_levels: instance.max_micro_levels
             }
           });

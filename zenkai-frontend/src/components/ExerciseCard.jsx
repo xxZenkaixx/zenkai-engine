@@ -7,13 +7,13 @@ import { logSet, editSet, fetchLoggedSets } from '../api/loggedSetApi';
 import { generateId, saveLog, removeLog } from '../utils/localWorkoutLogs';
 import { updateExerciseInstance } from '../api/exerciseInstanceApi';
 import { roundWeight, getBackoffWeight, formatWeight, getBackoffRest } from '../utils/weightUtils';
+import { getCableDisplayWeight, formatCableTarget } from '../utils/cableUtils';
 import HistoryPanel from './HistoryPanel';
 import LastPerformanceSnapshot from './LastPerformanceSnapshot';
 
 const EMPTY_CABLE_FORM = {
   base_stack_weight: '',
   stack_step_value: '',
-  micro_step_value: '',
   max_micro_levels: '',
   cable_unit: 'lb'
 };
@@ -39,8 +39,12 @@ export default function ExerciseCard({
     equipment_type,
     cable_setup_locked,
     base_stack_weight,
+    stack_step_value,
     micro_step_value,
+    max_micro_levels,
     current_micro_level,
+    micro_type,
+    micro_display_label,
     cable_unit,
     backoff_enabled,
     backoff_percent
@@ -50,7 +54,12 @@ export default function ExerciseCard({
   const needsCableSetup = isCable && !cable_setup_locked;
 
   const cableDisplayWeight = isCable && cable_setup_locked
-    ? parseFloat(base_stack_weight || 0) + (parseInt(current_micro_level || 0) * parseFloat(micro_step_value || 0))
+    ? getCableDisplayWeight(
+        base_stack_weight,
+        stack_step_value,
+        current_micro_level,
+        max_micro_levels
+      )
     : null;
 
   const effectiveWeight = isCable && cable_setup_locked
@@ -111,14 +120,13 @@ export default function ExerciseCard({
   const allSetsComplete = loggedSets.length >= target_sets;
 
   const handleCableSetupSave = async () => {
-    const { base_stack_weight: bsw, stack_step_value: ssv, micro_step_value: msv, max_micro_levels: mml, cable_unit: cu } = cableForm;
-    if (!bsw || !ssv || !msv || !mml || !cu) { setCableError('All cable fields are required.'); return; }
+    const { base_stack_weight: bsw, stack_step_value: ssv, max_micro_levels: mml, cable_unit: cu } = cableForm;
+    if (!bsw || !ssv || !mml || !cu) { setCableError('All cable fields are required.'); return; }
     setSavingCable(true); setCableError(null);
     try {
       await updateExerciseInstance(id, {
         base_stack_weight: parseFloat(bsw),
         stack_step_value: parseFloat(ssv),
-        micro_step_value: parseFloat(msv),
         max_micro_levels: parseInt(mml),
         cable_unit: cu,
         cable_setup_locked: true,
@@ -201,14 +209,6 @@ export default function ExerciseCard({
           <div className="ec-cable-setup__fields">
             <input className="ec-cable-input" type="text" inputMode="decimal" placeholder="Base stack weight *" value={cableForm.base_stack_weight} onChange={(e) => setCableForm({ ...cableForm, base_stack_weight: e.target.value })} />
             <input className="ec-cable-input" type="text" inputMode="decimal" placeholder="Stack step value *" value={cableForm.stack_step_value} onChange={(e) => setCableForm({ ...cableForm, stack_step_value: e.target.value })} />
-            <input
-              className="ec-cable-input"
-              type="text"
-              inputMode="decimal"
-              placeholder="Micro step value *"
-              value={cableForm.micro_step_value}
-              onChange={(e) => setCableForm({ ...cableForm, micro_step_value: e.target.value })}
-            />
             <input className="ec-cable-input" type="text" inputMode="numeric" placeholder="Max micro levels *" value={cableForm.max_micro_levels} onChange={(e) => setCableForm({ ...cableForm, max_micro_levels: e.target.value })} />
             <select className="ec-cable-input" value={cableForm.cable_unit} onChange={(e) => setCableForm({ ...cableForm, cable_unit: e.target.value })}>
               <option value="lb">lb</option>
@@ -231,11 +231,23 @@ export default function ExerciseCard({
         <p className="ec-target">
           {target_sets}×{target_reps}
           {effectiveWeight != null && (
-            <> · <span className="ec-target__weight">
-              {isCable && cable_setup_locked
-                ? `${cableDisplayWeight.toFixed(1)} ${cable_unit}`
-                : formatWeight(effectiveWeight, equipment_type)}
-            </span></>
+            <>
+              {' '}
+              ·{' '}
+              <span className="ec-target__weight">
+                {isCable && cable_setup_locked
+                  ? formatCableTarget({
+                      baseStackWeight: base_stack_weight,
+                      stackStepValue: stack_step_value,
+                      currentMicroLevel: current_micro_level,
+                      maxMicroLevels: max_micro_levels,
+                      cableUnit: cable_unit,
+                      microType: micro_type,
+                      microDisplayLabel: micro_display_label
+                    })
+                  : formatWeight(effectiveWeight, equipment_type)}
+              </span>
+            </>
           )}
         </p>
         {notes && <p className="ec-notes">{notes}</p>}

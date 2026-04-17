@@ -16,7 +16,6 @@ function roundToNearest2_5(weight) {
 function calculateCableNextState({
   base_stack_weight,
   stack_step_value,
-  micro_step_value,
   max_micro_levels,
   current_micro_level,
   rep_range_min,
@@ -41,12 +40,19 @@ function calculateCableNextState({
       next_micro -= 1;
     } else {
       next_stack -= stack_step_value;
-      // * Prevent micro going below 0
       next_micro = 0;
     }
   }
 
-  const display_weight = next_stack + next_micro * micro_step_value;
+  const safeStack = parseFloat(stack_step_value);
+  let safeLevels = parseInt(max_micro_levels);
+
+  if (isNaN(safeLevels) || safeLevels < 0) safeLevels = 0;
+
+  const derived_micro_step =
+    isNaN(safeStack) || safeStack <= 0 ? 0 : safeStack / (safeLevels + 1);
+
+  const display_weight = next_stack + next_micro * derived_micro_step;
 
   return {
     base_stack_weight: next_stack,
