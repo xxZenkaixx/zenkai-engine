@@ -46,7 +46,12 @@ router.get('/:clientId', async (req, res) => {
                     'max_micro_levels',
                     'current_micro_level',
                     'cable_unit',
-                    'cable_setup_locked'
+                    'cable_setup_locked',
+                    // ADDED: required for backoff and cable micro display
+                    'backoff_enabled',
+                    'backoff_percent',
+                    'micro_type',
+                    'micro_display_label'
                   ]
                 }
               ]
