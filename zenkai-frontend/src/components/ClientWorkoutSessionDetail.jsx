@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { fetchWorkoutDetail } from '../api/historyApi';
-import { editSet } from '../api/loggedSetApi';
+import { editSet, deleteSet } from '../api/loggedSetApi';
 
 export default function ClientWorkoutSessionDetail({ clientId, date, programDayId, dayLabel }) {
   const [exercises, setExercises] = useState([]);
@@ -9,6 +9,7 @@ export default function ClientWorkoutSessionDetail({ clientId, date, programDayI
   const [refreshKey, setRefreshKey] = useState(0);
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(null);
 
   useEffect(() => {
     if (!clientId || !date || !programDayId) return;
@@ -38,6 +39,21 @@ export default function ClientWorkoutSessionDetail({ clientId, date, programDayI
       alert('Save failed: ' + err.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async (setId) => {
+    const confirmed = window.confirm('Delete this completed set?');
+    if (!confirmed) return;
+
+    setDeleting(setId);
+    try {
+      await deleteSet(setId);
+      setRefreshKey((k) => k + 1);
+    } catch (err) {
+      alert('Delete failed: ' + err.message);
+    } finally {
+      setDeleting(null);
     }
   };
 
@@ -104,9 +120,17 @@ export default function ClientWorkoutSessionDetail({ clientId, date, programDayI
                             weight: s.completed_weight ?? ''
                           })
                         }
+                        disabled={deleting === s.set_id}
                         style={{ fontSize: 11, marginLeft: 6 }}
                       >
                         Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(s.set_id)}
+                        disabled={deleting === s.set_id || saving}
+                        style={{ fontSize: 11, marginLeft: 4, color: '#ff4444' }}
+                      >
+                        {deleting === s.set_id ? '...' : 'Delete'}
                       </button>
                     </>
                   )}

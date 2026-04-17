@@ -17,6 +17,13 @@ export function getBackoffWeight(mainWeight, percent, equipmentType) {
   return roundWeight(raw, equipmentType);
 }
 
+export function getBackoffRest(assignedRest) {
+  const baseRest = Number(assignedRest);
+  const calculated = baseRest * 0.66;
+  const rounded = Math.floor(calculated / 15) * 15;
+  return Math.max(60, rounded);
+}
+
 // * Returns display string. Barbell gets per-side annotation.
 // * Does NOT round — caller is responsible for passing a rounded value if needed.
 export function formatWeight(weight, equipmentType) {

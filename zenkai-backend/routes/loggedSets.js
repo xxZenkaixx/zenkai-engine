@@ -107,4 +107,16 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+// * delete a logged set
+router.delete('/:id', async (req, res) => {
+  try {
+    const loggedSet = await LoggedSet.findByPk(req.params.id);
+    if (!loggedSet) return res.status(404).json({ error: 'Set not found' });
+    await loggedSet.destroy();
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

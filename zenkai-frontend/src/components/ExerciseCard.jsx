@@ -5,7 +5,7 @@
 import { useState, useEffect } from 'react';
 import { logSet, editSet, fetchLoggedSets } from '../api/loggedSetApi';
 import { updateExerciseInstance } from '../api/exerciseInstanceApi';
-import { roundWeight, getBackoffWeight, formatWeight } from '../utils/weightUtils';
+import { roundWeight, getBackoffWeight, formatWeight, getBackoffRest } from '../utils/weightUtils';
 import HistoryPanel from './HistoryPanel';
 import LastPerformanceSnapshot from './LastPerformanceSnapshot';
 
@@ -147,7 +147,10 @@ export default function ExerciseCard({
       setCompletedReps('');
       const isLastSet = nextSetNumber === target_sets;
       if (!(isLastIncomplete && isLastSet)) {
-        onSetLogged(rest_seconds, id);
+        const restToUse = (backoff_enabled && nextSetNumber > 1)
+          ? getBackoffRest(rest_seconds)
+          : rest_seconds;
+        onSetLogged(restToUse, id);
       }
     } catch (err) { setError(err.message); } finally { setLoading(false); }
   };

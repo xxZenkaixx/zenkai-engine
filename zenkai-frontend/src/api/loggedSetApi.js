@@ -46,6 +46,13 @@ export const fetchLoggedSets = async (exerciseInstanceId, clientId) => {
   return res.json();
 };
 
+// * delete a logged set by id
+export const deleteSet = async (id) => {
+  const res = await fetch(`${BASE_URL}/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to delete set');
+  return res.json();
+};
+
 // * Fetches full set history for a client + exercise without feeding workout session state
 export const fetchSetHistory = async (exerciseInstanceId, clientId) => {
   const res = await fetch(
