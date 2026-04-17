@@ -56,22 +56,35 @@ function validateExercisePayload(body, isUpdate = false) {
     }
   }
 
-  // * Cable locked setup validation
+  // * Cable locked setup validation — UPDATED for new cable logic
   const isCable = body.equipment_type === 'cable';
   const isLocked = body.cable_setup_locked === true;
 
   if (isCable && isLocked) {
-    if (body.base_stack_weight == null) errors.push({ field: 'base_stack_weight', error: 'base_stack_weight required when cable setup is locked.' });
-    if (body.stack_step_value == null) errors.push({ field: 'stack_step_value', error: 'stack_step_value required when cable setup is locked.' });
-    if (body.micro_step_value == null) errors.push({ field: 'micro_step_value', error: 'micro_step_value required when cable setup is locked.' });
+    if (body.base_stack_weight == null)
+      errors.push({ field: 'base_stack_weight', error: 'base_stack_weight required when cable setup is locked.' });
+
+    if (body.stack_step_value == null)
+      errors.push({ field: 'stack_step_value', error: 'stack_step_value required when cable setup is locked.' });
+
+    // REMOVED micro_step_value requirement
+    // if (body.micro_step_value == null) ...  ← deleted this
+
     if (body.max_micro_levels == null || !Number.isInteger(Number(body.max_micro_levels)) || Number(body.max_micro_levels) < 0) {
       errors.push({ field: 'max_micro_levels', error: 'max_micro_levels must be a non-negative integer.' });
     }
+
     if (!body.cable_unit || !VALID_CABLE_UNITS.includes(body.cable_unit)) {
       errors.push({ field: 'cable_unit', error: 'cable_unit must be lb or kg.' });
     }
+
     if (body.current_micro_level == null || !Number.isInteger(Number(body.current_micro_level)) || Number(body.current_micro_level) < 0) {
       errors.push({ field: 'current_micro_level', error: 'current_micro_level must be a non-negative integer.' });
+    }
+
+    // New fields we added
+    if (!body.micro_type) {
+      errors.push({ field: 'micro_type', error: 'micro_type is required for cable exercises (slider or knob).' });
     }
   }
 
