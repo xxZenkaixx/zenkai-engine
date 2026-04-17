@@ -104,8 +104,14 @@ export default function ExerciseCard({
       // set 1 or backoff disabled → always exact trainer weight
       displayWeight = effectiveWeight;
     } else if (isCable) {
-      // cable backoff sets 2+ → subtract one derived micro step
-      displayWeight = effectiveWeight - computeMicroStepValue(stack_step_value, max_micro_levels);
+      const microStep = computeMicroStepValue(stack_step_value, max_micro_levels);
+      if (microStep > 0) {
+        const backoffTarget = effectiveWeight * (1 - backoff_percent / 100);
+        const steps = Math.floor((backoffTarget - effectiveWeight) / microStep);
+        displayWeight = effectiveWeight + steps * microStep;
+      } else {
+        displayWeight = effectiveWeight;
+      }
     } else {
       // non-cable backoff sets 2+
       displayWeight = getBackoffWeight(
