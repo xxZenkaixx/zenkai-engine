@@ -34,7 +34,19 @@ router.get('/', async (req, res) => {
 // * log one completed set
 router.post('/', async (req, res) => {
   try {
-    const { exercise_instance_id, client_id, set_number, completed_reps } = req.body;
+    const {
+      id,
+      exercise_instance_id,
+      client_id,
+      set_number,
+      completed_reps,
+      completed_weight
+    } = req.body;
+
+    if (id) {
+      const existing = await LoggedSet.findOne({ where: { idempotency_key: id } });
+      if (existing) return res.json(existing);
+    }
 
     // * fetch exercise instance for weight snapshot
     const instance = await ExerciseInstance.findByPk(exercise_instance_id);
@@ -45,12 +57,12 @@ router.post('/', async (req, res) => {
     }
 
     // * use client-provided weight if sent; otherwise compute from DB
-    let completed_weight = null;
+    let resolvedWeight = null;
 
-    if (req.body.completed_weight != null) {
-      completed_weight = parseFloat(req.body.completed_weight);
+    if (completed_weight != null) {
+      resolvedWeight = parseFloat(completed_weight);
     } else if (instance.equipment_type === 'cable') {
-      completed_weight =
+      resolvedWeight =
         instance.base_stack_weight +
         instance.current_micro_level * instance.micro_step_value;
     } else {
@@ -62,7 +74,7 @@ router.post('/', async (req, res) => {
           error: 'Missing target_weight on exercise instance'
         });
       }
-      completed_weight = instance.target_weight;
+      resolvedWeight = instance.target_weight;
     }
 
     const loggedSet = await LoggedSet.create({
@@ -70,7 +82,8 @@ router.post('/', async (req, res) => {
       client_id,
       set_number,
       completed_reps,
-      completed_weight
+      completed_weight: resolvedWeight,
+      idempotency_key: id || null
     });
 
     console.log('POST /loggedSets SUCCESS:', {

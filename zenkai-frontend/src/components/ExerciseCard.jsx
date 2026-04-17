@@ -4,6 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { logSet, editSet, fetchLoggedSets } from '../api/loggedSetApi';
+import { generateId, saveLog, removeLog } from '../utils/localWorkoutLogs';
 import { updateExerciseInstance } from '../api/exerciseInstanceApi';
 import { roundWeight, getBackoffWeight, formatWeight, getBackoffRest } from '../utils/weightUtils';
 import HistoryPanel from './HistoryPanel';
@@ -111,7 +112,6 @@ export default function ExerciseCard({
     setCompletedWeight(displayWeight != null ? String(displayWeight) : '');
   }, [nextSetNumber, effectiveWeight, backoff_enabled, backoff_percent, equipment_type]);
   const allSetsComplete = loggedSets.length >= target_sets;
-  const nextSetLocked = timerActive && timerExerciseId === id;
 
   const handleCableSetupSave = async () => {
     const { base_stack_weight: bsw, stack_step_value: ssv, micro_step_value: msv, max_micro_levels: mml, cable_unit: cu } = cableForm;
@@ -133,26 +133,52 @@ export default function ExerciseCard({
 
   const handleLogSet = async () => {
     const parsedReps = Number(completedReps);
-    if (nextSetLocked || allSetsComplete || !Number.isInteger(parsedReps) || parsedReps <= 0) return;
-    setLoading(true); setError(null);
+    if (allSetsComplete || !Number.isInteger(parsedReps) || parsedReps <= 0) return;
+
+    setLoading(true);
+    setError(null);
+
+    const localId = generateId();
+
+    const payload = {
+      id: localId,
+      exercise_instance_id: id,
+      client_id: clientId,
+      set_number: nextSetNumber,
+      completed_reps: parsedReps,
+      completed_weight:
+        completedWeight !== '' ? parseFloat(completedWeight) : effectiveWeight
+    };
+
+    // * LOCAL FIRST (always)
+    saveLog(payload);
+
     try {
-      const saved = await logSet({
-        exercise_instance_id: id,
-        client_id: clientId,
-        set_number: nextSetNumber,
-        completed_reps: parsedReps,
-        completed_weight: completedWeight !== '' ? parseFloat(completedWeight) : effectiveWeight
-      });
-      setLoggedSets((prev) => [...prev, saved].sort((a, b) => a.set_number - b.set_number));
-      setCompletedReps('');
-      const isLastSet = nextSetNumber === target_sets;
-      if (!(isLastIncomplete && isLastSet)) {
-        const restToUse = (backoff_enabled && nextSetNumber > 1)
+      await logSet(payload);
+      removeLog(localId);
+    } catch (err) {
+      // stays queued
+    }
+
+    // * UI MUST UPDATE REGARDLESS OF NETWORK
+    setLoggedSets((prev) =>
+      [...prev, payload].sort((a, b) => a.set_number - b.set_number)
+    );
+
+    setCompletedReps('');
+
+    const isLastSet = nextSetNumber === target_sets;
+
+    if (!(isLastIncomplete && isLastSet)) {
+      const restToUse =
+        backoff_enabled && nextSetNumber > 1
           ? getBackoffRest(rest_seconds)
           : rest_seconds;
-        onSetLogged(restToUse, id);
-      }
-    } catch (err) { setError(err.message); } finally { setLoading(false); }
+
+      onSetLogged(restToUse, id);
+    }
+
+    setLoading(false);
   };
 
   // ! Editing previous sets must never affect timer state
@@ -231,58 +257,52 @@ export default function ExerciseCard({
       {!allSetsComplete && (
         <div className="ec-next-set" ref={nextSetRef}>
           <p className="ec-set-counter">Set {nextSetNumber} of {target_sets}</p>
-          {nextSetLocked ? (
-            <p className="ec-timer-inline">
-              {timerRemaining}<span className="ec-timer-inline__label">s rest</span>
-            </p>
-          ) : (
-            <div className="ec-log-row">
+          <div className="ec-log-row">
+            {!isCable && effectiveWeight != null && (
+              <p className="ec-prescribed">
+                Prescribed:{' '}
+                {formatWeight(
+                  backoff_enabled && nextSetNumber > 1
+                    ? getBackoffWeight(
+                        effectiveWeight,
+                        backoff_percent,
+                        equipment_type
+                      )
+                    : roundWeight(effectiveWeight, equipment_type),
+                  equipment_type
+                )}
+              </p>
+            )}
+
+            <div className="ec-log-inputs">
+              <input
+                className="ec-reps-input"
+                type="text"
+                inputMode="numeric"
+                placeholder="reps"
+                value={completedReps}
+                onChange={(e) => setCompletedReps(e.target.value)}
+              />
+
               {!isCable && effectiveWeight != null && (
-                <p className="ec-prescribed">
-                  Prescribed:{' '}
-                  {formatWeight(
-                    backoff_enabled && nextSetNumber > 1
-                      ? getBackoffWeight(
-                          effectiveWeight,
-                          backoff_percent,
-                          equipment_type
-                        )
-                      : roundWeight(effectiveWeight, equipment_type),
-                    equipment_type
-                  )}
-                </p>
+                <input
+                  className="ec-weight-input"
+                  type="text"
+                  inputMode="decimal"
+                  value={completedWeight}
+                  onChange={(e) => setCompletedWeight(e.target.value)}
+                />
               )}
 
-              <div className="ec-log-inputs">
-                <input
-                  className="ec-reps-input"
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="reps"
-                  value={completedReps}
-                  onChange={(e) => setCompletedReps(e.target.value)}
-                />
-
-                {!isCable && effectiveWeight != null && (
-                  <input
-                    className="ec-weight-input"
-                    type="text"
-                    inputMode="decimal"
-                    value={completedWeight}
-                    onChange={(e) => setCompletedWeight(e.target.value)}
-                  />
-                )}
-
-                <button
-                  className="ec-log-btn"
-                  onClick={handleLogSet}
-                  disabled={loading}
-                >
-                  {loading ? 'Saving...' : 'Log Set'}
-                </button>
-              </div>
+              <button
+                className="ec-log-btn"
+                onClick={handleLogSet}
+                disabled={loading}
+              >
+                {loading ? 'Saving...' : 'Log Set'}
+              </button>
             </div>
-          )}
+          </div>
         </div>
       )}
 

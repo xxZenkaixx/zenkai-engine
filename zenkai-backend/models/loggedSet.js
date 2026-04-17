@@ -32,6 +32,11 @@ module.exports = (sequelize) => {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW
+    },
+    idempotency_key: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      unique: true
     }
   }, {
     tableName: 'logged_sets',

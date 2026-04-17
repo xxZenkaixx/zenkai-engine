@@ -6,6 +6,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { fetchActiveProgram } from '../api/clientProgramApi';
 import ExerciseCard from './ExerciseCard';
 import { applyProgression } from '../api/progressionApi';
+import { logSet } from '../api/loggedSetApi';
+import { syncPendingLogs } from '../utils/localWorkoutLogs';
 import './ClientWorkoutView.css';
 
 export default function ClientWorkoutView({ clientId, onWorkoutFinished, initialDayId }) {
@@ -25,6 +27,11 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
   const [exerciseLoggedCounts, setExerciseLoggedCounts] = useState({});
 
   const intervalRef = useRef(null);
+  const timerEndRef = useRef(null);
+  const timerExerciseIdRef = useRef(null);
+  const timerCompletedRef = useRef(false);
+  const audioRef = useRef(null);
+  const wakeLockRef = useRef(null);
   const cardRefs = useRef({});
   const nextSetRefs = useRef({});
 
@@ -71,6 +78,65 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
 
   useEffect(() => {
     return () => clearInterval(intervalRef.current);
+  }, []);
+
+  useEffect(() => {
+    audioRef.current = new Audio('/rest-complete.mp3');
+  }, []);
+
+  useEffect(() => {
+    runPendingLogSync();
+
+    const handleOnline = () => {
+      runPendingLogSync();
+    };
+
+    window.addEventListener('online', handleOnline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+    };
+  }, []);
+
+  const runPendingLogSync = async () => {
+    try {
+      await syncPendingLogs((payload) => logSet(payload));
+    } catch (err) {
+      // fail silently
+    }
+  };
+
+  const requestWakeLock = async () => {
+    try {
+      if ('wakeLock' in navigator && !wakeLockRef.current) {
+        wakeLockRef.current = await navigator.wakeLock.request('screen');
+      }
+    } catch (err) {}
+  };
+
+  const releaseWakeLock = async () => {
+    try {
+      await wakeLockRef.current?.release();
+      wakeLockRef.current = null;
+    } catch (err) {}
+  };
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (!timerEndRef.current) return;
+
+      const remaining = Math.round((timerEndRef.current - Date.now()) / 1000);
+      if (remaining <= 0) {
+        handleTimerComplete(timerExerciseIdRef.current);
+      } else {
+        setTimerRemaining(remaining);
+        if (timerEndRef.current) requestWakeLock();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
   const program = programData?.Program;
@@ -125,51 +191,78 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
     }
   };
 
+  const handleTimerComplete = (exerciseId) => {
+    if (timerCompletedRef.current) return;
+    timerCompletedRef.current = true;
+
+    clearInterval(intervalRef.current);
+    timerEndRef.current = null;
+    releaseWakeLock();
+
+    setTimerActive(false);
+    setTimerExerciseId(null);
+    setTimerRemaining(0);
+
+    if (exerciseId) {
+      nextSetRefs.current[exerciseId]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    audioRef.current?.play().catch(() => {});
+
+    if (document.visibilityState !== 'visible' && Notification.permission === 'granted') {
+      new Notification('Rest complete', { body: 'Ready for your next set.' });
+    }
+  };
+
   const startTimer = (restSeconds, exerciseId) => {
     const parsedRest = Number(restSeconds);
 
     clearInterval(intervalRef.current);
+    timerEndRef.current = null;
+    timerCompletedRef.current = false;
 
-    cardRefs.current[exerciseId]?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'start'
-    });
+    cardRefs.current[exerciseId]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
     if (!Number.isFinite(parsedRest) || parsedRest <= 0) {
       setTimerActive(false);
       setTimerRemaining(0);
       setTimerExerciseId(null);
+      timerExerciseIdRef.current = null;
 
-      nextSetRefs.current[exerciseId]?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center'
-      });
-
+      nextSetRefs.current[exerciseId]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
+
+    // * Request notification permission on first timer start (must be foregrounded)
+    if (Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {});
+    }
+
+    const endTime = Date.now() + parsedRest * 1000;
+    timerEndRef.current = endTime;
+    timerExerciseIdRef.current = exerciseId;
 
     setTimerExerciseId(exerciseId);
     setTimerRemaining(parsedRest);
     setTimerActive(true);
 
+    if (audioRef.current) {
+      audioRef.current.play().catch(() => {});
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+    requestWakeLock();
+
     intervalRef.current = setInterval(() => {
-      setTimerRemaining((prev) => {
-        if (prev <= 1) {
-          clearInterval(intervalRef.current);
-          setTimerActive(false);
-          setTimerExerciseId(null);
+      const remaining = Math.round((timerEndRef.current - Date.now()) / 1000);
 
-          nextSetRefs.current[exerciseId]?.scrollIntoView({
-            behavior: 'smooth',
-            block: 'center'
-          });
+      if (remaining <= 0) {
+        handleTimerComplete(exerciseId);
+        return;
+      }
 
-          return 0;
-        }
-
-        return prev - 1;
-      });
-    }, 1000);
+      setTimerRemaining(remaining);
+    }, 500);
   };
 
   if (loading) return <p className="cwv-loading">Loading workout...</p>;
@@ -214,6 +307,19 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
         </button>
         {finishError && <p className="cwv-finish-error">{finishError}</p>}
       </div>
+
+      {timerActive && (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          fontSize: '32px',
+          fontWeight: 'bold',
+          margin: '16px 0'
+        }}>
+          {timerRemaining}s
+        </div>
+      )}
 
       {selectedDayId && (() => {
         const dayForRender = days.find((d) => d.id === selectedDayId);
