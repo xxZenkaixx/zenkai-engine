@@ -10,16 +10,49 @@ router.get('/:clientId', async (req, res) => {
   try {
     const clientProgram = await ClientProgram.findOne({
       where: { client_id: req.params.clientId, active: true },
-      include: {
-        model: Program,
-        include: {
-          model: ProgramDay,
-          include: {
-            model: ExerciseInstance,
-            order: [['order_index', 'ASC']]
-          }
+      include: [
+        {
+          model: Program,
+          attributes: ['id', 'name', 'weeks'],
+          include: [
+            {
+              model: ProgramDay,
+              attributes: ['id', 'program_id', 'name', 'day_number', 'order_index'],
+              include: [
+                {
+                  model: ExerciseInstance,
+                  attributes: [
+                    'id',
+                    'program_day_id',
+                    'name',
+                    'type',
+                    'equipment_type',
+                    'progression_mode',
+                    'progression_value',
+                    'target_sets',
+                    'target_reps',
+                    'target_weight',
+                    'rest_seconds',
+                    'order_index',
+                    'notes',
+                    'base_stack_weight',
+                    'stack_step_value',
+                    'micro_step_value',
+                    'max_micro_levels',
+                    'current_micro_level',
+                    'cable_unit',
+                    'cable_setup_locked'
+                  ]
+                }
+              ]
+            }
+          ]
         }
-      }
+      ],
+      order: [
+        [Program, ProgramDay, 'order_index', 'ASC'],
+        [Program, ProgramDay, ExerciseInstance, 'order_index', 'ASC']
+      ]
     });
 
     if (!clientProgram) {
@@ -28,6 +61,7 @@ router.get('/:clientId', async (req, res) => {
 
     res.json(clientProgram);
   } catch (err) {
+    console.error('GET /client-programs/:clientId ERROR:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -35,7 +69,10 @@ router.get('/:clientId', async (req, res) => {
 // Deactivates the active program assignment for a client
 router.delete('/:clientId', async (req, res) => {
   try {
-    await ClientProgram.update({ active: false }, { where: { client_id: req.params.clientId, active: true } });
+    await ClientProgram.update(
+      { active: false },
+      { where: { client_id: req.params.clientId, active: true } }
+    );
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
