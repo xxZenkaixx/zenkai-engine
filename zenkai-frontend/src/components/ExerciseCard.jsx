@@ -299,17 +299,9 @@ export default function ExerciseCard({
                 )}
               </p>
             )}
-            {isCable && cable_setup_locked && (
+            {isCable && cable_setup_locked && completedWeight !== '' && (
               <p className="ec-prescribed">
-                {formatCableTarget({
-                  baseStackWeight: base_stack_weight,
-                  stackStepValue: stack_step_value,
-                  currentMicroLevel: current_micro_level,
-                  maxMicroLevels: max_micro_levels,
-                  cableUnit: cable_unit,
-                  microType: micro_type,
-                  microDisplayLabel: micro_display_label
-                })}
+                {completedWeight} {cable_unit}
               </p>
             )}
 
