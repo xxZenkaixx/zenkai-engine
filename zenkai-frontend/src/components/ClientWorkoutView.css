@@ -463,3 +463,119 @@
   color: #ff6666;
   margin: 8px 0 0;
 }
+
+/* ── Hourglass Timer ── */
+.zt-timer-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 0 16px;
+  gap: 16px;
+}
+
+.zt-hourglass {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 80px;
+}
+
+.zt-top-half {
+  width: 80px;
+  height: 64px;
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  background: rgba(200, 255, 0, 0.05);
+  position: relative;
+  overflow: hidden;
+}
+
+.zt-sand-top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to bottom, #c8ff00, #a0cc00);
+  border-radius: 0 0 40% 40%;
+  transition: height 0.5s linear;
+}
+
+.zt-stream-wrap {
+  position: relative;
+  width: 80px;
+  height: 10px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: visible;
+}
+
+.zt-stream {
+  width: 2px;
+  height: 10px;
+  background: linear-gradient(to bottom, #c8ff00, transparent);
+  box-shadow: 0 0 4px rgba(200, 255, 0, 0.6);
+  border-radius: 1px;
+}
+
+.zt-grain {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #c8ff00;
+  box-shadow: 0 0 3px rgba(200, 255, 0, 0.8);
+  animation: zt-fall 0.9s linear infinite;
+}
+
+.zt-grain--1 { animation-delay: 0s; }
+.zt-grain--2 { animation-delay: 0.3s; }
+.zt-grain--3 { animation-delay: 0.6s; }
+
+@keyframes zt-fall {
+  0%   { transform: translateY(-4px); opacity: 1; }
+  80%  { opacity: 0.6; }
+  100% { transform: translateY(10px); opacity: 0; }
+}
+
+.zt-bottom-half {
+  width: 80px;
+  height: 64px;
+  clip-path: polygon(50% 0, 0 100%, 100% 100%);
+  background: rgba(200, 255, 0, 0.05);
+  position: relative;
+  overflow: hidden;
+}
+
+.zt-sand-bottom {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, #c8ff00, #a0cc00);
+  border-radius: 40% 40% 0 0;
+  transition: height 0.5s linear;
+}
+
+.zt-timer-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.zt-timer-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #5a7a00;
+}
+
+.zt-timer-value {
+  font-size: 36px;
+  font-weight: 800;
+  color: #c8ff00;
+  letter-spacing: -1px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}

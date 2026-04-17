@@ -30,6 +30,7 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
   const timerEndRef = useRef(null);
   const timerExerciseIdRef = useRef(null);
   const timerCompletedRef = useRef(false);
+  const initialRestRef = useRef(0);
   const audioRef = useRef(null);
   const wakeLockRef = useRef(null);
   const cardRefs = useRef({});
@@ -83,6 +84,12 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
   useEffect(() => {
     audioRef.current = new Audio('/rest-complete.mp3');
   }, []);
+
+  useEffect(() => {
+    if (timerActive && timerRemaining > 0) {
+      initialRestRef.current = timerRemaining;
+    }
+  }, [timerActive]);
 
   useEffect(() => {
     runPendingLogSync();
@@ -272,14 +279,6 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
 
   return (
     <div className="cwv-shell">
-      {timerActive && (
-        <div className="cwv-timer-bar">
-          <span className="cwv-timer-bar__label">Rest</span>
-          <span className="cwv-timer-bar__time">{timerRemaining}</span>
-          <span className="cwv-timer-bar__unit">s</span>
-        </div>
-      )}
-
       <div className="cwv-program-header">
         <h2 className="cwv-program-header__name">{program.name}</h2>
         <span className="cwv-program-header__meta">{program.weeks} weeks</span>
@@ -308,18 +307,36 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
         {finishError && <p className="cwv-finish-error">{finishError}</p>}
       </div>
 
-      {timerActive && (
-        <div style={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          fontSize: '32px',
-          fontWeight: 'bold',
-          margin: '16px 0'
-        }}>
-          {timerRemaining}s
-        </div>
-      )}
+      {timerActive && (() => {
+        const progress = initialRestRef.current > 0
+          ? timerRemaining / initialRestRef.current
+          : 1;
+        return (
+          <div className="zt-timer-container">
+            <div className="zt-hourglass">
+              <div className="zt-top-half">
+                <div className="zt-sand-top" style={{ height: `${progress * 100}%` }} />
+              </div>
+
+              <div className="zt-stream-wrap">
+                <div className="zt-stream" />
+                <div className="zt-grain zt-grain--1" />
+                <div className="zt-grain zt-grain--2" />
+                <div className="zt-grain zt-grain--3" />
+              </div>
+
+              <div className="zt-bottom-half">
+                <div className="zt-sand-bottom" style={{ height: `${(1 - progress) * 100}%` }} />
+              </div>
+            </div>
+
+            <div className="zt-timer-text">
+              <span className="zt-timer-label">REST</span>
+              <span className="zt-timer-value">{timerRemaining}s</span>
+            </div>
+          </div>
+        );
+      })()}
 
       {selectedDayId && (() => {
         const dayForRender = days.find((d) => d.id === selectedDayId);
@@ -342,9 +359,6 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
                 key={ex.id}
                 exercise={ex}
                 clientId={clientId}
-                timerActive={timerActive}
-                timerRemaining={timerRemaining}
-                timerExerciseId={timerExerciseId}
                 onSetLogged={startTimer}
                 onExerciseUpdated={load}
                 onLoggedSetsChange={handleLoggedSetsChange}

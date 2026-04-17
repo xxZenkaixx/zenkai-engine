@@ -21,9 +21,6 @@ const EMPTY_CABLE_FORM = {
 export default function ExerciseCard({
   exercise,
   clientId,
-  timerActive,
-  timerRemaining,
-  timerExerciseId,
   onSetLogged,
   onExerciseUpdated,
   onLoggedSetsChange,
