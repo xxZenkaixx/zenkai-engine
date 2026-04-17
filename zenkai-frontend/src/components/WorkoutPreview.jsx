@@ -1,35 +1,24 @@
 import { useEffect, useMemo, useState } from 'react';
 import { fetchProgramDays } from '../api/programDayApi';
 import { formatWeight as fmtW } from '../utils/weightUtils';
+import { formatCableTarget } from '../utils/cableUtils';
 import './WorkoutPreview.css';
 
 function formatWeight(exercise) {
-  if (
-    exercise.equipment_type === 'cable' &&
-    exercise.cable_setup_locked
-  ) {
-    const base = Number(exercise.base_stack_weight);
-    const microLevel = Number(exercise.current_micro_level || 0);
-    const microStep = Number(exercise.micro_step_value || 0);
-
-    if (
-      Number.isFinite(base) &&
-      Number.isFinite(microLevel) &&
-      Number.isFinite(microStep)
-    ) {
-      const effectiveWeight = base + microLevel * microStep;
-      return `${effectiveWeight}${exercise.cable_unit ? ` ${exercise.cable_unit}` : ''}`;
-    }
+  if (exercise.equipment_type === 'cable' && exercise.cable_setup_locked) {
+    return formatCableTarget({
+      baseStackWeight: exercise.base_stack_weight,
+      stackStepValue: exercise.stack_step_value,
+      currentMicroLevel: exercise.current_micro_level,
+      maxMicroLevels: exercise.max_micro_levels,
+      cableUnit: exercise.cable_unit,
+      microType: exercise.micro_type,
+      microDisplayLabel: exercise.micro_display_label
+    }) || '—';
   }
 
-  if (
-    exercise.target_weight != null &&
-    exercise.target_weight !== ''
-  ) {
-    return fmtW(
-      parseFloat(exercise.target_weight),
-      exercise.equipment_type
-    ) ?? '—';
+  if (exercise.target_weight != null && exercise.target_weight !== '') {
+    return fmtW(parseFloat(exercise.target_weight), exercise.equipment_type) ?? '—';
   }
 
   return '—';

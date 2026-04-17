@@ -67,9 +67,6 @@ function validateExercisePayload(body, isUpdate = false) {
     if (body.stack_step_value == null)
       errors.push({ field: 'stack_step_value', error: 'stack_step_value required when cable setup is locked.' });
 
-    // REMOVED micro_step_value requirement
-    // if (body.micro_step_value == null) ...  ← deleted this
-
     if (body.max_micro_levels == null || !Number.isInteger(Number(body.max_micro_levels)) || Number(body.max_micro_levels) < 0) {
       errors.push({ field: 'max_micro_levels', error: 'max_micro_levels must be a non-negative integer.' });
     }

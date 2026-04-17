@@ -301,7 +301,9 @@ export default function ExerciseInstanceForm({ dayId }) {
                 <div className="ex-edit-form__row">
                   <input className="prog-input" placeholder="Sets *" value={editFields.target_sets} onChange={(e) => se('target_sets', e.target.value)} />
                   <input className="prog-input" placeholder="Reps *" value={editFields.target_reps} onChange={(e) => se('target_reps', e.target.value)} />
-                  <input className="prog-input" placeholder="Weight (optional)" value={editFields.target_weight} onChange={(e) => se('target_weight', e.target.value)} />
+                  {editFields.equipment_type !== 'cable' && (
+                    <input className="prog-input" placeholder="Weight (optional)" value={editFields.target_weight} onChange={(e) => se('target_weight', e.target.value)} />
+                  )}
                   <input className="prog-input" placeholder="Rest (sec) *" value={editFields.rest_seconds} onChange={(e) => se('rest_seconds', e.target.value)} />
                 </div>
 
@@ -483,7 +485,9 @@ export default function ExerciseInstanceForm({ dayId }) {
         <div className="ex-add-form__row">
           <input className="prog-input" placeholder="Sets *" value={form.target_sets} onChange={(e) => sf('target_sets', e.target.value)} />
           <input className="prog-input" placeholder="Reps *" value={form.target_reps} onChange={(e) => sf('target_reps', e.target.value)} />
-          <input className="prog-input" placeholder="Weight (optional)" value={form.target_weight} onChange={(e) => sf('target_weight', e.target.value)} />
+          {form.equipment_type !== 'cable' && (
+            <input className="prog-input" placeholder="Weight (optional)" value={form.target_weight} onChange={(e) => sf('target_weight', e.target.value)} />
+          )}
           <input className="prog-input" placeholder="Rest (sec) *" value={form.rest_seconds} onChange={(e) => sf('rest_seconds', e.target.value)} />
         </div>
 

@@ -7,14 +7,14 @@ import { logSet, editSet, fetchLoggedSets } from '../api/loggedSetApi';
 import { generateId, saveLog, removeLog } from '../utils/localWorkoutLogs';
 import { updateExerciseInstance } from '../api/exerciseInstanceApi';
 import { roundWeight, getBackoffWeight, formatWeight, getBackoffRest } from '../utils/weightUtils';
-import { getCableDisplayWeight, formatCableTarget } from '../utils/cableUtils';
+import { getCableDisplayWeight, formatCableTarget, computeMicroStepValue } from '../utils/cableUtils';
 import HistoryPanel from './HistoryPanel';
 import LastPerformanceSnapshot from './LastPerformanceSnapshot';
 
 const EMPTY_CABLE_FORM = {
   base_stack_weight: '',
   stack_step_value: '',
-  max_micro_levels: '',
+  max_micro_levels: '0',
   cable_unit: 'lb'
 };
 
@@ -100,14 +100,14 @@ export default function ExerciseCard({
 
     let displayWeight;
 
-    if (!backoff_enabled) {
-      // no backoff → always trainer weight
+    if (!backoff_enabled || nextSetNumber === 1) {
+      // set 1 or backoff disabled → always exact trainer weight
       displayWeight = effectiveWeight;
-    } else if (nextSetNumber === 1) {
-      // first set → always trainer weight
-      displayWeight = effectiveWeight;
+    } else if (isCable) {
+      // cable backoff sets 2+ → subtract one derived micro step
+      displayWeight = effectiveWeight - computeMicroStepValue(stack_step_value, max_micro_levels);
     } else {
-      // backoff sets only
+      // non-cable backoff sets 2+
       displayWeight = getBackoffWeight(
         effectiveWeight,
         backoff_percent,
@@ -116,7 +116,7 @@ export default function ExerciseCard({
     }
 
     setCompletedWeight(displayWeight != null ? String(displayWeight) : '');
-  }, [nextSetNumber, effectiveWeight, backoff_enabled, backoff_percent, equipment_type]);
+  }, [nextSetNumber, effectiveWeight, backoff_enabled, backoff_percent, equipment_type, isCable, stack_step_value, max_micro_levels]);
   const allSetsComplete = loggedSets.length >= target_sets;
 
   const handleCableSetupSave = async () => {
@@ -205,12 +205,29 @@ export default function ExerciseCard({
           <p className="ec-name">{name}</p>
         </div>
         <div className="ec-cable-setup">
-          <p className="ec-cable-setup__title">Cable Setup Required</p>
+          <p className="ec-cable-setup__title">Cable Setup</p>
           <div className="ec-cable-setup__fields">
-            <input className="ec-cable-input" type="text" inputMode="decimal" placeholder="Base stack weight *" value={cableForm.base_stack_weight} onChange={(e) => setCableForm({ ...cableForm, base_stack_weight: e.target.value })} />
-            <input className="ec-cable-input" type="text" inputMode="decimal" placeholder="Stack step value *" value={cableForm.stack_step_value} onChange={(e) => setCableForm({ ...cableForm, stack_step_value: e.target.value })} />
-            <input className="ec-cable-input" type="text" inputMode="numeric" placeholder="Max micro levels *" value={cableForm.max_micro_levels} onChange={(e) => setCableForm({ ...cableForm, max_micro_levels: e.target.value })} />
-            <select className="ec-cable-input" value={cableForm.cable_unit} onChange={(e) => setCableForm({ ...cableForm, cable_unit: e.target.value })}>
+            <input
+              className="ec-cable-input"
+              type="text"
+              inputMode="decimal"
+              placeholder="Starting Pin Weight *"
+              value={cableForm.base_stack_weight}
+              onChange={(e) => setCableForm({ ...cableForm, base_stack_weight: e.target.value })}
+            />
+            <select
+              className="ec-cable-input"
+              value={cableForm.stack_step_value}
+              onChange={(e) => setCableForm({ ...cableForm, stack_step_value: e.target.value })}>
+              <option value="">Stack Increment *</option>
+              <option value="10">10</option>
+              <option value="15">15</option>
+              <option value="20">20</option>
+            </select>
+            <select
+              className="ec-cable-input"
+              value={cableForm.cable_unit}
+              onChange={(e) => setCableForm({ ...cableForm, cable_unit: e.target.value })}>
               <option value="lb">lb</option>
               <option value="kg">kg</option>
             </select>
@@ -280,6 +297,19 @@ export default function ExerciseCard({
                     : roundWeight(effectiveWeight, equipment_type),
                   equipment_type
                 )}
+              </p>
+            )}
+            {isCable && cable_setup_locked && (
+              <p className="ec-prescribed">
+                {formatCableTarget({
+                  baseStackWeight: base_stack_weight,
+                  stackStepValue: stack_step_value,
+                  currentMicroLevel: current_micro_level,
+                  maxMicroLevels: max_micro_levels,
+                  cableUnit: cable_unit,
+                  microType: micro_type,
+                  microDisplayLabel: micro_display_label
+                })}
               </p>
             )}
 
