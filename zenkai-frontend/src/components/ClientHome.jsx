@@ -44,16 +44,18 @@ export default function ClientHome({ clientId, clientName, onStartWorkout, onBac
     setLoading(true);
     setShowPreview(false);
 
-    Promise.all([
-      fetchActiveProgram(clientId),
-      fetchWorkoutSessions(clientId)
-    ])
-      .then(([program, sess]) => {
-        setActiveProgram(program || null);
-        setSessions(Array.isArray(sess) ? sess : []);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    let settled = 0;
+    const done = () => { if (++settled === 2) setLoading(false); };
+
+    fetchActiveProgram(clientId)
+      .then((program) => setActiveProgram(program || null))
+      .catch(() => setActiveProgram(null))
+      .finally(done);
+
+    fetchWorkoutSessions(clientId)
+      .then((sess) => setSessions(Array.isArray(sess) ? sess : []))
+      .catch(() => setSessions([]))
+      .finally(done);
   }, [clientId]);
 
   const sessionDateSet = useMemo(() => new Set(sessions.map((s) => s.date)), [sessions]);
