@@ -20,8 +20,8 @@ router.get('/:clientId', async (req, res) => {
           include: [
             {
               model: ProgramDay,
-              as: 'ProgramDays',                    // explicit alias
-              attributes: ['id', 'program_id', 'name', 'day_number', 'order_index'],
+              as: 'ProgramDays',
+              attributes: ['id', 'program_id', 'name', 'day_number'],
               include: [
                 {
                   model: ExerciseInstance,
@@ -54,9 +54,7 @@ router.get('/:clientId', async (req, res) => {
           ]
         }
       ],
-      // Safer ordering - this is the main fix for the column error
       order: [
-        [{ model: Program }, { model: ProgramDay, as: 'ProgramDays' }, 'order_index', 'ASC'],
         [{ model: Program }, { model: ProgramDay, as: 'ProgramDays' }, { model: ExerciseInstance, as: 'ExerciseInstances' }, 'order_index', 'ASC']
       ]
     });
