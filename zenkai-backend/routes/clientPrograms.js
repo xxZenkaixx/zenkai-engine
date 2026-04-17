@@ -9,7 +9,10 @@ const { ClientProgram, Program, ProgramDay, ExerciseInstance } = require('../mod
 router.get('/:clientId', async (req, res) => {
   try {
     const clientProgram = await ClientProgram.findOne({
-      where: { client_id: req.params.clientId, active: true },
+      where: {
+        client_id: req.params.clientId,
+        active: true
+      },
       include: [
         {
           model: Program,
@@ -17,10 +20,12 @@ router.get('/:clientId', async (req, res) => {
           include: [
             {
               model: ProgramDay,
+              as: 'ProgramDays',                    // explicit alias
               attributes: ['id', 'program_id', 'name', 'day_number', 'order_index'],
               include: [
                 {
                   model: ExerciseInstance,
+                  as: 'ExerciseInstances',           // explicit alias
                   attributes: [
                     'id',
                     'program_day_id',
@@ -49,9 +54,10 @@ router.get('/:clientId', async (req, res) => {
           ]
         }
       ],
+      // Safer ordering - this is the main fix for the column error
       order: [
-        [Program, ProgramDay, 'order_index', 'ASC'],
-        [Program, ProgramDay, ExerciseInstance, 'order_index', 'ASC']
+        [{ model: Program }, { model: ProgramDay, as: 'ProgramDays' }, 'order_index', 'ASC'],
+        [{ model: Program }, { model: ProgramDay, as: 'ProgramDays' }, { model: ExerciseInstance, as: 'ExerciseInstances' }, 'order_index', 'ASC']
       ]
     });
 
