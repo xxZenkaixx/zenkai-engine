@@ -26,8 +26,8 @@ const EMPTY_FORM = {
   progression_mode: '',
   progression_value: '',
   base_stack_weight: '',
-  stack_step_value: '10',
-  max_micro_levels: 0,
+  stack_step_value: '15',  // CHANGED: default to most common increment
+  max_micro_levels: '',  // CHANGED: empty so select shows unselected
   cable_unit: 'lb',
   micro_type: 'none',
   micro_display_label: '',
@@ -249,6 +249,7 @@ export default function ExerciseInstanceForm({ dayId }) {
                         className="prog-input"
                         value={editFields.stack_step_value}
                         onChange={(e) => se('stack_step_value', e.target.value)}>
+                        <option value="" disabled>Stack Increment</option>  {/* CHANGED: added label */}
                         <option value="10">10</option>
                         <option value="15">15</option>
                         <option value="20">20</option>
@@ -271,7 +272,7 @@ export default function ExerciseInstanceForm({ dayId }) {
                           setEditFields(prev => ({
                             ...prev,
                             micro_type: val,
-                            max_micro_levels: val === 'none' ? 0 : prev.max_micro_levels
+                            max_micro_levels: val === 'none' ? 0 : ''  // CHANGED: no default when slider chosen
                           }));
                         }}>
                         <option value="none">No micro</option>
@@ -280,18 +281,16 @@ export default function ExerciseInstanceForm({ dayId }) {
                       </select>
                       {editFields.micro_type !== 'none' && (
                         <>
-                          <input
+                          {/* CHANGED: replaced free-text input with select, options 1 and 2 */}
+                          <select
                             className="prog-input"
-                            placeholder="Micro Levels"
                             value={editFields.max_micro_levels}
-                            onChange={(e) => se('max_micro_levels', e.target.value)}
-                          />
-                          <input
-                            className="prog-input"
-                            placeholder="Micro label (optional)"
-                            value={editFields.micro_display_label}
-                            onChange={(e) => se('micro_display_label', e.target.value)}
-                          />
+                            onChange={(e) => se('max_micro_levels', e.target.value)}>
+                            <option value="" disabled>{editFields.micro_type === 'slider' ? 'Number of sliders' : 'Number of knob turns'}</option>  {/* CHANGED */}
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                          </select>
+                          {/* REMOVED: micro_display_label input — field still sent in payload */}
                         </>
                       )}
                     </div>
@@ -433,6 +432,7 @@ export default function ExerciseInstanceForm({ dayId }) {
                 className="prog-input"
                 value={form.stack_step_value}
                 onChange={(e) => sf('stack_step_value', e.target.value)}>
+                <option value="" disabled>Stack Increment</option>  {/* CHANGED: added label */}
                 <option value="10">10</option>
                 <option value="15">15</option>
                 <option value="20">20</option>
@@ -455,7 +455,7 @@ export default function ExerciseInstanceForm({ dayId }) {
                   setForm(prev => ({
                     ...prev,
                     micro_type: val,
-                    max_micro_levels: val === 'none' ? 0 : prev.max_micro_levels
+                    max_micro_levels: val === 'none' ? 0 : ''  // CHANGED: no default when slider chosen
                   }));
                 }}>
                 <option value="none">No micro</option>
@@ -464,18 +464,16 @@ export default function ExerciseInstanceForm({ dayId }) {
               </select>
               {form.micro_type !== 'none' && (
                 <>
-                  <input
+                  {/* CHANGED: replaced free-text input with select, options 1 and 2 */}
+                  <select
                     className="prog-input"
-                    placeholder="Micro Levels"
                     value={form.max_micro_levels}
-                    onChange={(e) => sf('max_micro_levels', e.target.value)}
-                  />
-                  <input
-                    className="prog-input"
-                    placeholder="Micro label (optional)"
-                    value={form.micro_display_label}
-                    onChange={(e) => sf('micro_display_label', e.target.value)}
-                  />
+                    onChange={(e) => sf('max_micro_levels', e.target.value)}>
+                    <option value="" disabled>{form.micro_type === 'slider' ? 'Number of sliders' : 'Number of knob turns'}</option>  {/* CHANGED */}
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                  </select>
+                  {/* REMOVED: micro_display_label input — field still sent in payload */}
                 </>
               )}
             </div>
