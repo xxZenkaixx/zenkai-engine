@@ -7,7 +7,7 @@ import { logSet, editSet, fetchLoggedSets } from '../api/loggedSetApi';
 import { generateId, saveLog, removeLog } from '../utils/localWorkoutLogs';
 import { updateExerciseInstance } from '../api/exerciseInstanceApi';
 import { roundWeight, getBackoffWeight, formatWeight, getBackoffRest } from '../utils/weightUtils';
-import { getCableDisplayWeight, formatCableTarget, computeMicroStepValue } from '../utils/cableUtils';
+import { getCableDisplayWeight, formatCableTarget } from '../utils/cableUtils';
 import HistoryPanel from './HistoryPanel';
 import LastPerformanceSnapshot from './LastPerformanceSnapshot';
 
@@ -103,15 +103,29 @@ export default function ExerciseCard({
     if (!backoff_enabled || nextSetNumber === 1) {
       // set 1 or backoff disabled → always exact trainer weight
       displayWeight = effectiveWeight;
-    } else if (isCable) {
-      const microStep = computeMicroStepValue(stack_step_value, max_micro_levels);
-      if (microStep > 0) {
-        const backoffTarget = effectiveWeight * (1 - backoff_percent / 100);
-        const steps = Math.floor((backoffTarget - effectiveWeight) / microStep);
-        displayWeight = effectiveWeight + steps * microStep;
+    } else if (isCable && stack_step_value > 0) {
+      // --- CABLE BACK-OFF: find closest valid position to target ---
+      const levels = max_micro_levels || 0;
+      const microStep = stack_step_value / (levels + 1);
+      const backoffTarget = effectiveWeight * (1 - backoff_percent / 100);
+
+      // Highest pin ≤ target, anchored to base_stack_weight
+      const stepsDown = Math.ceil((base_stack_weight - backoffTarget) / stack_step_value);
+      const pin = base_stack_weight - stepsDown * stack_step_value;
+
+      // Round to nearest micro count (may land above target)
+      const rawMicro = (backoffTarget - pin) / microStep;
+      let microCount = Math.round(rawMicro);
+
+      // CHANGED: build formatted display string instead of raw number
+      if (microCount > levels) {
+        displayWeight = `Pin at ${pin + stack_step_value} ${cable_unit}`;
+      } else if (microCount === 0) {
+        displayWeight = `Pin at ${pin} ${cable_unit}`;
       } else {
-        displayWeight = effectiveWeight;
+        displayWeight = `Pin at ${pin} ${cable_unit} + ${microCount} slider${microCount > 1 ? 's' : ''}`;
       }
+      // --- END CABLE BACK-OFF ---
     } else {
       // non-cable backoff sets 2+
       displayWeight = getBackoffWeight(
@@ -307,7 +321,8 @@ export default function ExerciseCard({
             )}
             {isCable && cable_setup_locked && completedWeight !== '' && (
               <p className="ec-prescribed">
-                {completedWeight} {cable_unit}
+                {/* CHANGED: unit already embedded in backoff label; only append for set 1 */}
+                Prescribed: {isNaN(Number(completedWeight)) ? completedWeight : `${completedWeight} ${cable_unit}`}
               </p>
             )}
 
