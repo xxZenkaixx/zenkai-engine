@@ -18,6 +18,18 @@ const EMPTY_CABLE_FORM = {
   cable_unit: 'lb'
 };
 
+// MOVED: before ExerciseCard so it is in scope without relying on hoisting
+function buildCableLabel(weight, baseStackWeight, stackStepValue, maxMicroLevels, cableUnit) {
+  if (!stackStepValue) return `${weight} ${cableUnit}`;
+  const levels = maxMicroLevels || 0;
+  const microStep = stackStepValue / (levels + 1);
+  const stepsDown = Math.ceil((baseStackWeight - weight) / stackStepValue);
+  const pin = baseStackWeight - stepsDown * stackStepValue;
+  const microCount = Math.round((weight - pin) / microStep);
+  if (microCount <= 0) return `Pin at ${pin} ${cableUnit}`;
+  return `Pin at ${pin} ${cableUnit} + ${microCount} slider${microCount > 1 ? 's' : ''}`;
+}
+
 export default function ExerciseCard({
   exercise,
   clientId,
@@ -26,7 +38,9 @@ export default function ExerciseCard({
   onLoggedSetsChange,
   isLastIncomplete,
   cardRef,
-  nextSetRef
+  nextSetRef,
+  restTimerActive,
+  restTimerRemaining
 }) {
   const {
     id,
@@ -117,13 +131,13 @@ export default function ExerciseCard({
       const rawMicro = (backoffTarget - pin) / microStep;
       let microCount = Math.round(rawMicro);
 
-      // CHANGED: build formatted display string instead of raw number
+      // CHANGED: numeric only — display label derived in JSX via buildCableLabel
       if (microCount > levels) {
-        displayWeight = `Pin at ${pin + stack_step_value} ${cable_unit}`;
+        displayWeight = pin + stack_step_value;
       } else if (microCount === 0) {
-        displayWeight = `Pin at ${pin} ${cable_unit}`;
+        displayWeight = pin;
       } else {
-        displayWeight = `Pin at ${pin} ${cable_unit} + ${microCount} slider${microCount > 1 ? 's' : ''}`;
+        displayWeight = pin + microCount * microStep;
       }
       // --- END CABLE BACK-OFF ---
     } else {
@@ -138,6 +152,19 @@ export default function ExerciseCard({
     setCompletedWeight(displayWeight != null ? String(displayWeight) : '');
   }, [nextSetNumber, effectiveWeight, backoff_enabled, backoff_percent, equipment_type, isCable, stack_step_value, max_micro_levels]);
   const allSetsComplete = loggedSets.length >= target_sets;
+
+  // ADDED: split cable label into lines for stacked right-column display
+  const cableTargetLines = isCable && cable_setup_locked
+    ? formatCableTarget({
+        baseStackWeight: base_stack_weight,
+        stackStepValue: stack_step_value,
+        currentMicroLevel: current_micro_level,
+        maxMicroLevels: max_micro_levels,
+        cableUnit: cable_unit,
+        microType: micro_type,
+        microDisplayLabel: micro_display_label
+      }).split(' + ')
+    : null;
 
   const handleCableSetupSave = async () => {
     const { base_stack_weight: bsw, stack_step_value: ssv, max_micro_levels: mml, cable_unit: cu } = cableForm;
@@ -263,31 +290,22 @@ export default function ExerciseCard({
 
   return (
     <div className={`ec-card${allSetsComplete ? ' ec-card--complete' : ''}`} ref={cardRef}>
+      {/* CHANGED: two-column header — name/meta left, stacked target right */}
       <div className="ec-header">
-        <p className="ec-name">{name}</p>
-        <p className="ec-target">
-          {target_sets}×{target_reps}
-          {effectiveWeight != null && (
-            <>
-              {' '}
-              ·{' '}
-              <span className="ec-target__weight">
-                {isCable && cable_setup_locked
-                  ? formatCableTarget({
-                      baseStackWeight: base_stack_weight,
-                      stackStepValue: stack_step_value,
-                      currentMicroLevel: current_micro_level,
-                      maxMicroLevels: max_micro_levels,
-                      cableUnit: cable_unit,
-                      microType: micro_type,
-                      microDisplayLabel: micro_display_label
-                    })
-                  : formatWeight(effectiveWeight, equipment_type)}
-              </span>
-            </>
-          )}
-        </p>
-        {notes && <p className="ec-notes">{notes}</p>}
+        <div className="ec-header__left">
+          <p className="ec-name">{name}</p>
+          <p className="ec-meta">{equipment_type} · {target_sets} sets × {target_reps} reps</p>
+          {notes && <p className="ec-notes">{notes}</p>}
+        </div>
+        <div className="ec-header__right">
+          {cableTargetLines
+            ? cableTargetLines.map((line, i) => (
+                <span key={i} className="ec-target__line">{i > 0 ? '+ ' : ''}{line}</span>
+              ))
+            : effectiveWeight != null
+              ? <span className="ec-target__line">{formatWeight(effectiveWeight, equipment_type)}</span>
+              : null}
+        </div>
       </div>
 
       <LastPerformanceSnapshot exerciseInstanceId={id} clientId={clientId} targetWeight={effectiveWeight} />
@@ -295,8 +313,20 @@ export default function ExerciseCard({
       {loggedSets.length > 0 && (
         <div className="ec-sets">
           {loggedSets.map((s, i) => (
-            <LoggedSetRow key={s.id} setNumber={i + 1} loggedSet={s} onEdit={handleEditSet} />
+            <LoggedSetRow
+              key={s.id}
+              setNumber={i + 1}
+              loggedSet={s}
+              onEdit={handleEditSet}
+            />
           ))}
+        </div>
+      )}
+
+      {restTimerActive && (
+        <div className="cwv-rest-badge">
+          ⏳ Rest {String(Math.floor(restTimerRemaining / 60)).padStart(2, '0')}:
+          {String(restTimerRemaining % 60).padStart(2, '0')} remaining
         </div>
       )}
 
@@ -319,10 +349,11 @@ export default function ExerciseCard({
                 )}
               </p>
             )}
+            {/* CHANGED: use completedWeight directly — already the snapped numeric, no recalculation needed */}
             {isCable && cable_setup_locked && completedWeight !== '' && (
               <p className="ec-prescribed">
-                {/* CHANGED: unit already embedded in backoff label; only append for set 1 */}
-                Prescribed: {isNaN(Number(completedWeight)) ? completedWeight : `${completedWeight} ${cable_unit}`}
+                Prescribed:{' '}
+                {buildCableLabel(parseFloat(completedWeight), base_stack_weight, stack_step_value, max_micro_levels, cable_unit)}
               </p>
             )}
 

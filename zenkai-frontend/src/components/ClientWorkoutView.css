@@ -159,10 +159,11 @@
 }
 
 /* ── Exercise Card ── */
+/* CHANGED: background #141414, radius 16px — matches wireframe */
 .ec-card {
-  background: #111;
+  background: #141414;
   border: 1px solid #1e1e1e;
-  border-radius: 12px;
+  border-radius: 16px;
   overflow: hidden;
 }
 
@@ -210,11 +211,15 @@
   gap: 6px;
 }
 
+/* CHANGED: pill style matching wireframe */
 .ec-set-row {
   display: flex;
   align-items: center;
   gap: 10px;
   font-size: 13px;
+  background: #0f0f0f;
+  border-radius: 10px;
+  padding: 7px 10px;
 }
 
 .ec-set-row__num {
@@ -314,10 +319,11 @@
   gap: 8px;
 }
 
+/* CHANGED: muted #444 matching wireframe prescribed style */
 .ec-prescribed {
   font-size: 11px;
   font-weight: 600;
-  color: #556600;
+  color: #444;
   letter-spacing: 0.04em;
   margin: 0;
 }
@@ -661,17 +667,17 @@
   box-sizing: border-box;
 }
 
-/* Section headers — prominent, banner-style */
+/* CHANGED: minimal wireframe style — barely-there small caps label */
 .cwv-section-label {
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.16em;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #c8ff00;
-  background: rgba(200, 255, 0, 0.05);
-  border-left: 3px solid #c8ff00;
-  padding: 6px 10px;
-  border-radius: 0 6px 6px 0;
+  color: #444;
+  background: none;
+  border-left: none;
+  padding: 0 4px;
+  border-radius: 0;
   margin: 0;
   width: fit-content;
 }
@@ -684,12 +690,23 @@
 
 /* ── ADDED: Chunk 3 visual polish ── */
 
-/* Current section — stronger label */
+/* CHANGED: current label — slightly brighter than base, still minimal */
 .cwv-section--current .cwv-section-label {
-  font-size: 12px;
-  background: rgba(200, 255, 0, 0.08);
-  border-left-width: 4px;
-  padding: 7px 12px;
+  font-size: 10px;
+  background: none;
+  border-left: none;
+  padding: 0 4px;
+  color: #666;
+}
+
+/* ── CHANGED: active card — green tint bg + softened glow matching wireframe ── */
+.cwv-section--current .ec-card {
+  background: #141a0a;
+  border-color: rgba(200, 255, 0, 0.19);
+  box-shadow:
+    0 0 0 1px rgba(200, 255, 0, 0.10),
+    0 0 18px rgba(200, 255, 0, 0.10),
+    0 4px 24px rgba(0, 0, 0, 0.5);
 }
 
 /* Next up compact info banner */
@@ -728,16 +745,17 @@
 /* ── END ADDED ── */
 
 /* ── ADDED: Done section collapsed cards ── */
+/* CHANGED: radius 16px, opacity 0.4 — matches wireframe done card */
 .cwv-done-card {
   background: #0f0f0f;
   border: 1px solid #1a1a1a;
-  border-radius: 14px;
+  border-radius: 16px;
   padding: 14px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  opacity: 0.45;
+  opacity: 0.4;
   width: 100%;
   box-sizing: border-box;
 }
@@ -757,3 +775,367 @@
 /* Keeps ExerciseCard mounted for state without displaying */
 .cwv-hidden { display: none; }
 /* ── END ADDED ── */
+
+/* ── ADDED: hide old header now cwv-header is in place ── */
+.cwv-program-header { display: none; }
+
+/* ── ADDED: wireframe-style header ── */
+.cwv-header { padding: 14px 20px 10px; }
+
+.cwv-header__top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.cwv-header__day-label {
+  font-size: 11px;
+  color: #555;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cwv-header__timer-pill {
+  background: #c8ff00;
+  color: #0a0a0a;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 5px 12px;
+  border-radius: 20px;
+  letter-spacing: 0.05em;
+  font-variant-numeric: tabular-nums;
+}
+
+.cwv-header__title {
+  font-size: 22px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.5px;
+  margin: 0 0 2px;
+  line-height: 1.1;
+}
+
+.cwv-header__progress {
+  font-size: 12px;
+  color: #444;
+  margin: 0;
+}
+
+/* ── ADDED: suppress next-up full cards — compact preview above is sufficient ── */
+.cwv-next-up-cards { display: none; }
+
+/* ── ADDED: ec-header two-column layout ── */
+.ec-header {
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid #1a1a1a;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.ec-header__left  { flex: 1; min-width: 0; }
+
+.ec-header__right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+/* ADDED: sub-label under exercise name */
+.ec-meta {
+  font-size: 12px;
+  color: #555;
+  margin: 2px 0 0;
+}
+
+/* ADDED: stacked target weight lines, right-aligned, lime */
+.ec-target__line {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: #c8ff00;
+  text-align: right;
+  line-height: 1.5;
+}
+
+/* ── UPDATED: set row visual alignment — Task 1 ── */
+/* CSS order resequences columns to match wireframe without touching JSX */
+.ec-set-row__num      { order: 1; }
+.ec-set-row__weight   { order: 2; flex: 1; color: #ccc; font-weight: 600; font-size: 13px; }
+.ec-set-row__reps     { order: 3; color: #555; font-size: 12px; font-weight: 400; }
+.ec-set-row__edit-btn { order: 4; margin-left: 0; }
+
+/* ── UPDATED: next-set block — Task 2 ── */
+.ec-next-set {
+  padding: 10px 16px 14px;
+  border-top: 1px solid #1a1a1a;
+}
+
+.ec-set-counter {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #c8ff00;
+  margin: 0 0 10px;
+}
+
+/* ── ADDED: rest badge — Task 3 ── */
+.cwv-rest-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #1a1a0a;
+  border: 1px solid rgba(200, 255, 0, 0.2);
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #c8ff00;
+  margin-top: 10px;
+}
+
+/* ── UPDATED: spacing consistency — Task 4 ── */
+.ec-sets {
+  padding: 10px 16px;
+  border-bottom: 1px solid #161616;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ec-log-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+/* ── Task 1: current card shell — refine glow + tint ── */
+.cwv-section--current .ec-card {
+  background: #141a0a;
+  border-color: rgba(200, 255, 0, 0.22);
+  box-shadow:
+    0 0 0 1px rgba(200, 255, 0, 0.12),
+    0 0 22px rgba(200, 255, 0, 0.11),
+    0 6px 28px rgba(0, 0, 0, 0.55);
+}
+
+/* ── Task 2: Next Up compact card polish ── */
+.cwv-next-up {
+  background: #141414;
+  border: 1px solid #1e1e1e;
+  border-radius: 16px;
+  padding: 13px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.cwv-next-up__name  { font-size: 15px; font-weight: 600; color: #888; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cwv-next-up__meta  { font-size: 11px; color: #444; margin: 3px 0 0; }
+.cwv-next-up__arrow { font-size: 20px; color: #333; flex-shrink: 0; line-height: 1; }
+
+/* ── Task 3: Done card — lower emphasis, badge subtle ── */
+.cwv-done-card {
+  opacity: 0.38;
+}
+.cwv-done-card__badge {
+  font-size: 12px;
+  font-weight: 600;
+  color: #c8ff00;
+  flex-shrink: 0;
+}
+
+/* ── Task 4: input + button row — lower-profile, pill button ── */
+.ec-reps-input {
+  font-size: 20px;
+  font-weight: 600;
+  padding: 9px 12px;
+  width: 80px;
+  border-radius: 10px;
+}
+
+.ec-weight-input {
+  font-size: 18px;
+  padding: 9px 12px;
+  width: 90px;
+  border-radius: 10px;
+}
+
+.ec-log-btn {
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+.ec-log-inputs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  margin-top: 6px;
+}
+
+/* ── Task 5: section rhythm — tighter consistent vertical flow ── */
+.cwv-exercise-list {
+  gap: 20px;
+}
+
+.cwv-section {
+  gap: 12px;
+}
+
+.cwv-section + .cwv-section {
+  margin-top: 4px;
+}
+
+/* ══ FINAL POLISH PASS ══ */
+
+/* ── Task 1: readability — lift secondary text off the floor ── */
+.ec-meta               { color: #666; }
+.ec-set-row__reps      { color: #777; font-size: 12px; }
+.ec-prescribed         { color: #555; }
+.cwv-next-up__meta     { color: #555; }
+.cwv-header__progress  { color: #555; }
+.cwv-done-card__meta   { font-size: 11px; color: #666; margin: 3px 0 0; }
+.ec-set-counter        { color: #aaa; }
+
+/* ── Task 2: section label tone — muted small-caps, consistent spacing ── */
+.cwv-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #555;
+  padding: 0 2px;
+  margin-bottom: 2px;
+}
+
+.cwv-section--current .cwv-section-label {
+  color: #777;
+}
+
+/* ── Task 3: mobile proportions — tighter header + bars ── */
+.cwv-header {
+  padding: 12px 18px 8px;
+}
+
+.cwv-header__title {
+  font-size: 20px;
+}
+
+.cwv-day-tabs {
+  padding: 10px 16px;
+  gap: 6px;
+}
+
+.cwv-day-tab {
+  padding: 6px 14px;
+  font-size: 12px;
+}
+
+.cwv-finish-bar {
+  padding: 10px 18px;
+}
+
+.cwv-finish-btn {
+  padding: 8px 18px;
+  font-size: 12px;
+}
+
+.cwv-exercise-list {
+  padding: 12px 14px 92px;
+}
+
+/* ── Task 4: inner card balance — smooth header→sets→input rhythm ── */
+.ec-header {
+  padding: 13px 16px 11px;
+}
+
+.ec-sets {
+  padding: 8px 16px 10px;
+}
+
+.ec-next-set {
+  padding: 10px 16px 16px;
+}
+
+.ec-log-inputs {
+  margin-top: 8px;
+}
+
+.ec-complete {
+  padding: 12px 16px;
+}
+
+.ec-error {
+  padding: 0 16px 10px;
+}
+
+/* ── QA CLEANUP PASS ── */
+
+/* Fix: ec-set-row__num order:1 caused edit-input/done-btn (order:0 default) to render before it in edit mode */
+.ec-set-row__num { order: 0; }
+
+/* Fix: timer pill can be squished by long day label text */
+.cwv-header__timer-pill { flex-shrink: 0; }
+
+/* Fix: nowrap overflows ~260px inner width on 320px devices */
+.ec-log-inputs { flex-wrap: wrap; }
+
+/* ── WIREFRAME ALIGNMENT PASS ── */
+
+/* Tasks 1 + 2: hide header pill and hourglass — logic intact */
+.cwv-header__timer-pill { display: none; }
+.zt-timer-container { display: none; }
+
+/* Task 2: rest badge inside card — full-width strip */
+.cwv-rest-badge {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 10px 12px;
+  border-radius: 0;
+  background: #141a0a;
+  border: none;
+  border-top: 1px solid rgba(200,255,0,0.15);
+  border-bottom: 1px solid rgba(200,255,0,0.15);
+  box-sizing: border-box;
+  margin: 0;
+  color: #c8ff00;
+}
+
+/* Task 3: denser set rows */
+.ec-set-row {
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.ec-set-row__weight { font-size: 12px; }
+.ec-set-row__reps   { font-size: 11px; }
+
+.ec-sets {
+  padding: 6px 12px 8px;
+  gap: 4px;
+}
+
+/* Task 4: next-up + done readability */
+.cwv-next-up          { padding: 16px; }
+.cwv-next-up__name    { font-size: 16px; color: #bbb; }
+.cwv-next-up__meta    { font-size: 12px; color: #666; }
+.cwv-done-card        { opacity: 0.5; }
+
+/* Task 5: card max-width + centering */
+.ec-card {
+  max-width: 520px;
+  margin: 0 auto;
+}

@@ -160,6 +160,11 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
     return (exerciseLoggedCounts[ex.id] ?? 0) < assignedSets;
   });
 
+  // ADDED: per-exercise completion count for progress line
+  const completeCount = selectedExercises.filter(
+    (ex) => (exerciseLoggedCounts[ex.id] ?? 0) >= (ex.target_sets ?? 0)
+  ).length;
+
   // * Clear click-triggered validation error once user resolves the blocking condition.
   // * Does not fire on unrelated renders — only when exerciseLoggedCounts changes.
   useEffect(() => {
@@ -294,6 +299,26 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
 
   return (
     <div className="cwv-shell">
+      {/* ADDED: wireframe header — day label / title / progress / timer pill */}
+      <div className="cwv-header">
+        <div className="cwv-header__top-row">
+          <span className="cwv-header__day-label">
+            {selectedDay
+              ? (selectedDay.name || `Day ${selectedDay.day_number}`)
+              : ''}{program.name ? ` · ${program.name}` : ''}
+          </span>
+          {timerActive && (
+            <span className="cwv-header__timer-pill">
+              ⏱ {String(Math.floor(timerRemaining / 60)).padStart(2, '0')}:{String(timerRemaining % 60).padStart(2, '0')}
+            </span>
+          )}
+        </div>
+        <h1 className="cwv-header__title">Active Workout</h1>
+        <p className="cwv-header__progress">
+          {completeCount} of {selectedExercises.length} exercise{selectedExercises.length !== 1 ? 's' : ''} complete
+        </p>
+      </div>
+      {/* existing cwv-program-header kept below — hidden via CSS */}
       <div className="cwv-program-header">
         <h2 className="cwv-program-header__name">{program.name}</h2>
         <span className="cwv-program-header__meta">{program.weeks} weeks</span>
@@ -386,6 +411,8 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
             isLastIncomplete={incompleteIds.size === 1 && incompleteIds.has(ex.id)}
             cardRef={(el)    => { cardRefs.current[ex.id]    = el; }}
             nextSetRef={(el) => { nextSetRefs.current[ex.id] = el; }}
+            restTimerActive={timerActive && timerExerciseId === ex.id}
+            restTimerRemaining={timerRemaining}
           />
         );
 
@@ -420,8 +447,10 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
                   <span className="cwv-next-up__arrow">›</span>
                 </div>
 
-                {/* UNCHANGED: all next-up ExerciseCards still rendered */}
-                {nextUpExs.map(renderCard)}
+                {/* ADDED: wrapper so CSS can suppress without removing render */}
+                <div className="cwv-next-up-cards">
+                  {nextUpExs.map(renderCard)}
+                </div>
               </div>
             )}
 
