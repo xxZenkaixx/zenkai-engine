@@ -4,6 +4,7 @@
   background: #050505;
   color: #ffffff;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+  padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)); /* ADDED: clear fixed tab bar */
 }
 
 .cwv-loading,
@@ -579,3 +580,180 @@
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }
+
+/* ── UPDATED: bottom tab bar ── */
+.cwv-tab-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 30;
+  height: 72px;
+  background: rgba(10, 10, 10, 0.96);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid #1f1f1f;
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 0 8px env(safe-area-inset-bottom, 0px);
+  flex-shrink: 0;
+}
+
+.cwv-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  padding: 8px 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  position: relative;
+}
+
+.cwv-tab__icon  { font-size: 20px; color: #2a2a2a; line-height: 1; transition: color 0.15s; }
+.cwv-tab__label { font-size: 10px; color: #2a2a2a; font-weight: 600; letter-spacing: 0.04em; transition: color 0.15s; }
+
+.cwv-tab--active .cwv-tab__icon  { color: #c8ff00; }
+.cwv-tab--active .cwv-tab__label { color: #c8ff00; }
+
+.cwv-tab--active::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 3px;
+  background: #c8ff00;
+  border-radius: 0 0 4px 4px;
+  box-shadow: 0 0 8px rgba(200, 255, 0, 0.6);
+}
+
+.cwv-tab--active .cwv-tab__icon {
+  background: rgba(200, 255, 0, 0.08);
+  border-radius: 8px;
+  padding: 4px 10px;
+}
+/* ── END UPDATED ── */
+
+/* ── ADDED: section layout ── */
+
+/* Mobile-first container safety */
+.cwv-exercise-list {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 16px 16px 92px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Section wrapper */
+.cwv-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Section headers — prominent, banner-style */
+.cwv-section-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #c8ff00;
+  background: rgba(200, 255, 0, 0.05);
+  border-left: 3px solid #c8ff00;
+  padding: 6px 10px;
+  border-radius: 0 6px 6px 0;
+  margin: 0;
+  width: fit-content;
+}
+
+/* Done and Next Up sections get extra top separation */
+.cwv-section + .cwv-section {
+  margin-top: 8px;
+}
+/* ── END ADDED ── */
+
+/* ── ADDED: Chunk 3 visual polish ── */
+
+/* Current section — stronger label */
+.cwv-section--current .cwv-section-label {
+  font-size: 12px;
+  background: rgba(200, 255, 0, 0.08);
+  border-left-width: 4px;
+  padding: 7px 12px;
+}
+
+/* Next up compact info banner */
+.cwv-next-up {
+  background: #141414;
+  border: 1px solid #1e1e1e;
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.cwv-next-up__info { flex: 1; min-width: 0; }
+.cwv-next-up__name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #777;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cwv-next-up__meta {
+  font-size: 11px;
+  color: #3a3a3a;
+  margin: 3px 0 0;
+}
+.cwv-next-up__arrow {
+  font-size: 22px;
+  color: #2a2a2a;
+  flex-shrink: 0;
+  line-height: 1;
+}
+/* ── END ADDED ── */
+
+/* ── ADDED: Done section collapsed cards ── */
+.cwv-done-card {
+  background: #0f0f0f;
+  border: 1px solid #1a1a1a;
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  opacity: 0.45;
+  width: 100%;
+  box-sizing: border-box;
+}
+.cwv-done-card__info  { flex: 1; min-width: 0; }
+.cwv-done-card__name  {
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cwv-done-card__meta  { font-size: 11px; color: #555; margin: 3px 0 0; }
+.cwv-done-card__badge { font-size: 12px; font-weight: 700; color: #c8ff00; flex-shrink: 0; }
+
+/* Keeps ExerciseCard mounted for state without displaying */
+.cwv-hidden { display: none; }
+/* ── END ADDED ── */

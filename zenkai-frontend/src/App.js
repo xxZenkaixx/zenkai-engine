@@ -11,6 +11,7 @@ export default function App() {
   const [activeClientId, setActiveClientId] = useState(null);
   const [activeClientName, setActiveClientName] = useState(null);
   const [activeDayId, setActiveDayId] = useState(null);
+  const [clientHomeTab, setClientHomeTab] = useState('dashboard'); // ADDED
 
   const handleStartWorkout = (clientId, dayId = null) => {
     setActiveClientId(clientId);
@@ -39,6 +40,7 @@ export default function App() {
             clientId={activeClientId}
             clientName={activeClientName}
             onStartWorkout={handleStartWorkout}
+            initialTab={clientHomeTab}
             onBack={() => {
               localStorage.setItem('adminSection', 'clientPortal');
               setView('admin');
@@ -56,7 +58,8 @@ export default function App() {
           <ClientWorkoutView
             clientId={activeClientId}
             initialDayId={activeDayId}
-            onWorkoutFinished={() => setView('clientHome')}
+            onWorkoutFinished={() => { setClientHomeTab('dashboard'); setView('clientHome'); }}
+            onNavigateHistory={() => { setClientHomeTab('history'); setView('clientHome'); }}
           />
         </>
       )}

@@ -10,7 +10,7 @@ import { logSet } from '../api/loggedSetApi';
 import { syncPendingLogs } from '../utils/localWorkoutLogs';
 import './ClientWorkoutView.css';
 
-export default function ClientWorkoutView({ clientId, onWorkoutFinished, initialDayId }) {
+export default function ClientWorkoutView({ clientId, onWorkoutFinished, initialDayId, onNavigateHistory }) { {/* ADDED: onNavigateHistory prop */}
   const [programData, setProgramData] = useState(null);
   const [selectedDayId, setSelectedDayId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -277,6 +277,21 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
   if (!programData) return <p className="cwv-empty">No active program assigned.</p>;
   if (!program) return <p className="cwv-empty">Program data unavailable.</p>;
 
+  // ── ADDED: tab click handlers ──
+  const handleTabDashboard = () => {
+    if (onWorkoutFinished) onWorkoutFinished();
+  };
+  // ── CHANGED: use onNavigateHistory if provided, else fall back ──
+  const handleTabHistory = () => {
+    if (onNavigateHistory) onNavigateHistory();
+    else if (onWorkoutFinished) onWorkoutFinished();
+  };
+  // ── END CHANGED ──
+  const handleTabProfile = () => {
+    console.log('Profile tab — coming soon');
+  };
+  // ── END ADDED ──
+
   return (
     <div className="cwv-shell">
       <div className="cwv-program-header">
@@ -346,30 +361,115 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
 
         if (exercises.length === 0) return <p className="cwv-empty">No exercises on this day.</p>;
 
+        // UNCHANGED
         const incompleteIds = new Set(
           exercises
             .filter((ex) => (exerciseLoggedCounts[ex.id] ?? 0) < (ex.target_sets ?? 0))
             .map((ex) => ex.id)
         );
 
+        // ADDED: section buckets (pure derived values, no new state)
+        const incompleteExs = exercises.filter((ex) =>  incompleteIds.has(ex.id));
+        const doneExs       = exercises.filter((ex) => !incompleteIds.has(ex.id));
+        const currentEx     = incompleteExs[0] ?? null;
+        const nextUpExs     = incompleteExs.slice(1);
+
+        // UNCHANGED: identical props for every ExerciseCard
+        const renderCard = (ex) => (
+          <ExerciseCard
+            key={ex.id}
+            exercise={ex}
+            clientId={clientId}
+            onSetLogged={startTimer}
+            onExerciseUpdated={load}
+            onLoggedSetsChange={handleLoggedSetsChange}
+            isLastIncomplete={incompleteIds.size === 1 && incompleteIds.has(ex.id)}
+            cardRef={(el)    => { cardRefs.current[ex.id]    = el; }}
+            nextSetRef={(el) => { nextSetRefs.current[ex.id] = el; }}
+          />
+        );
+
         return (
           <div className="cwv-exercise-list">
-            {exercises.map((ex) => (
-              <ExerciseCard
-                key={ex.id}
-                exercise={ex}
-                clientId={clientId}
-                onSetLogged={startTimer}
-                onExerciseUpdated={load}
-                onLoggedSetsChange={handleLoggedSetsChange}
-                isLastIncomplete={incompleteIds.size === 1 && incompleteIds.has(ex.id)}
-                cardRef={(el) => { cardRefs.current[ex.id] = el; }}
-                nextSetRef={(el) => { nextSetRefs.current[ex.id] = el; }}
-              />
-            ))}
+
+            {/* ── CURRENT — stronger prominence via modifier class ── */}
+            {currentEx && (
+              <div className="cwv-section cwv-section--current">
+                <p className="cwv-section-label">Current</p>
+                {renderCard(currentEx)}
+              </div>
+            )}
+
+            {/* ── NEXT UP — compact info banner added above full ExerciseCards ── */}
+            {nextUpExs.length > 0 && (
+              <div className="cwv-section">
+                <p className="cwv-section-label">Next Up</p>
+
+                {/* ADDED: compact preview banner for the immediate next exercise */}
+                <div className="cwv-next-up">
+                  <div className="cwv-next-up__info">
+                    <p className="cwv-next-up__name">{nextUpExs[0].name}</p>
+                    <p className="cwv-next-up__meta">
+                      {[
+                        nextUpExs[0].equipment_type,
+                        `${nextUpExs[0].target_sets}×${nextUpExs[0].target_reps}`,
+                        nextUpExs[0].target_weight != null ? `${nextUpExs[0].target_weight} lb` : null
+                      ].filter(Boolean).join(' · ')}
+                    </p>
+                  </div>
+                  <span className="cwv-next-up__arrow">›</span>
+                </div>
+
+                {/* UNCHANGED: all next-up ExerciseCards still rendered */}
+                {nextUpExs.map(renderCard)}
+              </div>
+            )}
+
+            {/* ── DONE — hidden ExerciseCard keeps callbacks alive; collapsed card shown ── */}
+            {doneExs.length > 0 && (
+              <div className="cwv-section">
+                <p className="cwv-section-label">Done</p>
+                {doneExs.map((ex) => (
+                  <div key={ex.id}>
+                    {/* REMOVED: hidden ExerciseCard — caused infinite re-render loop */}
+                    <div className="cwv-done-card">
+                      <div className="cwv-done-card__info">
+                        <p className="cwv-done-card__name">{ex.name}</p>
+                        <p className="cwv-done-card__meta">
+                          {[ex.equipment_type, `${ex.target_sets}×${ex.target_reps}`]
+                            .filter(Boolean).join(' · ')}
+                        </p>
+                      </div>
+                      <span className="cwv-done-card__badge">✓ Done</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
           </div>
         );
       })()}
+      {/* ── ADDED: bottom tab bar ── */}
+      <nav className="cwv-tab-bar">
+        <button className="cwv-tab" onClick={handleTabDashboard}>
+          <span className="cwv-tab__icon">⊞</span>
+          <span className="cwv-tab__label">Dashboard</span>
+        </button>
+        <button className="cwv-tab" onClick={handleTabHistory}>
+          <span className="cwv-tab__icon">📋</span>
+          <span className="cwv-tab__label">History</span>
+        </button>
+        <button className="cwv-tab cwv-tab--active">
+          <span className="cwv-tab__icon">⚡</span>
+          <span className="cwv-tab__label">Workout</span>
+        </button>
+        <button className="cwv-tab" onClick={handleTabProfile}>
+          <span className="cwv-tab__icon">◎</span>
+          <span className="cwv-tab__label">Profile</span>
+        </button>
+      </nav>
+      {/* ── END ADDED ── */}
     </div>
   );
 }

@@ -30,12 +30,12 @@ function formatDateKey(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-export default function ClientHome({ clientId, clientName, onStartWorkout, onBack }) {
+export default function ClientHome({ clientId, clientName, onStartWorkout, onBack, initialTab = 'dashboard' }) { {/* ADDED: initialTab */}
   const [activeProgram, setActiveProgram] = useState(null);
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showPreview, setShowPreview] = useState(false);
-  const [activeView, setActiveView] = useState('dashboard');
+  const [activeView, setActiveView] = useState(initialTab); {/* CHANGED: seed from prop */}
 
   const weekDays = useMemo(() => getThisWeek(), []);
 
