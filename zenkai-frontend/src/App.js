@@ -1,6 +1,7 @@
 // * Root component toggles between admin view and client workout view (no routing for MVP 1)
 import { useState } from 'react';
 import AdminDashboard from './components/AdminDashboard';
+import AdminLayout from './components/AdminLayout';
 import ClientWorkoutView from './components/ClientWorkoutView';
 import ClientHome from './components/ClientHome';
 import LandingPage from './components/LandingPage';
@@ -34,8 +35,13 @@ export default function App() {
       )}
 
       {view === 'clientHome' && activeClientId && (
-        <>
-          <button onClick={() => setView('admin')}>Back to Admin</button>
+        <AdminLayout
+          activeSection="clientPortal"
+          onSectionChange={(section) => {
+            localStorage.setItem('adminSection', section);
+            setView('admin');
+          }}
+        >
           <ClientHome
             clientId={activeClientId}
             clientName={activeClientName}
@@ -46,7 +52,7 @@ export default function App() {
               setView('admin');
             }}
           />
-        </>
+        </AdminLayout>
       )}
 
       {view === 'workout' && activeClientId && (

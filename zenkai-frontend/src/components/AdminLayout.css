@@ -1414,3 +1414,283 @@
     min-width: 100%;
   }
 }
+
+/* ── MOBILE SHELL ── */
+
+/* Hide sidebar on mobile — bottom nav replaces it */
+@media (max-width: 768px) {
+  .admin-nav { display: none; }
+
+  .admin-content {
+    padding: 20px 16px 92px;
+  }
+
+  .admin-section-title {
+    font-size: 18px;
+    margin-bottom: 20px;
+  }
+
+  .admin-stat-card {
+    padding: 14px 18px;
+    min-width: 0;
+    flex: 1;
+    border-radius: 14px;
+  }
+
+  .admin-stat-card__value { font-size: 26px; }
+
+  .admin-client-snapshot__card {
+    max-width: 100%;
+    border-radius: 14px;
+    padding: 18px 20px;
+  }
+
+  .admin-quick-actions__row {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .admin-action-btn {
+    width: 100%;
+    text-align: center;
+    padding: 12px 20px;
+  }
+}
+
+/* ── Mobile bottom nav — hidden on desktop ── */
+.admin-mobile-nav { display: none; }
+
+@media (max-width: 768px) {
+  .admin-mobile-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 30;
+    height: 72px;
+    background: rgba(10, 10, 10, 0.96);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid #1f1f1f;
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.6);
+    padding: 0 8px env(safe-area-inset-bottom, 0px);
+    align-items: center;
+    justify-content: space-around;
+  }
+
+  .admin-mobile-nav__tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    height: 100%;
+    background: none;
+    border: none;
+    cursor: pointer;
+    position: relative;
+    padding: 8px 0;
+  }
+
+  .admin-mobile-nav__label {
+    font-size: 10px;
+    font-weight: 600;
+    color: #333;
+    letter-spacing: 0.04em;
+    transition: color 0.15s;
+  }
+
+  .admin-mobile-nav__tab--active .admin-mobile-nav__label {
+    color: #c8ff00;
+  }
+
+  .admin-mobile-nav__tab--active::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 32px;
+    height: 2px;
+    background: #c8ff00;
+    border-radius: 0 0 4px 4px;
+    box-shadow: 0 0 8px rgba(200, 255, 0, 0.5);
+  }
+}
+
+/* ── ADMIN MOBILE CARD SHELL ── */
+@media (max-width: 768px) {
+
+  /* Task 2: constrain + center on tablet, full-width on phone */
+  .admin-shell { justify-content: center; }
+
+  .admin-content {
+    flex: none;
+    width: 100%;
+    max-width: 520px;
+  }
+
+  /* Task 1: quick actions — card container */
+  .admin-quick-actions {
+    background: #141414;
+    border: 1px solid #1e1e1e;
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+
+  /* Task 1: cards — rounder, consistent */
+  .admin-client-snapshot__card { border-radius: 16px; }
+  .admin-stat-card              { border-radius: 14px; }
+
+  /* Task 1 + 5: dashboard rhythm */
+  .admin-dashboard {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .admin-dashboard__header { margin-bottom: 16px; }
+  .admin-stat-row          { margin-bottom: 16px; gap: 10px; }
+  .admin-client-snapshot   { margin-top: 0; }
+
+  /* Task 3: typography */
+  .admin-section-title {
+    font-size: 17px;
+    letter-spacing: -0.2px;
+    margin-bottom: 16px;
+  }
+
+  .admin-stat-card__label          { color: #666; }
+  .admin-dashboard__sub            { font-size: 13px; color: #666; }
+  .admin-client-snapshot__label    { color: #555; }
+  .admin-quick-actions__label      { color: #555; margin-bottom: 10px; }
+
+  /* Task 4: buttons */
+  .admin-action-btn {
+    border-radius: 12px;
+    font-size: 13px;
+  }
+}
+
+/* ── MOBILE CENTERING PASS ── */
+
+/* Task 1: flex column + center children */
+@media (max-width: 768px) {
+  .admin-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+}
+
+/* Task 2: child blocks fill width up to max */
+@media (max-width: 768px) {
+  .admin-content > * {
+    width: 100%;
+    max-width: 520px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+/* Task 3: wrapping rows center-justified */
+@media (max-width: 768px) {
+  .admin-stat-row,
+  .admin-programs-row,
+  .admin-client-row,
+  .admin-quick-actions__row {
+    justify-content: center;
+  }
+}
+
+/* Task 4: stacked items centered */
+@media (max-width: 768px) {
+  .admin-stat-row,
+  .admin-quick-actions__row {
+    align-items: center;
+  }
+}
+
+/* Task 5: prevent overflow on any missed container */
+@media (max-width: 768px) {
+  .admin-content * {
+    max-width: 100%;
+  }
+}
+
+/* ── PROGRAMS MOBILE FIX ── */
+@media (max-width: 768px) {
+  .prog-workspace {
+    flex-direction: column;
+    align-items: stretch;
+    min-height: unset;
+  }
+
+  .prog-sidebar {
+    width: 100%;
+    flex-shrink: 1;
+    border-right: none;
+    border-bottom: 1px solid #1e1e1e;
+    padding-right: 0;
+    margin-right: 0;
+    padding-bottom: 20px;
+    margin-bottom: 20px;
+  }
+
+  .prog-detail {
+    flex: none;
+    width: 100%;
+  }
+
+  .prog-detail__empty {
+    width: 100%;
+    min-height: 120px;
+    box-sizing: border-box;
+  }
+}
+
+/* ── CLIENTS MOBILE FIX ── */
+@media (max-width: 768px) {
+  .cl-layout {
+    flex-direction: column;
+    align-items: stretch;
+    min-height: unset;
+  }
+
+  .cl-sidebar {
+    width: 100%;
+    flex-shrink: 1;
+    border-right: none;
+    border-bottom: 1px solid #1e1e1e;
+    padding-right: 0;
+    margin-right: 0;
+    padding-bottom: 20px;
+    margin-bottom: 20px;
+  }
+
+  .cl-detail {
+    flex: none;
+    width: 100%;
+  }
+
+  .cl-detail__empty {
+    width: 100%;
+    min-height: 120px;
+    box-sizing: border-box;
+  }
+}
+
+/* ── SELECTED CLIENT CONTENT MOBILE FIX ── */
+@media (max-width: 768px) {
+  .cl-client-detail { width: 100%; box-sizing: border-box; }
+  .cl-client-actions { flex-wrap: wrap; }
+  .cl-client-actions .btn-primary,
+  .cl-client-actions .btn-ghost { flex: 1; min-width: 140px; text-align: center; }
+  .cl-client-history > div { flex-wrap: wrap; gap: 6px; align-items: flex-start; }
+  .cpa-form { display: flex; flex-direction: column; gap: 8px; width: 100%; box-sizing: border-box; }
+  .cpa-form select,
+  .cpa-form input[type="date"],
+  .cpa-form button { width: 100%; box-sizing: border-box; }
+}

@@ -8,6 +8,13 @@ const NAV_ITEMS = [
   { id: 'clientPortal', label: 'Client Portal' },
 ];
 
+const MOBILE_NAV_ITEMS = [
+  { id: 'dashboard',    label: 'Dashboard' },
+  { id: 'clients',      label: 'Clients' },
+  { id: 'programs',     label: 'Programs' },
+  { id: 'clientPortal', label: 'Assign' },
+];
+
 export default function AdminLayout({ activeSection, onSectionChange, children }) {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -50,6 +57,22 @@ export default function AdminLayout({ activeSection, onSectionChange, children }
       <main className="admin-content">
         {children}
       </main>
+      <nav className="admin-mobile-nav">
+        {MOBILE_NAV_ITEMS.map(item => (
+          <button
+            key={item.id}
+            className={`admin-mobile-nav__tab${
+              activeSection === item.id ||
+              (item.id === 'programs' && activeSection === 'programBuilder')
+                ? ' admin-mobile-nav__tab--active'
+                : ''
+            }`}
+            onClick={() => onSectionChange(item.id)}
+          >
+            <span className="admin-mobile-nav__label">{item.label}</span>
+          </button>
+        ))}
+      </nav>
     </div>
   );
 }

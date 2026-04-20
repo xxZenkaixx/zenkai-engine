@@ -192,7 +192,7 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
 
   // * Client detail block — shared between Dashboard and Clients sections
   const clientDetail = selectedClientId && (
-    <div>
+    <div className="cl-client-detail">
       <h3 style={{ color: '#aaa', fontSize: '13px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', margin: '24px 0 12px' }}>
         Active Program
       </h3>
@@ -222,7 +222,7 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
       />
 
       {assignmentHistory.length > 0 && (
-        <div style={{ marginTop: 20 }}>
+        <div className="cl-client-history" style={{ marginTop: 20 }}>
           <h3 style={{ color: '#aaa', fontSize: '13px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 10px' }}>
             Program History
           </h3>
@@ -240,7 +240,7 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 10, margin: '16px 0' }}>
+      <div className="cl-client-actions" style={{ display: 'flex', gap: 10, margin: '16px 0' }}>
         <button className="btn-primary" onClick={() => onViewClientHome(selectedClientId, selectedClient?.name)}>
           Open Client View
         </button>

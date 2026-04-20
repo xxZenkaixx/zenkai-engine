@@ -39,7 +39,7 @@ export default function ClientProgramAssignment({ selectedClientId, programs, on
   };
 
   return (
-    <div>
+    <div className="cpa-form">
       <h3>Assign Program</h3>
 
       <select
