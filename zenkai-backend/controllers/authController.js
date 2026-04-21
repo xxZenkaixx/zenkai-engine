@@ -12,7 +12,8 @@ const sign = (user) =>
 
 exports.signup = async (req, res) => {
   try {
-    const { email, password, role = 'admin', coach_id = null } = req.body;
+    const { email, password, coach_id = null } = req.body;
+    const role = 'client';
     if (!email || !password) {
       return res.status(400).json({ error: 'email and password required' });
     }
