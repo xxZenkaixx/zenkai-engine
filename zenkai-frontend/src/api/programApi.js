@@ -1,9 +1,9 @@
-// * Handles API calls for programs.
+import { getAuthHeaders } from './base';
 
 const BASE_URL = `${process.env.REACT_APP_API_URL}/api/programs`;
 
 export const fetchPrograms = async () => {
-  const res = await fetch(BASE_URL);
+  const res = await fetch(BASE_URL, { headers: getAuthHeaders() });
   if (!res.ok) throw new Error('Failed to fetch programs');
   return res.json();
 };
@@ -17,10 +17,9 @@ export const fetchProgram = async (id) => {
 export const createProgram = async (data) => {
   const res = await fetch(BASE_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: JSON.stringify(data)
   });
-
   if (!res.ok) throw new Error('Failed to create program');
   return res.json();
 };
@@ -28,22 +27,16 @@ export const createProgram = async (data) => {
 export const updateProgram = async (id, data) => {
   const res = await fetch(`${BASE_URL}/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: JSON.stringify(data)
   });
-
   if (!res.ok) throw new Error('Failed to update program');
   return res.json();
 };
 
 export const deleteProgram = async (id) => {
-  const res = await fetch(`${BASE_URL}/${id}`, {
-    method: 'DELETE'
-  });
-
+  const res = await fetch(`${BASE_URL}/${id}`, { method: 'DELETE' });
   if (!res.ok) throw new Error('Failed to delete program');
-
   if (res.status === 204) return null;
   return res.json();
 };
-

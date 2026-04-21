@@ -15,6 +15,7 @@ const sequelize = new Sequelize(process.env.DATABASE_URL, {
   } : {}
 });
 
+const User = require('./user')(sequelize);
 const Client = require('./client')(sequelize);
 const Program = require('./program')(sequelize);
 const ProgramDay = require('./programDay')(sequelize);
@@ -26,6 +27,14 @@ const ExerciseProgression = require('./exerciseProgression')(sequelize);
 const ClientExerciseTarget = require('./clientExerciseTarget')(sequelize);
 
 /* Associations */
+
+User.hasMany(Program, { foreignKey: 'user_id' });
+Program.belongsTo(User, { foreignKey: 'user_id' });
+
+User.hasMany(Client, { foreignKey: 'coach_id', as: 'Clients' });
+Client.belongsTo(User, { foreignKey: 'coach_id', as: 'Coach' });
+User.hasOne(Client, { foreignKey: 'user_id', as: 'ClientRecord' });
+Client.belongsTo(User, { foreignKey: 'user_id', as: 'ClientUser' });
 
 Client.hasMany(ClientProgram, { foreignKey: 'client_id' });
 ClientProgram.belongsTo(Client, { foreignKey: 'client_id' });
@@ -53,6 +62,7 @@ ClientExerciseTarget.belongsTo(ExerciseInstance, { foreignKey: 'exercise_instanc
 
 module.exports = {
   sequelize,
+  User,
   Client,
   Program,
   ProgramDay,

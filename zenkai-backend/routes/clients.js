@@ -1,56 +1,59 @@
-// * Handles client creation, retrieval, updating, and deletion.
 'use strict';
-
 const express = require('express');
 const router = express.Router();
 const { Client } = require('../models');
+const protect = require('../middleware/protect');
 
-// * GET all clients
-router.get('/', async (req, res) => {
+router.get('/me', protect, async (req, res) => {
   try {
-    const clients = await Client.findAll();
-    res.json(clients);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// * GET one client by id
-router.get('/:id', async (req, res) => {
-  try {
-    const client = await Client.findByPk(req.params.id);
-
-    if (!client) {
-      return res.status(404).json({ error: 'Client not found' });
-    }
-
+    const client = await Client.findOne({ where: { user_id: req.user.id } });
+    if (!client) return res.status(404).json({ error: 'No linked client record' });
     res.json(client);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// * POST create client
-router.post('/', async (req, res) => {
+router.get('/', protect, async (req, res) => {
   try {
-    const { name } = req.body;
+    const where = req.user.role === 'client'
+      ? { user_id: req.user.id }
+      : { coach_id: req.user.id };
+    const clients = await Client.findAll({ where });
+    res.json(clients);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
-    const client = await Client.create({ name });
+router.get('/:id', protect, async (req, res) => {
+  try {
+    const client = await Client.findByPk(req.params.id);
+    if (!client) return res.status(404).json({ error: 'Client not found' });
+    res.json(client);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/', protect, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin only' });
+    }
+
+    const { name } = req.body;
+    const client = await Client.create({ name, coach_id: req.user.id });
     res.status(201).json(client);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// * PUT update client
-router.put('/:id', async (req, res) => {
+router.put('/:id', protect, async (req, res) => {
   try {
     const client = await Client.findByPk(req.params.id);
-
-    if (!client) {
-      return res.status(404).json({ error: 'Client not found' });
-    }
-
+    if (!client) return res.status(404).json({ error: 'Client not found' });
     await client.update(req.body);
     res.json(client);
   } catch (err) {
@@ -58,14 +61,10 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// * DELETE client
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', protect, async (req, res) => {
   try {
     const client = await Client.findByPk(req.params.id);
-
-    if (!client) {
-      return res.status(404).json({ error: 'Client not found' });
-    }
+    if (!client) return res.status(404).json({ error: 'Client not found' });
 
     await client.destroy();
     res.json({ message: 'Client deleted' });

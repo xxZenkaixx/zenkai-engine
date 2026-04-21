@@ -1417,8 +1417,8 @@
 
 /* ── MOBILE SHELL ── */
 
-/* Hide sidebar on mobile — bottom nav replaces it */
-@media (max-width: 768px) {
+/* Hide sidebar on mobile and tablet — bottom nav replaces it */
+@media (max-width: 1024px) {
   .admin-nav { display: none; }
 
   .admin-content {
@@ -1460,7 +1460,7 @@
 /* ── Mobile bottom nav — hidden on desktop ── */
 .admin-mobile-nav { display: none; }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .admin-mobile-nav {
     display: flex;
     position: fixed;

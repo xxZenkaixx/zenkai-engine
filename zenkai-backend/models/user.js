@@ -2,26 +2,32 @@
 const { DataTypes } = require('sequelize');
 
 module.exports = (sequelize) => {
-  return sequelize.define('Client', {
+  return sequelize.define('User', {
     id: {
       type: DataTypes.UUID,
       defaultValue: DataTypes.UUIDV4,
       primaryKey: true
     },
-    name: {
+    email: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      unique: true
+    },
+    password: {
       type: DataTypes.STRING,
       allowNull: false
     },
-    user_id: {
-      type: DataTypes.UUID,
-      allowNull: true
+    role: {
+      type: DataTypes.ENUM('admin', 'client', 'selfServe'),
+      allowNull: false,
+      defaultValue: 'admin'
     },
     coach_id: {
       type: DataTypes.UUID,
       allowNull: true
     }
   }, {
-    tableName: 'clients',
+    tableName: 'users',
     underscored: true,
     timestamps: true
   });

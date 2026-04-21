@@ -1,21 +1,33 @@
-// * Handles program creation, retrieval, updating, and deletion.
 'use strict';
-
 const express = require('express');
 const router = express.Router();
+const { Op } = require('sequelize');
 const { Program, ProgramDay, ExerciseInstance } = require('../models');
+const protect = require('../middleware/protect');
 
-// * GET all programs
-router.get('/', async (req, res) => {
+router.get('/', protect, async (req, res) => {
   try {
-    const programs = await Program.findAll();
+    const { id: userId, role, coach_id } = req.user;
+    let where;
+
+    if (role === 'client') {
+      where = { user_id: coach_id };
+    } else {
+      where = {
+        [Op.or]: [
+          { user_id: userId },
+          { user_id: null }
+        ]
+      };
+    }
+
+    const programs = await Program.findAll({ where });
     res.json(programs);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// * GET one program with nested days + exercises
 router.get('/:id', async (req, res) => {
   try {
     const program = await Program.findByPk(req.params.id, {
@@ -27,42 +39,28 @@ router.get('/:id', async (req, res) => {
         }
       }
     });
-
-    if (!program) {
-      return res.status(404).json({ error: 'Program not found' });
-    }
-
+    if (!program) return res.status(404).json({ error: 'Program not found' });
     res.json(program);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// * POST create program
-router.post('/', async (req, res) => {
+router.post('/', protect, async (req, res) => {
   try {
+    const { id: userId } = req.user;
     const { name, weeks, deload_weeks } = req.body;
-
-    const program = await Program.create({
-      name,
-      weeks,
-      deload_weeks
-    });
-
+    const program = await Program.create({ name, weeks, deload_weeks, user_id: userId });
     res.status(201).json(program);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// * PUT update program
 router.put('/:id', async (req, res) => {
   try {
     const program = await Program.findByPk(req.params.id);
-
-    if (!program) {
-      return res.status(404).json({ error: 'Program not found' });
-    }
+    if (!program) return res.status(404).json({ error: 'Program not found' });
 
     await program.update(req.body);
     res.json(program);
@@ -71,15 +69,10 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// * DELETE program
 router.delete('/:id', async (req, res) => {
   try {
     const program = await Program.findByPk(req.params.id);
-
-    if (!program) {
-      return res.status(404).json({ error: 'Program not found' });
-    }
-
+    if (!program) return res.status(404).json({ error: 'Program not found' });
     await program.destroy();
     res.json({ message: 'Program deleted' });
   } catch (err) {

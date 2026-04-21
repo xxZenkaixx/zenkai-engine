@@ -1,18 +1,30 @@
-// * Root component toggles between admin view and client workout view (no routing for MVP 1)
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import AdminDashboard from './components/AdminDashboard';
 import AdminLayout from './components/AdminLayout';
 import ClientWorkoutView from './components/ClientWorkoutView';
 import ClientHome from './components/ClientHome';
-import LandingPage from './components/LandingPage';
+import LoginPage from './components/LoginPage';
+import { fetchLinkedClient } from './api/clientApi';
 
-export default function App() {
-  const [landed, setLanded] = useState(false);
-  const [view, setView] = useState('admin');
+function AppShell() {
+  const { user } = useAuth();
+  const [view, setView] = useState('main');
   const [activeClientId, setActiveClientId] = useState(null);
   const [activeClientName, setActiveClientName] = useState(null);
   const [activeDayId, setActiveDayId] = useState(null);
-  const [clientHomeTab, setClientHomeTab] = useState('dashboard'); // ADDED
+  const [clientHomeTab, setClientHomeTab] = useState('dashboard');
+  const [linkedClientId, setLinkedClientId] = useState(null);
+
+  useEffect(() => {
+    if (user?.role === 'client') {
+      fetchLinkedClient()
+        .then(c => setLinkedClientId(c.id))
+        .catch(() => setLinkedClientId(null));
+    }
+  }, [user]);
+
+  if (!user) return <LoginPage />;
 
   const handleStartWorkout = (clientId, dayId = null) => {
     setActiveClientId(clientId);
@@ -26,49 +38,109 @@ export default function App() {
     setView('clientHome');
   };
 
-  if (!landed) return <LandingPage onDone={() => setLanded(true)} />;
+  if (user.role === 'client') {
+    if (!linkedClientId) {
+      return (
+        <div style={{
+          color: '#888',
+          background: '#0a0a0a',
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          Loading...
+        </div>
+      );
+    }
+
+    if (view === 'workout' && activeClientId) {
+      return (
+        <ClientWorkoutView
+          clientId={activeClientId}
+          initialDayId={activeDayId}
+          onWorkoutFinished={() => {
+            setClientHomeTab('dashboard');
+            setView('main');
+          }}
+          onNavigateHistory={() => {
+            setClientHomeTab('history');
+            setView('main');
+          }}
+        />
+      );
+    }
+    return (
+      <ClientHome
+        clientId={linkedClientId}
+        clientName={user.email}
+        onStartWorkout={handleStartWorkout}
+        initialTab={clientHomeTab}
+        onBack={() => setView('main')}
+      />
+    );
+  }
+
+  if (view === 'clientHome' && activeClientId) {
+    return (
+      <AdminLayout
+        activeSection="clientPortal"
+        onSectionChange={(section) => {
+          localStorage.setItem('adminSection', section);
+          setView('main');
+        }}
+      >
+        <ClientHome
+          clientId={activeClientId}
+          clientName={activeClientName}
+          onStartWorkout={handleStartWorkout}
+          initialTab={clientHomeTab}
+          onBack={() => {
+            localStorage.setItem('adminSection', 'clientPortal');
+            setView('main');
+          }}
+        />
+      </AdminLayout>
+    );
+  }
+
+  if (view === 'workout' && activeClientId) {
+    return (
+      <AdminLayout
+        activeSection="clientPortal"
+        onSectionChange={(section) => {
+          localStorage.setItem('adminSection', section);
+          setView('main');
+        }}
+      >
+        <ClientWorkoutView
+          clientId={activeClientId}
+          initialDayId={activeDayId}
+          onWorkoutFinished={() => {
+            setClientHomeTab('dashboard');
+            setView('clientHome');
+          }}
+          onNavigateHistory={() => {
+            setClientHomeTab('history');
+            setView('clientHome');
+          }}
+        />
+      </AdminLayout>
+    );
+  }
 
   return (
-    <div>
-      {view === 'admin' && (
-        <AdminDashboard onStartWorkout={handleStartWorkout} onViewClientHome={handleViewClientHome} />
-      )}
+    <AdminDashboard
+      onStartWorkout={handleStartWorkout}
+      onViewClientHome={handleViewClientHome}
+    />
+  );
+}
 
-      {view === 'clientHome' && activeClientId && (
-        <AdminLayout
-          activeSection="clientPortal"
-          onSectionChange={(section) => {
-            localStorage.setItem('adminSection', section);
-            setView('admin');
-          }}
-        >
-          <ClientHome
-            clientId={activeClientId}
-            clientName={activeClientName}
-            onStartWorkout={handleStartWorkout}
-            initialTab={clientHomeTab}
-            onBack={() => {
-              localStorage.setItem('adminSection', 'clientPortal');
-              setView('admin');
-            }}
-          />
-        </AdminLayout>
-      )}
-
-      {view === 'workout' && activeClientId && (
-        <>
-          <button onClick={() => setView('admin')}>
-            Back to Admin
-          </button>
-
-          <ClientWorkoutView
-            clientId={activeClientId}
-            initialDayId={activeDayId}
-            onWorkoutFinished={() => { setClientHomeTab('dashboard'); setView('clientHome'); }}
-            onNavigateHistory={() => { setClientHomeTab('history'); setView('clientHome'); }}
-          />
-        </>
-      )}
-    </div>
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppShell />
+    </AuthProvider>
   );
 }

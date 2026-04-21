@@ -1,18 +1,23 @@
-// Handles assigning programs to clients and loading a client's active program.
 'use strict';
-
 const express = require('express');
 const router = express.Router();
-const { ClientProgram, Program, ProgramDay, ExerciseInstance } = require('../models');
+const { ClientProgram, Program, ProgramDay, ExerciseInstance, Client } = require('../models');
+const protect = require('../middleware/protect');
 
-// Returns the active client-program assignment with nested program data
-router.get('/:clientId', async (req, res) => {
+const ownsClient = async (req, clientId) => {
+  const client = await Client.findByPk(clientId);
+  if (!client) return false;
+  if (req.user.role === 'client') return client.user_id === req.user.id;
+  return client.coach_id === req.user.id;
+};
+
+router.get('/:clientId', protect, async (req, res) => {
   try {
+    if (!await ownsClient(req, req.params.clientId)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
     const clientProgram = await ClientProgram.findOne({
-      where: {
-        client_id: req.params.clientId,
-        active: true
-      },
+      where: { client_id: req.params.clientId, active: true },
       include: [
         {
           model: Program,
@@ -25,33 +30,15 @@ router.get('/:clientId', async (req, res) => {
               include: [
                 {
                   model: ExerciseInstance,
-                  as: 'ExerciseInstances',           // explicit alias
+                  as: 'ExerciseInstances',
                   attributes: [
-                    'id',
-                    'program_day_id',
-                    'name',
-                    'type',
-                    'equipment_type',
-                    'progression_mode',
-                    'progression_value',
-                    'target_sets',
-                    'target_reps',
-                    'target_weight',
-                    'rest_seconds',
-                    'order_index',
-                    'notes',
-                    'base_stack_weight',
-                    'stack_step_value',
-                    'micro_step_value',
-                    'max_micro_levels',
-                    'current_micro_level',
-                    'cable_unit',
-                    'cable_setup_locked',
-                    // ADDED: required for backoff and cable micro display
-                    'backoff_enabled',
-                    'backoff_percent',
-                    'micro_type',
-                    'micro_display_label'
+                    'id', 'program_day_id', 'name', 'type', 'equipment_type',
+                    'progression_mode', 'progression_value', 'target_sets',
+                    'target_reps', 'target_weight', 'rest_seconds', 'order_index',
+                    'notes', 'base_stack_weight', 'stack_step_value',
+                    'micro_step_value', 'max_micro_levels', 'current_micro_level',
+                    'cable_unit', 'cable_setup_locked', 'backoff_enabled',
+                    'backoff_percent', 'micro_type', 'micro_display_label'
                   ]
                 }
               ]
@@ -63,11 +50,7 @@ router.get('/:clientId', async (req, res) => {
         [{ model: Program }, { model: ProgramDay, as: 'ProgramDays' }, { model: ExerciseInstance, as: 'ExerciseInstances' }, 'order_index', 'ASC']
       ]
     });
-
-    if (!clientProgram) {
-      return res.status(404).json({ error: 'No active program found' });
-    }
-
+    if (!clientProgram) return res.status(404).json({ error: 'No active program found' });
     res.json(clientProgram);
   } catch (err) {
     console.error('GET /client-programs/:clientId ERROR:', err);
@@ -75,33 +58,41 @@ router.get('/:clientId', async (req, res) => {
   }
 });
 
-// Deactivates the active program assignment for a client
-router.delete('/:clientId', async (req, res) => {
+router.delete('/:clientId', protect, async (req, res) => {
   try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin only' });
+    }
+
+    if (!await ownsClient(req, req.params.clientId)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
     await ClientProgram.update(
       { active: false },
       { where: { client_id: req.params.clientId, active: true } }
     );
+
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Assigns a program to a client.
-// * If an active assignment already exists for this client + program, returns it unchanged.
-// * Prevents duplicate rows and keeps client_exercise_targets stable across re-launches.
-router.post('/', async (req, res) => {
+router.post('/', protect, async (req, res) => {
   try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin only' });
+    }
+
     const { client_id, program_id, start_date } = req.body;
 
-    const existing = await ClientProgram.findOne({
-      where: { client_id, program_id }
-    });
-
-    if (existing && existing.active) {
-      return res.status(200).json(existing);
+    if (!await ownsClient(req, client_id)) {
+      return res.status(403).json({ error: 'Forbidden' });
     }
+
+    const existing = await ClientProgram.findOne({ where: { client_id, program_id } });
+    if (existing && existing.active) return res.status(200).json(existing);
 
     await ClientProgram.update({ active: false }, { where: { client_id, active: true } });
 
@@ -123,24 +114,36 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Activates a specific assignment by id, deactivating all others for that client
-router.patch('/:id/activate', async (req, res) => {
+router.patch('/:id/activate', protect, async (req, res) => {
   try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin only' });
+    }
+
     const target = await ClientProgram.findByPk(req.params.id);
     if (!target) return res.status(404).json({ error: 'Assignment not found' });
 
-    await ClientProgram.update({ active: false }, { where: { client_id: target.client_id, active: true } });
-    await target.update({ active: true });
+    if (!await ownsClient(req, target.client_id)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
 
+    await ClientProgram.update(
+      { active: false },
+      { where: { client_id: target.client_id, active: true } }
+    );
+
+    await target.update({ active: true });
     res.json(target);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Returns all program assignments for a client, newest first
-router.get('/:clientId/history', async (req, res) => {
+router.get('/:clientId/history', protect, async (req, res) => {
   try {
+    if (!await ownsClient(req, req.params.clientId)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
     const assignments = await ClientProgram.findAll({
       where: { client_id: req.params.clientId },
       include: { model: Program, attributes: ['id', 'name', 'weeks'] },
