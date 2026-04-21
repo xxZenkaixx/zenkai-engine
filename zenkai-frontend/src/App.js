@@ -15,16 +15,18 @@ function AppShell() {
   const [activeDayId, setActiveDayId] = useState(null);
   const [clientHomeTab, setClientHomeTab] = useState('dashboard');
   const [linkedClientId, setLinkedClientId] = useState(null);
+  const [linkedClientName, setLinkedClientName] = useState(null);
 
   useEffect(() => {
     if (user?.role === 'client') {
       fetchLinkedClient()
-        .then(c => setLinkedClientId(c.id))
-        .catch(() => setLinkedClientId(null));
+        .then(c => { setLinkedClientId(c.id); setLinkedClientName(c.name); })
+        .catch(() => { setLinkedClientId(null); setLinkedClientName(null); });
     }
   }, [user]);
 
-  if (!user) return <LoginPage />;
+  const isAdminEntry = window.location.pathname === '/admin';
+  if (!user) return <LoginPage variant={isAdminEntry ? 'admin' : 'member'} />;
 
   const handleStartWorkout = (clientId, dayId = null) => {
     setActiveClientId(clientId);
@@ -73,7 +75,7 @@ function AppShell() {
     return (
       <ClientHome
         clientId={linkedClientId}
-        clientName={user.email}
+        clientName={linkedClientName}
         onStartWorkout={handleStartWorkout}
         initialTab={clientHomeTab}
         onBack={() => setView('main')}

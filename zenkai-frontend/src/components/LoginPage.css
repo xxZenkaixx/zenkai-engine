@@ -71,3 +71,9 @@
   width: 100%;
 }
 .lp-toggle:hover { color: #888; }
+
+.lp-sub--admin {
+  color: #b7ff00;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}

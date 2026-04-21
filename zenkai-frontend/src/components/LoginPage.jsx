@@ -2,13 +2,15 @@ import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import './LoginPage.css';
 
-export default function LoginPage() {
+export default function LoginPage({ variant = 'member' }) {
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [mode, setMode] = useState('login');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  const isAdmin = variant === 'admin';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -37,7 +39,11 @@ export default function LoginPage() {
     <div className="lp-wrap">
       <div className="lp-card">
         <h1 className="lp-title">ZENKAI</h1>
-        <p className="lp-sub">{mode === 'login' ? 'Sign in to continue' : 'Create your account'}</p>
+        <p className={`lp-sub${isAdmin ? ' lp-sub--admin' : ''}`}>
+          {isAdmin
+            ? 'Admin access only'
+            : mode === 'login' ? 'Sign in to continue' : 'Create your account'}
+        </p>
         <form className="lp-form" onSubmit={handleSubmit}>
           <input
             className="lp-input"
@@ -60,9 +66,14 @@ export default function LoginPage() {
             {loading ? 'Loading...' : mode === 'login' ? 'Sign In' : 'Create Account'}
           </button>
         </form>
-        <button className="lp-toggle" onClick={() => { setMode(m => m === 'login' ? 'signup' : 'login'); setError(null); }}>
-          {mode === 'login' ? 'No account? Sign up' : 'Have an account? Sign in'}
-        </button>
+        {!isAdmin && (
+          <button
+            className="lp-toggle"
+            onClick={() => { setMode(m => m === 'login' ? 'signup' : 'login'); setError(null); }}
+          >
+            {mode === 'login' ? 'No account? Sign up' : 'Have an account? Sign in'}
+          </button>
+        )}
       </div>
     </div>
   );

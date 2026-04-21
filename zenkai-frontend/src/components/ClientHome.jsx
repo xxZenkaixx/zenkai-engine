@@ -105,7 +105,7 @@ export default function ClientHome({ clientId, clientName, onStartWorkout, onBac
     <div className="ch-wrap">
       <div className="ch-topbar">
         <button className="ch-back-btn" onClick={onBack}>← Back</button>
-        <div>
+        <div className="ch-topbar-info">
           <h1 className="ch-title">{clientName ? `${clientName}'s Portal` : 'My Training'}</h1>
           {programName && (
             <p className="ch-sub">{programName} · {programWeeks} weeks</p>

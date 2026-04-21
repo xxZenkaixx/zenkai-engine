@@ -1,12 +1,11 @@
 .ch-wrap {
   min-height: 100vh;
+  width: 100%;
   background: #050505;
   color: #ffffff;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
-  padding: 32px 24px;
+  padding: 40px 48px;
   box-sizing: border-box;
-  max-width: 1280px;
-  margin: 0 auto;
 }
 
 @media (max-width: 600px) {
@@ -21,9 +20,18 @@
 }
 
 .ch-topbar {
-  margin-bottom: 32px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 36px;
   padding-bottom: 24px;
   border-bottom: 1px solid #1e1e1e;
+  flex-wrap: wrap;
+}
+
+.ch-topbar-info {
+  flex: 1;
+  min-width: 0;
 }
 
 .ch-title {
@@ -265,17 +273,11 @@
 }
 
 /* ── NAVIGATION ── */
-.ch-topbar {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
-}
 
 .ch-back-btn {
   background: none;
   border: 1px solid #333333;
-  color: #888888;
+  color: #cccccc;
   font-size: 13px;
   padding: 8px 14px;
   border-radius: 8px;
@@ -284,21 +286,20 @@
 }
 
 .ch-back-btn:hover {
-  border-color: #9ca3af;
-  color: #cccccc;
+  border-color: #c8ff00;
+  color: #c8ff00;
 }
 
 .ch-secondary-btn {
   background: none;
   border: 1px solid #333333;
-  color: #888888;
+  color: #cccccc;
   font-size: 12px;
   padding: 7px 14px;
   border-radius: 8px;
   cursor: pointer;
   letter-spacing: 0.3px;
   transition: border-color 0.15s, color 0.15s;
-  margin-left: auto;
 }
 
 .ch-secondary-btn:hover {
@@ -333,7 +334,7 @@
   margin-left: auto;
   background: none;
   border: none;
-  color: #555;
+  color: #cccccc;
   font-size: 13px;
   cursor: pointer;
   padding: 6px 10px;

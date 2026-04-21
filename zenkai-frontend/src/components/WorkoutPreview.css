@@ -1,6 +1,7 @@
 .wp-wrap {
   color: #ffffff;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+  padding-top: 8px;
 }
 
 .wp-loading {
