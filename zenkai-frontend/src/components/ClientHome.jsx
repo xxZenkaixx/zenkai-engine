@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { fetchActiveProgram } from '../api/clientProgramApi';
 import { fetchWorkoutSessions } from '../api/historyApi';
 import { formatWeight } from '../utils/weightUtils';
@@ -31,6 +32,7 @@ function formatDateKey(d) {
 }
 
 export default function ClientHome({ clientId, clientName, onStartWorkout, onBack, initialTab = 'dashboard' }) { {/* ADDED: initialTab */}
+  const { logout } = useAuth();
   const [activeProgram, setActiveProgram] = useState(null);
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -114,6 +116,7 @@ export default function ClientHome({ clientId, clientName, onStartWorkout, onBac
             {showPreview ? 'Hide Program' : 'View Program'}
           </button>
         )}
+        <button className="ch-logout-btn" onClick={logout}>Logout</button>
       </div>
       {showPreview && programId && (
         <div className="ch-preview-wrap">

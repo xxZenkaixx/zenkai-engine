@@ -1694,3 +1694,21 @@
   .cpa-form input[type="date"],
   .cpa-form button { width: 100%; box-sizing: border-box; }
 }
+
+.admin-nav__logout {
+  margin-top: auto;
+  width: 100%;
+  background: none;
+  border: none;
+  border-top: 1px solid #1c1c1c;
+  padding: 18px 24px;
+  color: #b7ff00;
+  font-size: 15px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.admin-nav__logout:hover {
+  color: #ffffff;
+}

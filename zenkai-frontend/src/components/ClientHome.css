@@ -328,3 +328,14 @@
   border-radius: 14px;
   overflow: hidden;
 }
+
+.ch-logout-btn {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: #555;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 6px 10px;
+}
+.ch-logout-btn:hover { color: #ff4444; }

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import './AdminLayout.css';
 
 const NAV_ITEMS = [
@@ -17,6 +18,7 @@ const MOBILE_NAV_ITEMS = [
 
 export default function AdminLayout({ activeSection, onSectionChange, children }) {
   const [collapsed, setCollapsed] = useState(false);
+  const { logout } = useAuth();
 
   return (
     <div className="admin-shell">
@@ -53,6 +55,9 @@ export default function AdminLayout({ activeSection, onSectionChange, children }
             </li>
           ))}
         </ul>
+        <button className="admin-nav__logout" onClick={logout}>
+          {!collapsed && 'Logout'}
+        </button>
       </nav>
       <main className="admin-content">
         {children}
@@ -72,6 +77,9 @@ export default function AdminLayout({ activeSection, onSectionChange, children }
             <span className="admin-mobile-nav__label">{item.label}</span>
           </button>
         ))}
+        <button className="admin-mobile-nav__tab" onClick={logout}>
+          <span className="admin-mobile-nav__label">Logout</span>
+        </button>
       </nav>
     </div>
   );
