@@ -1,7 +1,7 @@
 'use strict';
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { User } = require('../models');
+const { User, Client } = require('../models');
 
 const sign = (user) =>
   jwt.sign(
@@ -19,6 +19,7 @@ exports.signup = async (req, res) => {
     }
     const hash = await bcrypt.hash(password, 10);
     const user = await User.create({ email, password: hash, role, coach_id });
+    await Client.create({ name: email, user_id: user.id });
     res.status(201).json({
       token: sign(user),
       user: { id: user.id, email: user.email, role: user.role }
