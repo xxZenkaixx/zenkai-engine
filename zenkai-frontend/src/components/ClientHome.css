@@ -340,3 +340,41 @@
   padding: 6px 10px;
 }
 .ch-logout-btn:hover { color: #ff4444; }
+
+@media (max-width: 600px) {
+  .ch-topbar {
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .ch-back-btn {
+    order: 1;
+    flex-shrink: 0;
+  }
+
+  .ch-logout-btn {
+    order: 2;
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+
+  .ch-topbar-info {
+    order: 3;
+    width: 100%;
+    flex: none;
+  }
+
+  .ch-secondary-btn {
+    order: 4;
+    width: 100%;
+    text-align: center;
+    margin-left: 0;
+    padding: 10px 14px;
+  }
+
+  .ch-title {
+    font-size: 22px;
+    letter-spacing: -0.5px;
+  }
+}
