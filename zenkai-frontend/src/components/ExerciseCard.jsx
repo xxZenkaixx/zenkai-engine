@@ -3,7 +3,7 @@
 // * Allows previous-set edits without affecting the active timer.
 
 import { useState, useEffect } from 'react';
-import { logSet, editSet, fetchLoggedSets } from '../api/loggedSetApi';
+import { logSet, editSet } from '../api/loggedSetApi';
 import { generateId, saveLog, removeLog } from '../utils/localWorkoutLogs';
 import { updateExerciseInstance } from '../api/exerciseInstanceApi';
 import { roundWeight, getBackoffWeight, formatWeight, getBackoffRest } from '../utils/weightUtils';
@@ -82,32 +82,21 @@ export default function ExerciseCard({
       ? parseFloat(target_weight)
       : null;
 
-  const [loggedSets, setLoggedSets] = useState([]);
+  const [sessionSets, setSessionSets] = useState([]);
   const [completedReps, setCompletedReps] = useState('');
   const [completedWeight, setCompletedWeight] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (onLoggedSetsChange) onLoggedSetsChange(exercise.id, loggedSets.length);
-  }, [loggedSets.length, exercise.id, onLoggedSetsChange]);
+    if (onLoggedSetsChange) onLoggedSetsChange(exercise.id, sessionSets.length);
+  }, [sessionSets.length, exercise.id, onLoggedSetsChange]);
 
   const [cableForm, setCableForm] = useState(EMPTY_CABLE_FORM);
   const [savingCable, setSavingCable] = useState(false);
   const [cableError, setCableError] = useState(null);
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const data = await fetchLoggedSets(id, clientId);
-        const sorted = [...data].sort((a, b) => a.set_number - b.set_number);
-        setLoggedSets(sorted);
-      } catch (err) { setError(err.message); }
-    };
-    load();
-  }, [id, clientId]);
-
-  const nextSetNumber = loggedSets.length + 1;
+  const nextSetNumber = sessionSets.length + 1;
 
   useEffect(() => {
     if (effectiveWeight == null) return;
@@ -151,7 +140,7 @@ export default function ExerciseCard({
 
     setCompletedWeight(displayWeight != null ? String(displayWeight) : '');
   }, [nextSetNumber, effectiveWeight, backoff_enabled, backoff_percent, equipment_type, isCable, stack_step_value, max_micro_levels]);
-  const allSetsComplete = loggedSets.length >= target_sets;
+  const allSetsComplete = sessionSets.length >= target_sets;
 
   // ADDED: split cable label into lines for stacked right-column display
   const cableTargetLines = isCable && cable_setup_locked
@@ -213,7 +202,7 @@ export default function ExerciseCard({
     }
 
     // * UI MUST UPDATE REGARDLESS OF NETWORK
-    setLoggedSets((prev) =>
+    setSessionSets((prev) =>
       [...prev, payload].sort((a, b) => a.set_number - b.set_number)
     );
 
@@ -239,9 +228,11 @@ export default function ExerciseCard({
     if (!Number.isInteger(parsedReps) || parsedReps <= 0) return;
     setError(null);
     try {
-      const updated = await editSet(setId, parsedReps);
-      setLoggedSets((prev) => prev.map((s) => (s.id === setId ? updated : s)).sort((a, b) => a.set_number - b.set_number));
+      await editSet(setId, parsedReps);
     } catch (err) { setError(err.message); }
+    setSessionSets((prev) =>
+      prev.map((s) => s.id === setId ? { ...s, completed_reps: parsedReps } : s)
+    );
   };
 
   // * Cable exercise with no setup yet — block logging, show setup form
@@ -267,6 +258,7 @@ export default function ExerciseCard({
               value={cableForm.stack_step_value}
               onChange={(e) => setCableForm({ ...cableForm, stack_step_value: e.target.value })}>
               <option value="">Stack Increment *</option>
+              <option value="5">5</option>
               <option value="10">10</option>
               <option value="15">15</option>
               <option value="20">20</option>
@@ -310,9 +302,9 @@ export default function ExerciseCard({
 
       <LastPerformanceSnapshot exerciseInstanceId={id} clientId={clientId} targetWeight={effectiveWeight} />
 
-      {loggedSets.length > 0 && (
+      {sessionSets.length > 0 && (
         <div className="ec-sets">
-          {loggedSets.map((s, i) => (
+          {sessionSets.map((s, i) => (
             <LoggedSetRow
               key={s.id}
               setNumber={i + 1}
