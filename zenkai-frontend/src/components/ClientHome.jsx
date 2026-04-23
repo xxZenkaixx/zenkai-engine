@@ -76,7 +76,8 @@ export default function ClientHome({ clientId, clientName, onStartWorkout, onBac
       .slice(0, 4);
   }, [activeProgram]);
 
-  const recentSessions = sessions.slice(0, 4);
+  const programDayCount = activeProgram?.Program?.ProgramDays?.length || sessions.length;
+  const recentSessions = sessions.slice(0, programDayCount);
 
   const nextDayId = useMemo(() => {
     const days = activeProgram?.Program?.ProgramDays;
@@ -188,7 +189,7 @@ export default function ClientHome({ clientId, clientName, onStartWorkout, onBac
 
         <div className="ch-col">
           <div className="ch-card">
-            <div className="ch-card-title">Recent History</div>
+            <div className="ch-card-title">Last Week</div>
             {recentSessions.length === 0 ? (
               <p className="ch-empty">No sessions logged yet.</p>
             ) : (
