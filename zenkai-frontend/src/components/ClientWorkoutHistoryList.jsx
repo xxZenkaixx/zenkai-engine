@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { fetchWorkoutSessions } from '../api/historyApi';
 import ClientWorkoutSessionDetail from './ClientWorkoutSessionDetail';
 
-export default function ClientWorkoutHistoryList({ clientId }) {
+export default function ClientWorkoutHistoryList({ clientId, initialSessionKey }) {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -15,7 +15,16 @@ export default function ClientWorkoutHistoryList({ clientId }) {
     setSelectedSession(null);
 
     fetchWorkoutSessions(clientId)
-      .then((data) => setSessions(Array.isArray(data) ? data : []))
+      .then((data) => {
+        const arr = Array.isArray(data) ? data : [];
+        setSessions(arr);
+        if (initialSessionKey) {
+          const match = arr.find(
+            (s) => `${s.date}-${s.program_day_id}` === initialSessionKey
+          );
+          if (match) setSelectedSession(match);
+        }
+      })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [clientId]);

@@ -68,6 +68,11 @@ export default function ClientWorkoutSessionDetail({ clientId, date, programDayI
       {exercises.map((ex) => (
         <div key={`${ex.exercise_name}-${ex.order_index}`}>
           <p><strong>{ex.exercise_name}</strong></p>
+          {ex.exercise_note && (
+            <p style={{ fontSize: 12, color: '#888', marginTop: -6, marginBottom: 4 }}>
+              Note: {ex.exercise_note}
+            </p>
+          )}
 
           <ul>
             {ex.sets.map((s) => {
@@ -99,8 +104,7 @@ export default function ClientWorkoutSessionDetail({ clientId, date, programDayI
                       <button
                         onClick={handleSave}
                         disabled={saving}
-                        style={{ marginRight: 4 }}
-                      >
+                        style={{ marginRight: 4 }}>
                         {saving ? 'Saving...' : 'Save'}
                       </button>
                       <button onClick={() => setEditing(null)}>Cancel</button>
@@ -121,16 +125,14 @@ export default function ClientWorkoutSessionDetail({ clientId, date, programDayI
                           })
                         }
                         disabled={deleting === s.set_id}
-                        style={{ fontSize: 11, marginLeft: 6 }}
-                      >
+                        style={{ fontSize: 11, marginLeft: 6 }}>
                         Edit
                       </button>
                       <button
                         onClick={() => handleDelete(s.set_id)}
                         disabled={deleting === s.set_id || saving}
-                        style={{ fontSize: 11, marginLeft: 4, color: '#ff4444' }}
-                      >
-                        {deleting === s.set_id ? '...' : 'Delete'}
+                        style={{ fontSize: 11, marginLeft: 4, color: '#ff4444' }}>
+                        {deleting === s.set_id ? 'Deleting...' : 'Delete'}
                       </button>
                     </>
                   )}

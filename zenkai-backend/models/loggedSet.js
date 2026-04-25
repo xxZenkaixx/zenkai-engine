@@ -37,6 +37,10 @@ module.exports = (sequelize) => {
       type: DataTypes.STRING,
       allowNull: true,
       unique: true
+    },
+    exercise_note: {
+      type: DataTypes.TEXT,
+      allowNull: true
     }
   }, {
     tableName: 'logged_sets',

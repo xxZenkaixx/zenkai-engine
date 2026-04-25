@@ -38,6 +38,7 @@ export default function ClientHome({ clientId, clientName, onStartWorkout, onBac
   const [loading, setLoading] = useState(true);
   const [showPreview, setShowPreview] = useState(false);
   const [activeView, setActiveView] = useState(initialTab); {/* CHANGED: seed from prop */}
+  const [pendingSession, setPendingSession] = useState(null);
 
   const weekDays = useMemo(() => getThisWeek(), []);
 
@@ -134,7 +135,7 @@ export default function ClientHome({ clientId, clientName, onStartWorkout, onBac
         </button>
         <button
           className={activeView === 'history' ? 'ch-cta-btn' : 'ch-secondary-btn'}
-          onClick={() => setActiveView('history')}
+          onClick={() => { setPendingSession(null); setActiveView('history'); }}
         >
           History
         </button>
@@ -199,7 +200,7 @@ export default function ClientHome({ clientId, clientName, onStartWorkout, onBac
                   <div
                     key={`${s.date}-${s.program_day_id}`}
                     className="ch-history-row"
-                    onClick={() => setActiveView('history')}
+                    onClick={() => { setPendingSession(`${s.date}-${s.program_day_id}`); setActiveView('history'); }}
                   >
                     <div className="ch-history-info">
                       <div className="ch-history-name">{s.date} — {label}</div>
@@ -225,7 +226,7 @@ export default function ClientHome({ clientId, clientName, onStartWorkout, onBac
 
       {activeView === 'history' && (
         <>
-          <ClientWorkoutHistoryList clientId={clientId} />
+          <ClientWorkoutHistoryList clientId={clientId} initialSessionKey={pendingSession} />
           <div style={{ marginTop: '32px' }}>
             <h2 style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '1.5px', textTransform: 'uppercase', color: '#aaa', margin: '0 0 12px 0' }}>
               Exercise History

@@ -5,11 +5,9 @@ const router = express.Router();
 const { sequelize } = require('../models');
 const { QueryTypes } = require('sequelize');
 
-// * Session list for a client with total set counts, newest first.
 router.get('/:clientId/workouts', async (req, res) => {
   try {
     const { clientId } = req.params;
-
     const rows = await sequelize.query(`
       SELECT
         DATE(ls.completed_at) AS date,
@@ -28,19 +26,15 @@ router.get('/:clientId/workouts', async (req, res) => {
       replacements: { clientId },
       type: QueryTypes.SELECT
     });
-
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// * Distinct workout sessions for a client, newest first.
-// * Session identity: (DATE(completed_at), program_day_id)
 router.get('/:clientId', async (req, res) => {
   try {
     const { clientId } = req.params;
-
     const rows = await sequelize.query(`
       SELECT
         DATE(ls.completed_at) AS date,
@@ -57,14 +51,12 @@ router.get('/:clientId', async (req, res) => {
       replacements: { clientId },
       type: QueryTypes.SELECT
     });
-
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// * All logged sets for one session, grouped by exercise.
 router.get('/:clientId/detail', async (req, res) => {
   try {
     const { clientId } = req.params;
@@ -82,7 +74,8 @@ router.get('/:clientId/detail', async (req, res) => {
         ls.id AS set_id,
         ls.set_number,
         ls.completed_reps,
-        ls.completed_weight
+        ls.completed_weight,
+        ls.exercise_note
       FROM logged_sets ls
       JOIN exercise_instances ei ON ls.exercise_instance_id = ei.id
       WHERE ls.client_id = :clientId
@@ -95,14 +88,21 @@ router.get('/:clientId/detail', async (req, res) => {
     });
 
     const exerciseMap = {};
+
     for (const row of rows) {
       if (!exerciseMap[row.exercise_instance_id]) {
         exerciseMap[row.exercise_instance_id] = {
           exercise_name: row.exercise_name,
           order_index: row.order_index,
+          exercise_note: null,
           sets: []
         };
       }
+
+      if (!exerciseMap[row.exercise_instance_id].exercise_note && row.exercise_note) {
+        exerciseMap[row.exercise_instance_id].exercise_note = row.exercise_note;
+      }
+
       exerciseMap[row.exercise_instance_id].sets.push({
         set_id: row.set_id,
         set_number: row.set_number,
@@ -118,14 +118,10 @@ router.get('/:clientId/detail', async (req, res) => {
   }
 });
 
-// * Aggregate performance summary for a client.
 router.get('/:clientId/summary', async (req, res) => {
   try {
     const { clientId } = req.params;
-
-    if (!clientId) {
-      return res.status(400).json({ error: 'clientId is required' });
-    }
+    if (!clientId) return res.status(400).json({ error: 'clientId is required' });
 
     const [stats] = await sequelize.query(`
       SELECT
@@ -164,14 +160,10 @@ router.get('/:clientId/summary', async (req, res) => {
   }
 });
 
-// * Distinct exercises a client has logged, with most recent date.
 router.get('/:clientId/exercises', async (req, res) => {
   try {
     const { clientId } = req.params;
-
-    if (!clientId) {
-      return res.status(400).json({ error: 'clientId is required' });
-    }
+    if (!clientId) return res.status(400).json({ error: 'clientId is required' });
 
     const rows = await sequelize.query(`
       SELECT
@@ -197,11 +189,9 @@ router.get('/:clientId/exercises', async (req, res) => {
   }
 });
 
-// * All logged sets for one exercise + client, ordered chronologically.
 router.get('/:clientId/exercises/:exerciseInstanceId', async (req, res) => {
   try {
     const { clientId, exerciseInstanceId } = req.params;
-
     if (!clientId || !exerciseInstanceId) {
       return res.status(400).json({ error: 'clientId and exerciseInstanceId are required' });
     }

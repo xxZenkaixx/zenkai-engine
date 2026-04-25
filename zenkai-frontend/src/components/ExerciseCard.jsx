@@ -3,7 +3,7 @@
 // * Allows previous-set edits without affecting the active timer.
 
 import { useState, useEffect } from 'react';
-import { logSet, editSet } from '../api/loggedSetApi';
+import { logSet, editSet, saveExerciseNote } from '../api/loggedSetApi';
 import { generateId, saveLog, removeLog } from '../utils/localWorkoutLogs';
 import { updateExerciseInstance } from '../api/exerciseInstanceApi';
 import { roundWeight, getBackoffWeight, formatWeight, getBackoffRest } from '../utils/weightUtils';
@@ -18,7 +18,6 @@ const EMPTY_CABLE_FORM = {
   cable_unit: 'lb'
 };
 
-// MOVED: before ExerciseCard so it is in scope without relying on hoisting
 function buildCableLabel(weight, baseStackWeight, stackStepValue, maxMicroLevels, cableUnit) {
   if (!stackStepValue) return `${weight} ${cableUnit}`;
   const levels = maxMicroLevels || 0;
@@ -33,6 +32,7 @@ function buildCableLabel(weight, baseStackWeight, stackStepValue, maxMicroLevels
 export default function ExerciseCard({
   exercise,
   clientId,
+  programDayId,
   onSetLogged,
   onExerciseUpdated,
   onLoggedSetsChange,
@@ -68,12 +68,7 @@ export default function ExerciseCard({
   const needsCableSetup = isCable && !cable_setup_locked;
 
   const cableDisplayWeight = isCable && cable_setup_locked
-    ? getCableDisplayWeight(
-        base_stack_weight,
-        stack_step_value,
-        current_micro_level,
-        max_micro_levels
-      )
+    ? getCableDisplayWeight(base_stack_weight, stack_step_value, current_micro_level, max_micro_levels)
     : null;
 
   const effectiveWeight = isCable && cable_setup_locked
@@ -87,6 +82,12 @@ export default function ExerciseCard({
   const [completedWeight, setCompletedWeight] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [exerciseNote, setExerciseNote] = useState('');
+  const [noteSaving, setNoteSaving] = useState(false);
+  const [noteSaved, setNoteSaved] = useState(false);
+
+  const today = new Date();
+  const sessionDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
   useEffect(() => {
     if (onLoggedSetsChange) onLoggedSetsChange(exercise.id, sessionSets.length);
@@ -104,23 +105,15 @@ export default function ExerciseCard({
     let displayWeight;
 
     if (!backoff_enabled || nextSetNumber === 1) {
-      // set 1 or backoff disabled → always exact trainer weight
       displayWeight = effectiveWeight;
     } else if (isCable && stack_step_value > 0) {
-      // --- CABLE BACK-OFF: find closest valid position to target ---
       const levels = max_micro_levels || 0;
       const microStep = stack_step_value / (levels + 1);
       const backoffTarget = effectiveWeight * (1 - backoff_percent / 100);
-
-      // Highest pin ≤ target, anchored to base_stack_weight
       const stepsDown = Math.ceil((base_stack_weight - backoffTarget) / stack_step_value);
       const pin = base_stack_weight - stepsDown * stack_step_value;
-
-      // Round to nearest micro count (may land above target)
       const rawMicro = (backoffTarget - pin) / microStep;
       let microCount = Math.round(rawMicro);
-
-      // CHANGED: numeric only — display label derived in JSX via buildCableLabel
       if (microCount > levels) {
         displayWeight = pin + stack_step_value;
       } else if (microCount === 0) {
@@ -128,21 +121,15 @@ export default function ExerciseCard({
       } else {
         displayWeight = pin + microCount * microStep;
       }
-      // --- END CABLE BACK-OFF ---
     } else {
-      // non-cable backoff sets 2+
-      displayWeight = getBackoffWeight(
-        effectiveWeight,
-        backoff_percent,
-        equipment_type
-      );
+      displayWeight = getBackoffWeight(effectiveWeight, backoff_percent, equipment_type);
     }
 
     setCompletedWeight(displayWeight != null ? String(displayWeight) : '');
   }, [nextSetNumber, effectiveWeight, backoff_enabled, backoff_percent, equipment_type, isCable, stack_step_value, max_micro_levels]);
+
   const allSetsComplete = sessionSets.length >= target_sets;
 
-  // ADDED: split cable label into lines for stacked right-column display
   const cableTargetLines = isCable && cable_setup_locked
     ? formatCableTarget({
         baseStackWeight: base_stack_weight,
@@ -187,11 +174,9 @@ export default function ExerciseCard({
       client_id: clientId,
       set_number: nextSetNumber,
       completed_reps: parsedReps,
-      completed_weight:
-        completedWeight !== '' ? parseFloat(completedWeight) : effectiveWeight
+      completed_weight: completedWeight !== '' ? parseFloat(completedWeight) : effectiveWeight
     };
 
-    // * LOCAL FIRST (always)
     saveLog(payload);
 
     try {
@@ -201,25 +186,33 @@ export default function ExerciseCard({
       // stays queued
     }
 
-    // * UI MUST UPDATE REGARDLESS OF NETWORK
-    setSessionSets((prev) =>
-      [...prev, payload].sort((a, b) => a.set_number - b.set_number)
-    );
-
+    setSessionSets((prev) => [...prev, payload].sort((a, b) => a.set_number - b.set_number));
     setCompletedReps('');
 
     const isLastSet = nextSetNumber === target_sets;
 
     if (!(isLastIncomplete && isLastSet)) {
-      const restToUse =
-        backoff_enabled && nextSetNumber > 1
-          ? getBackoffRest(rest_seconds)
-          : rest_seconds;
-
+      const restToUse = backoff_enabled && nextSetNumber > 1
+        ? getBackoffRest(rest_seconds)
+        : rest_seconds;
       onSetLogged(restToUse, id);
     }
 
     setLoading(false);
+  };
+
+  const handleSaveNote = async () => {
+    if (sessionSets.length === 0) return;
+    setNoteSaving(true);
+    setNoteSaved(false);
+    try {
+      await saveExerciseNote(exercise.id, sessionDate, programDayId, exerciseNote);
+      setNoteSaved(true);
+    } catch (err) {
+      // best-effort
+    } finally {
+      setNoteSaving(false);
+    }
   };
 
   // ! Editing previous sets must never affect timer state
@@ -235,7 +228,6 @@ export default function ExerciseCard({
     );
   };
 
-  // * Cable exercise with no setup yet — block logging, show setup form
   if (needsCableSetup) {
     return (
       <div className="ec-card" ref={cardRef}>
@@ -282,7 +274,6 @@ export default function ExerciseCard({
 
   return (
     <div className={`ec-card${allSetsComplete ? ' ec-card--complete' : ''}`} ref={cardRef}>
-      {/* CHANGED: two-column header — name/meta left, stacked target right */}
       <div className="ec-header">
         <div className="ec-header__left">
           <p className="ec-name">{name}</p>
@@ -331,24 +322,18 @@ export default function ExerciseCard({
                 Prescribed:{' '}
                 {formatWeight(
                   backoff_enabled && nextSetNumber > 1
-                    ? getBackoffWeight(
-                        effectiveWeight,
-                        backoff_percent,
-                        equipment_type
-                      )
+                    ? getBackoffWeight(effectiveWeight, backoff_percent, equipment_type)
                     : roundWeight(effectiveWeight, equipment_type),
                   equipment_type
                 )}
               </p>
             )}
-            {/* CHANGED: use completedWeight directly — already the snapped numeric, no recalculation needed */}
             {isCable && cable_setup_locked && completedWeight !== '' && (
               <p className="ec-prescribed">
                 Prescribed:{' '}
                 {buildCableLabel(parseFloat(completedWeight), base_stack_weight, stack_step_value, max_micro_levels, cable_unit)}
               </p>
             )}
-
             <div className="ec-log-inputs">
               <input
                 className="ec-reps-input"
@@ -358,7 +343,6 @@ export default function ExerciseCard({
                 value={completedReps}
                 onChange={(e) => setCompletedReps(e.target.value)}
               />
-
               {!isCable && effectiveWeight != null && (
                 <input
                   className="ec-weight-input"
@@ -368,12 +352,7 @@ export default function ExerciseCard({
                   onChange={(e) => setCompletedWeight(e.target.value)}
                 />
               )}
-
-              <button
-                className="ec-log-btn"
-                onClick={handleLogSet}
-                disabled={loading}
-              >
+              <button className="ec-log-btn" onClick={handleLogSet} disabled={loading}>
                 {loading ? 'Saving...' : 'Log Set'}
               </button>
             </div>
@@ -384,12 +363,31 @@ export default function ExerciseCard({
       {allSetsComplete && <p className="ec-complete">✓ All sets complete</p>}
       {error && <p className="ec-error">{error}</p>}
 
+      <div className="ec-note-section">
+        <textarea
+          className="ec-note-input"
+          placeholder="Notes for this exercise..."
+          value={exerciseNote}
+          onChange={(e) => {
+            setExerciseNote(e.target.value);
+            setNoteSaved(false);
+          }}
+          rows={2}
+        />
+        <button
+          className="ec-note-save-btn"
+          onClick={handleSaveNote}
+          disabled={noteSaving || sessionSets.length === 0}
+        >
+          {noteSaving ? 'Saving...' : noteSaved ? 'Saved ✓' : 'Save Note'}
+        </button>
+      </div>
+
       <HistoryPanel exerciseInstanceId={id} clientId={clientId} targetWeight={effectiveWeight} />
     </div>
   );
 }
 
-// * Inline editable row for an already logged set.
 // ! Editing here must never restart or change the rest timer.
 function LoggedSetRow({ setNumber, loggedSet, onEdit }) {
   const [editing, setEditing] = useState(false);

@@ -10,7 +10,7 @@ import { logSet } from '../api/loggedSetApi';
 import { syncPendingLogs } from '../utils/localWorkoutLogs';
 import './ClientWorkoutView.css';
 
-export default function ClientWorkoutView({ clientId, onWorkoutFinished, initialDayId, onNavigateHistory }) { {/* ADDED: onNavigateHistory prop */}
+export default function ClientWorkoutView({ clientId, onWorkoutFinished, initialDayId, onNavigateHistory }) {
   const [programData, setProgramData] = useState(null);
   const [selectedDayId, setSelectedDayId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -160,13 +160,10 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
     return (exerciseLoggedCounts[ex.id] ?? 0) < assignedSets;
   });
 
-  // ADDED: per-exercise completion count for progress line
   const completeCount = selectedExercises.filter(
     (ex) => (exerciseLoggedCounts[ex.id] ?? 0) >= (ex.target_sets ?? 0)
   ).length;
 
-  // * Clear click-triggered validation error once user resolves the blocking condition.
-  // * Does not fire on unrelated renders — only when exerciseLoggedCounts changes.
   useEffect(() => {
     setFinishError(null);
     setConfirmFinishEarly(false);
@@ -245,7 +242,6 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
       return;
     }
 
-    // * Request notification permission on first timer start (must be foregrounded)
     if (Notification.permission === 'default') {
       Notification.requestPermission().catch(() => {});
     }
@@ -282,24 +278,19 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
   if (!programData) return <p className="cwv-empty">No active program assigned.</p>;
   if (!program) return <p className="cwv-empty">Program data unavailable.</p>;
 
-  // ── ADDED: tab click handlers ──
   const handleTabDashboard = () => {
     if (onWorkoutFinished) onWorkoutFinished();
   };
-  // ── CHANGED: use onNavigateHistory if provided, else fall back ──
   const handleTabHistory = () => {
     if (onNavigateHistory) onNavigateHistory();
     else if (onWorkoutFinished) onWorkoutFinished();
   };
-  // ── END CHANGED ──
   const handleTabProfile = () => {
     console.log('Profile tab — coming soon');
   };
-  // ── END ADDED ──
 
   return (
     <div className="cwv-shell">
-      {/* ADDED: wireframe header — day label / title / progress / timer pill */}
       <div className="cwv-header">
         <div className="cwv-header__top-row">
           <span className="cwv-header__day-label">
@@ -318,7 +309,6 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
           {completeCount} of {selectedExercises.length} exercise{selectedExercises.length !== 1 ? 's' : ''} complete
         </p>
       </div>
-      {/* existing cwv-program-header kept below — hidden via CSS */}
       <div className="cwv-program-header">
         <h2 className="cwv-program-header__name">{program.name}</h2>
         <span className="cwv-program-header__meta">{program.weeks} weeks</span>
@@ -386,25 +376,23 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
 
         if (exercises.length === 0) return <p className="cwv-empty">No exercises on this day.</p>;
 
-        // UNCHANGED
         const incompleteIds = new Set(
           exercises
             .filter((ex) => (exerciseLoggedCounts[ex.id] ?? 0) < (ex.target_sets ?? 0))
             .map((ex) => ex.id)
         );
 
-        // ADDED: section buckets (pure derived values, no new state)
         const incompleteExs = exercises.filter((ex) =>  incompleteIds.has(ex.id));
         const doneExs       = exercises.filter((ex) => !incompleteIds.has(ex.id));
         const currentEx     = incompleteExs[0] ?? null;
         const nextUpExs     = incompleteExs.slice(1);
 
-        // UNCHANGED: identical props for every ExerciseCard
         const renderCard = (ex) => (
           <ExerciseCard
             key={ex.id}
             exercise={ex}
             clientId={clientId}
+            programDayId={selectedDayId}
             onSetLogged={startTimer}
             onExerciseUpdated={load}
             onLoggedSetsChange={handleLoggedSetsChange}
@@ -419,7 +407,6 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
         return (
           <div className="cwv-exercise-list">
 
-            {/* ── CURRENT — stronger prominence via modifier class ── */}
             {currentEx && (
               <div className="cwv-section cwv-section--current">
                 <p className="cwv-section-label">Current</p>
@@ -427,12 +414,10 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
               </div>
             )}
 
-            {/* ── NEXT UP — compact info banner added above full ExerciseCards ── */}
             {nextUpExs.length > 0 && (
               <div className="cwv-section">
                 <p className="cwv-section-label">Next Up</p>
 
-                {/* ADDED: compact preview banner for the immediate next exercise */}
                 <div className="cwv-next-up">
                   <div className="cwv-next-up__info">
                     <p className="cwv-next-up__name">{nextUpExs[0].name}</p>
@@ -447,20 +432,17 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
                   <span className="cwv-next-up__arrow">›</span>
                 </div>
 
-                {/* ADDED: wrapper so CSS can suppress without removing render */}
                 <div className="cwv-next-up-cards">
                   {nextUpExs.map(renderCard)}
                 </div>
               </div>
             )}
 
-            {/* ── DONE — hidden ExerciseCard keeps callbacks alive; collapsed card shown ── */}
             {doneExs.length > 0 && (
               <div className="cwv-section">
                 <p className="cwv-section-label">Done</p>
                 {doneExs.map((ex) => (
                   <div key={ex.id}>
-                    {/* REMOVED: hidden ExerciseCard — caused infinite re-render loop */}
                     <div className="cwv-done-card">
                       <div className="cwv-done-card__info">
                         <p className="cwv-done-card__name">{ex.name}</p>
@@ -479,7 +461,7 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
           </div>
         );
       })()}
-      {/* ── ADDED: bottom tab bar ── */}
+
       <nav className="cwv-tab-bar">
         <button className="cwv-tab" onClick={handleTabDashboard}>
           <span className="cwv-tab__icon">⊞</span>
@@ -498,7 +480,6 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
           <span className="cwv-tab__label">Profile</span>
         </button>
       </nav>
-      {/* ── END ADDED ── */}
     </div>
   );
 }
