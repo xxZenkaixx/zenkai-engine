@@ -63,6 +63,13 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
     return draft.sessionSets || {};
   });
 
+  const [activeOrderOverride, setActiveOrderOverride] = useState(() => {
+    const dayId = readSelectedDayId(clientId);
+    const draft = readDraft(clientId, dayId);
+    if (!dayId || draft.programDayId !== dayId) return [];
+    return draft.activeOrderOverride || [];
+  });
+
   const intervalRef = useRef(null);
   const timerEndRef = useRef(null);
   const timerExerciseIdRef = useRef(null);
@@ -90,6 +97,21 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
       return next;
     });
   }, [clientId, selectedDayId]);
+
+  const handleSkip = () => {
+    const incompleteInOrder = effectiveOrder.filter(id => incompleteExerciseIds.has(id));
+    if (incompleteInOrder.length < 2) return;
+
+    const first = incompleteInOrder[0];
+    const second = incompleteInOrder[1];
+    const next = [...effectiveOrder];
+    const idxFirst = next.indexOf(first);
+    const idxSecond = next.indexOf(second);
+    [next[idxFirst], next[idxSecond]] = [next[idxSecond], next[idxFirst]];
+
+    setActiveOrderOverride(next);
+    writeDraft(clientId, selectedDayId, { activeOrderOverride: next });
+  };
 
   const load = async () => {
     try {
@@ -127,6 +149,7 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
     setFinishError(null);
     setConfirmFinishEarly(false);
     setExerciseLoggedCounts({});
+    setActiveOrderOverride([]);
   }, [selectedDayId]);
 
   // Persist selected day pointer whenever it changes
@@ -165,12 +188,17 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
   // Write timer state to draft on change — no sound or notification involved
   useEffect(() => {
     if (!selectedDayId) return;
+
+    const activeEndTime = timerActive && timerEndRef.current
+      ? timerEndRef.current
+      : null;
+
     writeDraft(clientId, selectedDayId, {
       timerActive,
-      timerEndTime: timerActive ? timerEndRef.current : null,
+      timerEndTime: activeEndTime,
       timerExerciseId: timerActive ? timerExerciseId : null
     });
-  }, [timerActive, timerExerciseId, selectedDayId, clientId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [timerActive, timerExerciseId, timerRemaining, selectedDayId, clientId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Restore timer once after initial load — no sound, no notification, no scroll
   useEffect(() => {
@@ -263,6 +291,18 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
   const completeCount = selectedExercises.filter(
     (ex) => (exerciseLoggedCounts[ex.id] ?? 0) >= (ex.target_sets ?? 0)
   ).length;
+
+  const sortedExercises = [...selectedExercises].sort((a, b) => a.order_index - b.order_index);
+
+  const incompleteExerciseIds = new Set(
+    sortedExercises
+      .filter(ex => (exerciseLoggedCounts[ex.id] ?? 0) < (ex.target_sets ?? 0))
+      .map(ex => ex.id)
+  );
+
+  const effectiveOrder = activeOrderOverride.length > 0
+    ? activeOrderOverride
+    : sortedExercises.map(ex => ex.id);
 
   useEffect(() => {
     setFinishError(null);
@@ -470,25 +510,18 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
       })()}
 
       {selectedDayId && (() => {
-        const dayForRender = days.find((d) => d.id === selectedDayId);
-        const exercises = [...(dayForRender?.ExerciseInstances || [])].sort(
-          (a, b) => a.order_index - b.order_index
-        );
-
+        const exercises = sortedExercises;
         if (exercises.length === 0) return <p className="cwv-empty">No exercises on this day.</p>;
 
-        const incompleteIds = new Set(
-          exercises
-            .filter((ex) => (exerciseLoggedCounts[ex.id] ?? 0) < (ex.target_sets ?? 0))
-            .map((ex) => ex.id)
-        );
-
-        const incompleteExs = exercises.filter((ex) =>  incompleteIds.has(ex.id));
-        const doneExs       = exercises.filter((ex) => !incompleteIds.has(ex.id));
+        const incompleteIds = incompleteExerciseIds;
+        const incompleteExs = effectiveOrder
+          .map(id => exercises.find(ex => ex.id === id))
+          .filter(ex => ex && incompleteIds.has(ex.id));
+        const doneExs = exercises.filter(ex => !incompleteIds.has(ex.id));
         const currentEx     = incompleteExs[0] ?? null;
         const nextUpExs     = incompleteExs.slice(1);
 
-        const renderCard = (ex) => (
+        const renderCard = (ex, isCurrent = false) => (
           <ExerciseCard
             key={ex.id}
             exercise={ex}
@@ -504,6 +537,7 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
             restTimerActive={timerActive && timerExerciseId === ex.id}
             restTimerRemaining={timerRemaining}
             initialSets={draftSets[selectedDayId]?.[ex.id] || []}
+            onSkip={isCurrent && nextUpExs.length > 0 ? handleSkip : null}
           />
         );
 
@@ -513,7 +547,7 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
             {currentEx && (
               <div className="cwv-section cwv-section--current">
                 <p className="cwv-section-label">Current</p>
-                {renderCard(currentEx)}
+                {renderCard(currentEx, true)}
               </div>
             )}
 

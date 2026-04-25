@@ -1139,3 +1139,130 @@
   max-width: 520px;
   margin: 0 auto;
 }
+.cwv-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.cwv-skip-btn {
+  font-size: 12px;
+  padding: 5px 10px;
+  background: transparent;
+  border: 1px solid #333;
+  border-radius: 8px;
+  color: #777;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cwv-skip-btn:hover {
+  border-color: #c8ff00;
+  color: #c8ff00;
+  background: rgba(200,255,0,0.05);
+}
+
+.cwv-skip-btn:active {
+  background: rgba(200,255,0,0.12);
+}
+
+.ec-skip-btn {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  padding: 3px 8px;
+  background: transparent;
+  border: 1px solid #333;
+  border-radius: 6px;
+  color: #666;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.ec-skip-btn:hover {
+  border-color: #c8ff00;
+  color: #c8ff00;
+  background: rgba(200,255,0,0.05);
+}
+
+.ec-skip-btn:active {
+  background: rgba(200,255,0,0.12);
+}
+
+.ec-skip-trigger {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px;
+  background: transparent;
+  border: 1px dashed #333;
+  border-radius: 8px;
+  color: #555;
+  font-size: 12px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+
+.ec-skip-trigger:hover {
+  border-color: #666;
+  color: #888;
+}
+
+.ec-skip-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.ec-skip-modal {
+  background: #111;
+  border: 1px solid #222;
+  border-radius: 14px;
+  padding: 24px 20px;
+  width: min(320px, 90vw);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ec-skip-modal__title {
+  font-size: 17px;
+  font-weight: 600;
+  color: #fff;
+  margin: 0;
+}
+
+.ec-skip-modal__body {
+  font-size: 14px;
+  color: #888;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.ec-skip-modal__confirm {
+  padding: 12px;
+  background: #c8ff00;
+  border: none;
+  border-radius: 10px;
+  color: #000;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ec-skip-modal__cancel {
+  padding: 10px;
+  background: transparent;
+  border: 1px solid #333;
+  border-radius: 10px;
+  color: #666;
+  font-size: 14px;
+  cursor: pointer;
+}

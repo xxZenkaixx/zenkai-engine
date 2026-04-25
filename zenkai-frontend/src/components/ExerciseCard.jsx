@@ -42,7 +42,8 @@ export default function ExerciseCard({
   nextSetRef,
   restTimerActive,
   restTimerRemaining,
-  initialSets
+  initialSets,
+  onSkip
 }) {
   const {
     id,
@@ -87,6 +88,7 @@ export default function ExerciseCard({
   const [exerciseNote, setExerciseNote] = useState('');
   const [noteSaving, setNoteSaving] = useState(false);
   const [noteSaved, setNoteSaved] = useState(false);
+  const [showSkipModal, setShowSkipModal] = useState(false);
 
   const today = new Date();
   const sessionDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
@@ -362,6 +364,26 @@ export default function ExerciseCard({
                 {loading ? 'Saving...' : 'Log Set'}
               </button>
             </div>
+          </div>
+          {onSkip && (
+            <button className="ec-skip-trigger" onClick={() => setShowSkipModal(true)}>
+              Machine in use?
+            </button>
+          )}
+        </div>
+      )}
+
+      {showSkipModal && (
+        <div className="ec-skip-modal-overlay" onClick={() => setShowSkipModal(false)}>
+          <div className="ec-skip-modal" onClick={e => e.stopPropagation()}>
+            <p className="ec-skip-modal__title">Machine in use?</p>
+            <p className="ec-skip-modal__body">Move to the next exercise. We'll bring this one back after.</p>
+            <button className="ec-skip-modal__confirm" onClick={() => { onSkip(); setShowSkipModal(false); }}>
+              Continue to next exercise
+            </button>
+            <button className="ec-skip-modal__cancel" onClick={() => setShowSkipModal(false)}>
+              Cancel
+            </button>
           </div>
         </div>
       )}
