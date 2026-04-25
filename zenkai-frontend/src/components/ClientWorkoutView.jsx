@@ -10,6 +10,36 @@ import { logSet } from '../api/loggedSetApi';
 import { syncPendingLogs } from '../utils/localWorkoutLogs';
 import './ClientWorkoutView.css';
 
+function readSelectedDayId(clientId) {
+  try { return localStorage.getItem(`zenkai_selected_day_${clientId}`) || null; } catch { return null; }
+}
+
+function readDraft(clientId, programDayId) {
+  if (!programDayId) return {};
+  try {
+    return JSON.parse(localStorage.getItem(`zenkai_workout_draft_${clientId}_${programDayId}`)) || {};
+  } catch { return {}; }
+}
+
+function writeDraft(clientId, programDayId, patch) {
+  if (!programDayId) return;
+  try {
+    const cur = readDraft(clientId, programDayId);
+    localStorage.setItem(
+      `zenkai_workout_draft_${clientId}_${programDayId}`,
+      JSON.stringify({ ...cur, ...patch, programDayId })
+    );
+    localStorage.setItem(`zenkai_selected_day_${clientId}`, programDayId);
+  } catch {}
+}
+
+function clearDraft(clientId, programDayId) {
+  try {
+    if (programDayId) localStorage.removeItem(`zenkai_workout_draft_${clientId}_${programDayId}`);
+    localStorage.removeItem(`zenkai_selected_day_${clientId}`);
+  } catch {}
+}
+
 export default function ClientWorkoutView({ clientId, onWorkoutFinished, initialDayId, onNavigateHistory }) {
   const [programData, setProgramData] = useState(null);
   const [selectedDayId, setSelectedDayId] = useState(null);
@@ -26,11 +56,19 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
   const [confirmFinishEarly, setConfirmFinishEarly] = useState(false);
   const [exerciseLoggedCounts, setExerciseLoggedCounts] = useState({});
 
+  const [draftSets, setDraftSets] = useState(() => {
+    const dayId = readSelectedDayId(clientId);
+    const draft = readDraft(clientId, dayId);
+    if (!dayId || draft.programDayId !== dayId) return {};
+    return draft.sessionSets || {};
+  });
+
   const intervalRef = useRef(null);
   const timerEndRef = useRef(null);
   const timerExerciseIdRef = useRef(null);
   const timerCompletedRef = useRef(false);
   const initialRestRef = useRef(0);
+  const timerRestoredRef = useRef(false);
   const audioRef = useRef(null);
   const wakeLockRef = useRef(null);
   const cardRefs = useRef({});
@@ -43,6 +81,16 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
     }));
   }, []);
 
+  const handleSessionSetsChange = useCallback((exerciseId, sets) => {
+    if (!selectedDayId) return;
+    setDraftSets((prev) => {
+      const dayBucket = prev[selectedDayId] || {};
+      const next = { ...prev, [selectedDayId]: { ...dayBucket, [exerciseId]: sets } };
+      writeDraft(clientId, selectedDayId, { sessionSets: next });
+      return next;
+    });
+  }, [clientId, selectedDayId]);
+
   const load = async () => {
     try {
       setLoading(true);
@@ -54,7 +102,11 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
       const days = data?.Program?.ProgramDays || [];
       const sortedDays = [...days].sort((a, b) => a.day_number - b.day_number);
       const firstDayId = sortedDays[0]?.id || null;
-      setSelectedDayId((prev) => prev || initialDayId || firstDayId);
+
+      const activeDayId = readSelectedDayId(clientId);
+      const savedDraft = readDraft(clientId, activeDayId);
+      const restoredDayId = savedDraft.programDayId === activeDayId ? activeDayId : null;
+      setSelectedDayId((prev) => prev || restoredDayId || initialDayId || firstDayId);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -76,6 +128,11 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
     setConfirmFinishEarly(false);
     setExerciseLoggedCounts({});
   }, [selectedDayId]);
+
+  // Persist selected day pointer whenever it changes
+  useEffect(() => {
+    if (selectedDayId) writeDraft(clientId, selectedDayId, {});
+  }, [selectedDayId, clientId]);
 
   useEffect(() => {
     return () => clearInterval(intervalRef.current);
@@ -104,6 +161,49 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
       window.removeEventListener('online', handleOnline);
     };
   }, []);
+
+  // Write timer state to draft on change — no sound or notification involved
+  useEffect(() => {
+    if (!selectedDayId) return;
+    writeDraft(clientId, selectedDayId, {
+      timerActive,
+      timerEndTime: timerActive ? timerEndRef.current : null,
+      timerExerciseId: timerActive ? timerExerciseId : null
+    });
+  }, [timerActive, timerExerciseId, selectedDayId, clientId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Restore timer once after initial load — no sound, no notification, no scroll
+  useEffect(() => {
+    if (loading || timerRestoredRef.current || !selectedDayId) return;
+    timerRestoredRef.current = true;
+
+    const draft = readDraft(clientId, selectedDayId);
+    if (!draft.timerActive || !draft.timerEndTime || !draft.timerExerciseId) return;
+    if (draft.programDayId !== selectedDayId) return;
+
+    const remaining = Math.round((draft.timerEndTime - Date.now()) / 1000);
+    if (remaining <= 0) {
+      writeDraft(clientId, selectedDayId, { timerActive: false, timerEndTime: null, timerExerciseId: null });
+      return;
+    }
+
+    timerEndRef.current = draft.timerEndTime;
+    timerExerciseIdRef.current = draft.timerExerciseId;
+    timerCompletedRef.current = false;
+    initialRestRef.current = remaining;
+    setTimerExerciseId(draft.timerExerciseId);
+    setTimerRemaining(remaining);
+    setTimerActive(true);
+
+    intervalRef.current = setInterval(() => {
+      const rem = Math.round((timerEndRef.current - Date.now()) / 1000);
+      if (rem <= 0) {
+        handleTimerComplete(draft.timerExerciseId);
+        return;
+      }
+      setTimerRemaining(rem);
+    }, 500);
+  }, [loading, selectedDayId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const runPendingLogSync = async () => {
     try {
@@ -192,6 +292,7 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
     try {
       await applyProgression(clientId, selectedDayId);
       setWorkoutFinished(true);
+      clearDraft(clientId, selectedDayId);
       if (onWorkoutFinished) onWorkoutFinished();
     } catch (err) {
       setFinishError(err.message);
@@ -396,11 +497,13 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
             onSetLogged={startTimer}
             onExerciseUpdated={load}
             onLoggedSetsChange={handleLoggedSetsChange}
+            onSessionSetsChange={handleSessionSetsChange}
             isLastIncomplete={incompleteIds.size === 1 && incompleteIds.has(ex.id)}
             cardRef={(el)    => { cardRefs.current[ex.id]    = el; }}
             nextSetRef={(el) => { nextSetRefs.current[ex.id] = el; }}
             restTimerActive={timerActive && timerExerciseId === ex.id}
             restTimerRemaining={timerRemaining}
+            initialSets={draftSets[selectedDayId]?.[ex.id] || []}
           />
         );
 

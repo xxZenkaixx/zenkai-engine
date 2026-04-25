@@ -36,11 +36,13 @@ export default function ExerciseCard({
   onSetLogged,
   onExerciseUpdated,
   onLoggedSetsChange,
+  onSessionSetsChange,
   isLastIncomplete,
   cardRef,
   nextSetRef,
   restTimerActive,
-  restTimerRemaining
+  restTimerRemaining,
+  initialSets
 }) {
   const {
     id,
@@ -77,7 +79,7 @@ export default function ExerciseCard({
       ? parseFloat(target_weight)
       : null;
 
-  const [sessionSets, setSessionSets] = useState([]);
+  const [sessionSets, setSessionSets] = useState(() => initialSets || []);
   const [completedReps, setCompletedReps] = useState('');
   const [completedWeight, setCompletedWeight] = useState('');
   const [loading, setLoading] = useState(false);
@@ -92,6 +94,10 @@ export default function ExerciseCard({
   useEffect(() => {
     if (onLoggedSetsChange) onLoggedSetsChange(exercise.id, sessionSets.length);
   }, [sessionSets.length, exercise.id, onLoggedSetsChange]);
+
+  useEffect(() => {
+    if (onSessionSetsChange) onSessionSetsChange(exercise.id, sessionSets);
+  }, [sessionSets, exercise.id, onSessionSetsChange]);
 
   const [cableForm, setCableForm] = useState(EMPTY_CABLE_FORM);
   const [savingCable, setSavingCable] = useState(false);
