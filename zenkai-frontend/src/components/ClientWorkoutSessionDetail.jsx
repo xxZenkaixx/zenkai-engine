@@ -111,10 +111,10 @@ export default function ClientWorkoutSessionDetail({ clientId, date, programDayI
                     </>
                   ) : (
                     <>
-                      Set {s.set_number}: {s.completed_reps} reps
-                      {s.completed_weight != null
-                        ? ` @ ${parseFloat(s.completed_weight)} lb`
-                        : ''}
+                      Set {s.set_number}:{' '}
+                      {s.completed_reps === 0 && (s.completed_weight === 0 || s.completed_weight == null)
+                        ? 'Skipped'
+                        : `${s.completed_reps} reps${s.completed_weight != null ? ` @ ${parseFloat(s.completed_weight)} lb` : ''}`}
                       {' '}
                       <button
                         onClick={() =>

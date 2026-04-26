@@ -5,8 +5,9 @@
 import { useEffect, useState } from 'react';
 import { fetchSetHistory } from '../api/loggedSetApi';
 import { getPersonalBest, getLastLoggedDate } from '../utils/progressionUtils';
+import { formatWeight } from '../utils/weightUtils';
 
-export default function LastPerformanceSnapshot({ exerciseInstanceId, clientId }) {
+export default function LastPerformanceSnapshot({ exerciseInstanceId, clientId, equipmentType }) {
   const [snapshot, setSnapshot] = useState(null);
 
   useEffect(() => {
@@ -45,12 +46,12 @@ export default function LastPerformanceSnapshot({ exerciseInstanceId, clientId }
 
   const lastLabel =
     snapshot.lastWeight != null
-      ? `${snapshot.lastReps} reps @ ${snapshot.lastWeight} lbs — ${snapshot.lastDate}`
+      ? `${snapshot.lastReps} reps @ ${formatWeight(snapshot.lastWeight, equipmentType)} — ${snapshot.lastDate}`
       : `${snapshot.lastReps} reps — ${snapshot.lastDate}`;
 
   const bestLabel =
     snapshot.bestWeight != null
-      ? `${snapshot.bestReps} reps @ ${snapshot.bestWeight} lbs`
+      ? `${snapshot.bestReps} reps @ ${formatWeight(snapshot.bestWeight, equipmentType)}`
       : `${snapshot.bestReps} reps`;
 
   return (

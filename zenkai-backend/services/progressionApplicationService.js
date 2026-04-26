@@ -68,7 +68,7 @@ async function applyProgressionForWorkout(clientId, programDayId) {
   const sets = await fetchLatestSetsForDay(clientId, programDayId);
   if (!sets.length) throw new Error('No logged sets found for this client and program day.');
 
-  const validSets = sets.filter((s) => s.completed_reps != null);
+  const validSets = sets.filter((s) => s.completed_reps != null && s.completed_reps > 0);
   const grouped = groupByInstance(validSets);
 
   const instanceIds = Object.keys(grouped);

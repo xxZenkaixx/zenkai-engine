@@ -29,7 +29,7 @@ export function getBackoffRest(assignedRest) {
 export function formatWeight(weight, equipmentType) {
   if (weight == null) return null;
 
-  if (equipmentType === 'barbell') {
+  if (equipmentType === 'barbell' || equipmentType === 'machine') {
     const perSide = weight / 2;
     return `${weight} lb (${perSide} per side)`;
   }

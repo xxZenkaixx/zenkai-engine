@@ -6,8 +6,9 @@ import { useState } from 'react';
 import { fetchSetHistory } from '../api/loggedSetApi';
 import ProgressionSummary from './ProgressionSummary';
 import { groupHistoryByDate } from '../utils/progressionUtils';
+import { formatWeight } from '../utils/weightUtils';
 
-export default function HistoryPanel({ exerciseInstanceId, clientId, targetWeight }) {
+export default function HistoryPanel({ exerciseInstanceId, clientId, targetWeight, equipmentType }) {
   const [isOpen, setIsOpen] = useState(false);
   const [history, setHistory] = useState([]);
   const [groupedHistory, setGroupedHistory] = useState([]);
@@ -68,9 +69,9 @@ export default function HistoryPanel({ exerciseInstanceId, clientId, targetWeigh
                       <li key={set.id}>
                         Set {set.set_number}: {set.completed_reps} reps
                         {set.completed_weight != null
-                          ? ` @ ${parseFloat(set.completed_weight)} lbs`
+                          ? ` @ ${formatWeight(parseFloat(set.completed_weight), equipmentType)}`
                           : targetWeight != null
-                            ? ` @ ${targetWeight} lbs (prescribed)`
+                            ? ` @ ${formatWeight(targetWeight, equipmentType)} (prescribed)`
                             : ''}
                       </li>
                     ))}

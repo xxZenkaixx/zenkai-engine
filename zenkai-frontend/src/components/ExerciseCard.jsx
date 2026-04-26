@@ -209,6 +209,35 @@ export default function ExerciseCard({
     setLoading(false);
   };
 
+  const handleSkipSet = async () => {
+    if (allSetsComplete) return;
+
+    const localId = generateId();
+    const payload = {
+      id: localId,
+      exercise_instance_id: id,
+      client_id: clientId,
+      set_number: nextSetNumber,
+      completed_reps: 0,
+      completed_weight: 0
+    };
+
+    saveLog(payload);
+    try {
+      await logSet(payload);
+      removeLog(localId);
+    } catch (err) {
+      // stays queued
+    }
+
+    setSessionSets((prev) => [...prev, payload].sort((a, b) => a.set_number - b.set_number));
+
+    const isLastSet = nextSetNumber === target_sets;
+    if (!(isLastIncomplete && isLastSet)) {
+      onSetLogged(rest_seconds, id);
+    }
+  };
+
   const handleSaveNote = async () => {
     if (sessionSets.length === 0) return;
     setNoteSaving(true);
@@ -299,7 +328,7 @@ export default function ExerciseCard({
         </div>
       </div>
 
-      <LastPerformanceSnapshot exerciseInstanceId={id} clientId={clientId} targetWeight={effectiveWeight} />
+      <LastPerformanceSnapshot exerciseInstanceId={id} clientId={clientId} targetWeight={effectiveWeight} equipmentType={equipment_type} />
 
       {sessionSets.length > 0 && (
         <div className="ec-sets">
@@ -309,6 +338,7 @@ export default function ExerciseCard({
               setNumber={i + 1}
               loggedSet={s}
               onEdit={handleEditSet}
+              equipmentType={equipment_type}
             />
           ))}
         </div>
@@ -363,6 +393,9 @@ export default function ExerciseCard({
               <button className="ec-log-btn" onClick={handleLogSet} disabled={loading}>
                 {loading ? 'Saving...' : 'Log Set'}
               </button>
+              <button className="ec-skip-btn" onClick={handleSkipSet} disabled={loading}>
+                Skip Set
+              </button>
             </div>
           </div>
           {onSkip && (
@@ -411,13 +444,13 @@ export default function ExerciseCard({
         </button>
       </div>
 
-      <HistoryPanel exerciseInstanceId={id} clientId={clientId} targetWeight={effectiveWeight} />
+      <HistoryPanel exerciseInstanceId={id} clientId={clientId} targetWeight={effectiveWeight} equipmentType={equipment_type} />
     </div>
   );
 }
 
 // ! Editing here must never restart or change the rest timer.
-function LoggedSetRow({ setNumber, loggedSet, onEdit }) {
+function LoggedSetRow({ setNumber, loggedSet, onEdit, equipmentType }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(loggedSet.completed_reps);
 
@@ -441,9 +474,15 @@ function LoggedSetRow({ setNumber, loggedSet, onEdit }) {
         </>
       ) : (
         <>
-          <span className="ec-set-row__reps">{loggedSet.completed_reps} reps</span>
-          {loggedSet.completed_weight != null && (
-            <span className="ec-set-row__weight">@ {loggedSet.completed_weight} lb</span>
+          {loggedSet.completed_reps === 0 && loggedSet.completed_weight === 0 ? (
+            <span className="ec-set-row__reps">Skipped</span>
+          ) : (
+            <>
+              <span className="ec-set-row__reps">{loggedSet.completed_reps} reps</span>
+              {loggedSet.completed_weight != null && (
+                <span className="ec-set-row__weight">@ {formatWeight(loggedSet.completed_weight, equipmentType)}</span>
+              )}
+            </>
           )}
           <button className="ec-set-row__edit-btn" onClick={() => setEditing(true)}>edit</button>
         </>
