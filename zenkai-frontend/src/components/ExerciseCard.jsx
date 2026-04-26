@@ -89,6 +89,7 @@ export default function ExerciseCard({
   const [noteSaving, setNoteSaving] = useState(false);
   const [noteSaved, setNoteSaved] = useState(false);
   const [showSkipModal, setShowSkipModal] = useState(false);
+  const [cableWeightEditing, setCableWeightEditing] = useState(false);
 
   const today = new Date();
   const sessionDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
@@ -134,9 +135,13 @@ export default function ExerciseCard({
     }
 
     setCompletedWeight(displayWeight != null ? String(displayWeight) : '');
-  }, [nextSetNumber, effectiveWeight, backoff_enabled, backoff_percent, equipment_type, isCable, stack_step_value, max_micro_levels]);
+    setCableWeightEditing(false);
+  }, [nextSetNumber, effectiveWeight, backoff_enabled, backoff_percent, equipment_type, isCable, stack_step_value, max_micro_levels, base_stack_weight]);
 
   const allSetsComplete = sessionSets.length >= target_sets;
+  const cableMicroStep = isCable && stack_step_value > 0
+    ? stack_step_value / ((max_micro_levels || 0) + 1)
+    : null;
 
   const cableTargetLines = isCable && cable_setup_locked
     ? formatCableTarget({
@@ -238,8 +243,31 @@ export default function ExerciseCard({
     }
   };
 
+  const getNextCableWeight = (currentWeight, direction) => {
+    if (!stack_step_value || !base_stack_weight) return currentWeight;
+
+    const levels = max_micro_levels || 0;
+    const microStep = stack_step_value / (levels + 1);
+    const steps = Math.round((currentWeight - base_stack_weight) / microStep);
+
+    const minWeight = 2.5;
+    const minSteps = Math.ceil((minWeight - base_stack_weight) / microStep);
+    const nextSteps = Math.max(minSteps, steps + direction);
+
+    return base_stack_weight + nextSteps * microStep;
+  };
+
+  const handleCableWeightUp = () => {
+    if (cableMicroStep == null) return;
+    setCompletedWeight(prev => String(getNextCableWeight(parseFloat(prev), 1)));
+  };
+
+  const handleCableWeightDown = () => {
+    if (cableMicroStep == null) return;
+    setCompletedWeight(prev => String(getNextCableWeight(parseFloat(prev), -1)));
+  };
+
   const handleSaveNote = async () => {
-    if (sessionSets.length === 0) return;
     setNoteSaving(true);
     setNoteSaved(false);
     try {
@@ -288,6 +316,7 @@ export default function ExerciseCard({
               onChange={(e) => setCableForm({ ...cableForm, stack_step_value: e.target.value })}>
               <option value="">Stack Increment *</option>
               <option value="5">5</option>
+              <option value="7.5">7.5</option>
               <option value="10">10</option>
               <option value="15">15</option>
               <option value="20">20</option>
@@ -367,11 +396,40 @@ export default function ExerciseCard({
                 )}
               </p>
             )}
-            {isCable && cable_setup_locked && completedWeight !== '' && (
-              <p className="ec-prescribed">
-                Prescribed:{' '}
-                {buildCableLabel(parseFloat(completedWeight), base_stack_weight, stack_step_value, max_micro_levels, cable_unit)}
-              </p>
+            {isCable && completedWeight !== '' && (
+              <div className="ec-cable-adjust">
+                {!cableWeightEditing ? (
+                  <>
+                    <p className="ec-prescribed">
+                      Prescribed:{' '}
+                      {buildCableLabel(
+                        parseFloat(completedWeight),
+                        base_stack_weight,
+                        stack_step_value,
+                        max_micro_levels,
+                        cable_unit
+                      )}
+                    </p>
+                    <button className="ec-cable-edit-btn" onClick={() => setCableWeightEditing(true)}>
+                      Edit Weight
+                    </button>
+                  </>
+                ) : (
+                  <div className="ec-cable-stepper">
+                    <button className="ec-cable-step-btn" onClick={handleCableWeightDown}>−</button>
+                    <span className="ec-cable-step-label">
+                      {buildCableLabel(
+                        parseFloat(completedWeight),
+                        base_stack_weight,
+                        stack_step_value,
+                        max_micro_levels,
+                        cable_unit
+                      )}
+                    </span>
+                    <button className="ec-cable-step-btn" onClick={handleCableWeightUp}>+</button>
+                  </div>
+                )}
+              </div>
             )}
             <div className="ec-log-inputs">
               <input

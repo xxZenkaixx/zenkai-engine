@@ -1266,3 +1266,49 @@
   font-size: 14px;
   cursor: pointer;
 }
+
+.ec-cable-adjust {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.ec-cable-edit-btn {
+  background: none;
+  border: 1px solid #444;
+  color: #aaa;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.ec-cable-stepper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ec-cable-step-btn {
+  background: #1a1a1a;
+  border: 1px solid #555;
+  color: #fff;
+  font-size: 18px;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ec-cable-step-label {
+  color: #c8ff00;
+  font-size: 14px;
+  font-weight: 600;
+  min-width: 120px;
+  text-align: center;
+}
