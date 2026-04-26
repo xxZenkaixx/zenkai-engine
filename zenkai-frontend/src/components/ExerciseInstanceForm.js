@@ -251,6 +251,7 @@ export default function ExerciseInstanceForm({ dayId }) {
                         onChange={(e) => se('stack_step_value', e.target.value)}>
                         <option value="" disabled>Stack Increment</option>  {/* CHANGED: added label */}
                         <option value="5">5</option>
+                        <option value="7.5">7.5</option>
                         <option value="10">10</option>
                         <option value="15">15</option>
                         <option value="20">20</option>
@@ -435,6 +436,7 @@ export default function ExerciseInstanceForm({ dayId }) {
                 onChange={(e) => sf('stack_step_value', e.target.value)}>
                 <option value="" disabled>Stack Increment</option>  {/* CHANGED: added label */}
                 <option value="5">5</option>
+                <option value="7.5">7.5</option>
                 <option value="10">10</option>
                 <option value="15">15</option>
                 <option value="20">20</option>
@@ -512,7 +514,7 @@ export default function ExerciseInstanceForm({ dayId }) {
         <div className="ex-add-form__row">
           <input className="prog-input ex-add-form__notes" placeholder="Notes (optional)" value={form.notes} onChange={(e) => sf('notes', e.target.value)} />
           <button className="ex-add-btn" onClick={handleCreate} disabled={loading}>
-            {loading ? 'Adding...' : '+ Add'}
+            {loading ? 'Saving...' : 'Save'}
           </button>
         </div>
 

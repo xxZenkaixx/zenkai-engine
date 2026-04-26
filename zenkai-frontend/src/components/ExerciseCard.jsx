@@ -339,6 +339,7 @@ export default function ExerciseCard({
               loggedSet={s}
               onEdit={handleEditSet}
               equipmentType={equipment_type}
+              cableSetup={isCable ? { base_stack_weight, stack_step_value, max_micro_levels, cable_unit } : null}
             />
           ))}
         </div>
@@ -450,7 +451,7 @@ export default function ExerciseCard({
 }
 
 // ! Editing here must never restart or change the rest timer.
-function LoggedSetRow({ setNumber, loggedSet, onEdit, equipmentType }) {
+function LoggedSetRow({ setNumber, loggedSet, onEdit, equipmentType, cableSetup }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(loggedSet.completed_reps);
 
@@ -480,7 +481,9 @@ function LoggedSetRow({ setNumber, loggedSet, onEdit, equipmentType }) {
             <>
               <span className="ec-set-row__reps">{loggedSet.completed_reps} reps</span>
               {loggedSet.completed_weight != null && (
-                <span className="ec-set-row__weight">@ {formatWeight(loggedSet.completed_weight, equipmentType)}</span>
+                <span className="ec-set-row__weight">{cableSetup
+                  ? buildCableLabel(loggedSet.completed_weight, cableSetup.base_stack_weight, cableSetup.stack_step_value, cableSetup.max_micro_levels, cableSetup.cable_unit)
+                  : formatWeight(loggedSet.completed_weight, equipmentType)}</span>
               )}
             </>
           )}
