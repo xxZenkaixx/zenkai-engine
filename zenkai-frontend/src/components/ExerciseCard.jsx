@@ -88,6 +88,8 @@ export default function ExerciseCard({
   const [exerciseNote, setExerciseNote] = useState('');
   const [noteSaving, setNoteSaving] = useState(false);
   const [noteSaved, setNoteSaved] = useState(false);
+  const [noteModalOpen, setNoteModalOpen] = useState(false);
+  const [noteDraft, setNoteDraft] = useState('');
   const [showSkipModal, setShowSkipModal] = useState(false);
   const [cableWeightEditing, setCableWeightEditing] = useState(false);
 
@@ -271,8 +273,10 @@ export default function ExerciseCard({
     setNoteSaving(true);
     setNoteSaved(false);
     try {
-      await saveExerciseNote(exercise.id, sessionDate, programDayId, exerciseNote);
+      await saveExerciseNote(exercise.id, sessionDate, programDayId, noteDraft);
+      setExerciseNote(noteDraft);
       setNoteSaved(true);
+      setNoteModalOpen(false);
     } catch (err) {
       // best-effort
     } finally {
@@ -484,24 +488,33 @@ export default function ExerciseCard({
       {error && <p className="ec-error">{error}</p>}
 
       <div className="ec-note-section">
-        <textarea
-          className="ec-note-input"
-          placeholder="Notes for this exercise..."
-          value={exerciseNote}
-          onChange={(e) => {
-            setExerciseNote(e.target.value);
-            setNoteSaved(false);
-          }}
-          rows={2}
-        />
-        <button
-          className="ec-note-save-btn"
-          onClick={handleSaveNote}
-          disabled={noteSaving || sessionSets.length === 0}
-        >
-          {noteSaving ? 'Saving...' : noteSaved ? 'Saved ✓' : 'Save Note'}
+        <button className="ec-note-open-btn" onClick={() => { setNoteDraft(exerciseNote); setNoteModalOpen(true); }}>
+          Add Note
         </button>
       </div>
+      {noteModalOpen && (
+        <div className="ec-note-modal-overlay" onClick={() => setNoteModalOpen(false)}>
+          <div className="ec-note-modal" onClick={e => e.stopPropagation()}>
+            <p className="ec-note-modal__title">Exercise Note</p>
+            <textarea
+              className="ec-note-modal__input"
+              placeholder="Notes for this exercise..."
+              value={noteDraft}
+              onChange={(e) => setNoteDraft(e.target.value)}
+              rows={6}
+              autoFocus
+            />
+            <div className="ec-note-modal__actions">
+              <button className="ec-note-modal__save" onClick={handleSaveNote} disabled={noteSaving}>
+                {noteSaving ? 'Saving...' : 'Save'}
+              </button>
+              <button className="ec-note-modal__cancel" onClick={() => setNoteModalOpen(false)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <HistoryPanel exerciseInstanceId={id} clientId={clientId} targetWeight={effectiveWeight} equipmentType={equipment_type} />
     </div>
