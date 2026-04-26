@@ -80,6 +80,7 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
   const wakeLockRef = useRef(null);
   const cardRefs = useRef({});
   const nextSetRefs = useRef({});
+  const prevSelectedDayIdRef = useRef(null);
 
   const handleLoggedSetsChange = useCallback((exerciseId, count) => {
     setExerciseLoggedCounts((prev) => ({
@@ -141,6 +142,11 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
   }, [clientId]);
 
   useEffect(() => {
+    const wasNull = prevSelectedDayIdRef.current === null;
+    prevSelectedDayIdRef.current = selectedDayId;
+
+    if (wasNull && selectedDayId) return;
+
     clearInterval(intervalRef.current);
     setTimerActive(false);
     setTimerRemaining(0);
