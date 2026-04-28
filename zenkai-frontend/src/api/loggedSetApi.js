@@ -41,12 +41,20 @@ export const fetchSetHistory = async (exerciseInstanceId, clientId) => {
   return data.sort((a, b) => new Date(a.completed_at) - new Date(b.completed_at));
 };
 
-export const saveExerciseNote = async (exerciseInstanceId, date, programDayId, note) => {
+export const fetchLastNote = async (exerciseInstanceId, clientId, programDayId, sessionDate) => {
+  const params = new URLSearchParams({ exerciseInstanceId, clientId, programDayId, sessionDate });
+  const res = await fetch(`${BASE_URL}/last-note?${params}`);
+  if (!res.ok) throw new Error('Failed to fetch last note');
+  return res.json();
+};
+
+export const saveExerciseNote = async (exerciseInstanceId, clientId, date, programDayId, note) => {
   const res = await fetch(`${BASE_URL}/note`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       exercise_instance_id: exerciseInstanceId,
+      client_id: clientId,
       date,
       program_day_id: programDayId,
       exercise_note: note

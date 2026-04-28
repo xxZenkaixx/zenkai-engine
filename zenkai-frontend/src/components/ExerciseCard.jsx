@@ -3,7 +3,7 @@
 // * Allows previous-set edits without affecting the active timer.
 
 import { useState, useEffect } from 'react';
-import { logSet, editSet, saveExerciseNote } from '../api/loggedSetApi';
+import { logSet, editSet, saveExerciseNote, fetchLastNote } from '../api/loggedSetApi';
 import { generateId, saveLog, removeLog } from '../utils/localWorkoutLogs';
 import { updateExerciseInstance } from '../api/exerciseInstanceApi';
 import { roundWeight, getBackoffWeight, formatWeight, getBackoffRest } from '../utils/weightUtils';
@@ -90,6 +90,7 @@ export default function ExerciseCard({
   const [noteSaved, setNoteSaved] = useState(false);
   const [noteModalOpen, setNoteModalOpen] = useState(false);
   const [noteDraft, setNoteDraft] = useState('');
+  const [lastSessionNote, setLastSessionNote] = useState(null);
   const [showSkipModal, setShowSkipModal] = useState(false);
   const [cableWeightEditing, setCableWeightEditing] = useState(false);
 
@@ -103,6 +104,29 @@ export default function ExerciseCard({
   useEffect(() => {
     if (onSessionSetsChange) onSessionSetsChange(exercise.id, sessionSets);
   }, [sessionSets, exercise.id, onSessionSetsChange]);
+
+  useEffect(() => {
+    const loadLastNote = async () => {
+      try {
+        const data = await fetchLastNote(exercise.id, clientId, programDayId, sessionDate);
+
+        setExerciseNote('');
+        setLastSessionNote(null);
+
+        if (data.note) {
+          if (data.session_date === sessionDate) {
+            setExerciseNote(data.note);
+          } else {
+            setLastSessionNote(data.note);
+          }
+        }
+      } catch {
+        // non-critical
+      }
+    };
+
+    loadLastNote();
+  }, [exercise.id, clientId, programDayId, sessionDate]);
 
   const [cableForm, setCableForm] = useState(EMPTY_CABLE_FORM);
   const [savingCable, setSavingCable] = useState(false);
@@ -273,7 +297,7 @@ export default function ExerciseCard({
     setNoteSaving(true);
     setNoteSaved(false);
     try {
-      await saveExerciseNote(exercise.id, sessionDate, programDayId, noteDraft);
+      await saveExerciseNote(exercise.id, clientId, sessionDate, programDayId, noteDraft);
       setExerciseNote(noteDraft);
       setNoteSaved(true);
       setNoteModalOpen(false);
@@ -362,6 +386,13 @@ export default function ExerciseCard({
       </div>
 
       <LastPerformanceSnapshot exerciseInstanceId={id} clientId={clientId} targetWeight={effectiveWeight} equipmentType={equipment_type} />
+
+      {lastSessionNote && (
+        <div className="ec-last-note">
+          <p className="ec-last-note__label">Last session note</p>
+          <p className="ec-last-note__text">{lastSessionNote}</p>
+        </div>
+      )}
 
       {sessionSets.length > 0 && (
         <div className="ec-sets">

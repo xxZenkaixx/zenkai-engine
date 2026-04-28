@@ -3,7 +3,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { LoggedSet, ExerciseInstance, sequelize } = require('../models');
+const { LoggedSet, ExerciseInstance, ExerciseSessionNote, sequelize } = require('../models');
 const { QueryTypes } = require('sequelize');
 
 router.get('/', async (req, res) => {
@@ -81,38 +81,38 @@ router.post('/', async (req, res) => {
   }
 });
 
-// FIXED: bulk update notes per exercise per session (via join to program_day)
 router.put('/note', async (req, res) => {
   try {
-    const { exercise_instance_id, date, program_day_id, exercise_note } = req.body;
-
-    if (!exercise_instance_id || !date || !program_day_id) {
+    const { exercise_instance_id, client_id, date, program_day_id, exercise_note } = req.body;
+    console.log('[PUT /note] body:', req.body);
+    if (!exercise_instance_id || !client_id || !date || !program_day_id) {
       return res.status(400).json({
-        error: 'exercise_instance_id, date, and program_day_id are required'
+        error: 'exercise_instance_id, client_id, date, and program_day_id are required'
       });
     }
-
-    await sequelize.query(
-      `UPDATE logged_sets ls
-       SET exercise_note = :note
-       FROM exercise_instances ei
-       WHERE ls.exercise_instance_id = :eiId
-         AND ls.exercise_instance_id = ei.id
-         AND DATE(ls.completed_at) = :date
-         AND ei.program_day_id = :programDayId`,
+    const rows = await sequelize.query(
+      `INSERT INTO exercise_session_notes
+         (id, client_id, exercise_instance_id, program_day_id, session_date, note, created_at, updated_at)
+       VALUES
+         (gen_random_uuid(), :clientId, :eiId, :programDayId, :sessionDate, :note, NOW(), NOW())
+       ON CONFLICT (client_id, exercise_instance_id, program_day_id, session_date)
+       DO UPDATE SET note = EXCLUDED.note, updated_at = NOW()
+       RETURNING note`,
       {
         replacements: {
-          note: exercise_note || null,
+          clientId: client_id,
           eiId: exercise_instance_id,
-          date,
-          programDayId: program_day_id
+          programDayId: program_day_id,
+          sessionDate: date,
+          note: exercise_note || null
         },
-        type: QueryTypes.UPDATE
+        type: QueryTypes.SELECT
       }
     );
-
-    res.json({ ok: true });
+    console.log('[PUT /note] upserted note');
+    res.json({ ok: true, note: rows[0]?.note || null });
   } catch (err) {
+    console.error('[PUT /note] error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -152,6 +152,38 @@ router.delete('/:id', async (req, res) => {
     await loggedSet.destroy();
 
     res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/last-note', async (req, res) => {
+  try {
+    const { exerciseInstanceId, clientId, programDayId, sessionDate } = req.query;
+    console.log('[GET /last-note] received:', { exerciseInstanceId, clientId, programDayId, sessionDate });
+    if (!exerciseInstanceId || !clientId || !programDayId || !sessionDate) {
+      return res.status(400).json({ error: 'exerciseInstanceId, clientId, programDayId, and sessionDate are required' });
+    }
+    const rows = await sequelize.query(
+      `SELECT note, session_date FROM exercise_session_notes
+       WHERE exercise_instance_id = :eiId
+         AND client_id = :clientId
+         AND program_day_id = :programDayId
+         AND session_date <= :sessionDate
+         AND note IS NOT NULL
+         AND note != ''
+       ORDER BY session_date DESC
+       LIMIT 1`,
+      {
+        replacements: { eiId: exerciseInstanceId, clientId, programDayId, sessionDate },
+        type: QueryTypes.SELECT
+      }
+    );
+    console.log('[GET /last-note] rows:', rows);
+    res.json({
+      note: rows.length > 0 ? rows[0].note : null,
+      session_date: rows.length > 0 ? rows[0].session_date : null
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

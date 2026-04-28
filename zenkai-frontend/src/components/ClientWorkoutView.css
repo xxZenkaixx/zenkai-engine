@@ -1391,3 +1391,22 @@
   padding: 8px 18px;
   cursor: pointer;
 }
+
+.ec-last-note {
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px solid #333;
+  border-radius: 6px;
+  background: #111;
+}
+
+.ec-last-note__label {
+  font-size: 11px;
+  color: #888;
+  margin-bottom: 4px;
+}
+
+.ec-last-note__text {
+  font-size: 13px;
+  color: #ddd;
+}

@@ -25,6 +25,7 @@ const LoggedSet = require('./loggedSet')(sequelize);
 const ProgressionRule = require('./progressionRule')(sequelize);
 const ExerciseProgression = require('./exerciseProgression')(sequelize);
 const ClientExerciseTarget = require('./clientExerciseTarget')(sequelize);
+const ExerciseSessionNote = require('./exerciseSessionNote')(sequelize);
 
 /* Associations */
 
@@ -71,5 +72,6 @@ module.exports = {
   LoggedSet,
   ProgressionRule,
   ExerciseProgression,
-  ClientExerciseTarget
+  ClientExerciseTarget,
+  ExerciseSessionNote
 };
