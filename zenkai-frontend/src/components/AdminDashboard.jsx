@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { fetchClients } from '../api/clientApi';
+import { fetchClients, fetchUnassignedClients, claimClient } from '../api/clientApi';
 import { fetchPrograms } from '../api/programApi';
 import { fetchActiveProgram, deactivateProgram, fetchAssignmentHistory } from '../api/clientProgramApi';
 import AdminLayout from './AdminLayout';
@@ -44,6 +44,7 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [unassignedClients, setUnassignedClients] = useState([]);
 
   useEffect(() => {
     if (builderRestoreAttempted.current) return;
@@ -74,12 +75,14 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [clientData, programData] = await Promise.all([
+        const [clientData, programData, unassignedData] = await Promise.all([
           fetchClients(),
-          fetchPrograms()
+          fetchPrograms(),
+          fetchUnassignedClients()
         ]);
         setClients(clientData);
         setPrograms(programData);
+        setUnassignedClients(unassignedData);
       } catch (err) {
         setError(err.message);
       } finally {
@@ -124,6 +127,17 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
     setClients(data);
     setSelectedClientId(null);
     setActiveProgram(null);
+  };
+
+  const handleClaimClient = async (clientId) => {
+    try {
+      await claimClient(clientId);
+      setUnassignedClients(prev => prev.filter(c => c.id !== clientId));
+      const data = await fetchClients();
+      setClients(data);
+    } catch (err) {
+      setError(err.message || 'Failed to claim client');
+    }
   };
 
   const handleProgramsChanged = async () => {
@@ -350,6 +364,25 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Unassigned Clients ── */}
+      {adminSection === 'clients' && unassignedClients.length > 0 && (
+        <div style={{ marginTop: 32 }}>
+          <h3 style={{ color: '#aaa', fontSize: '13px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 12px' }}>
+            Unassigned Clients
+          </h3>
+          <div>
+            {unassignedClients.map(c => (
+              <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid #1a1a1a' }}>
+                <span style={{ color: '#e0e0e0', flex: 1 }}>{c.name}</span>
+                <button className="btn-primary" onClick={() => handleClaimClient(c.id)}>
+                  Claim Client
+                </button>
+              </div>
+            ))}
           </div>
         </div>
       )}

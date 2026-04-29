@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const { Client } = require('../models');
 const protect = require('../middleware/protect');
+const requireRole = require('../middleware/requireRole');
 
 router.get('/me', protect, async (req, res) => {
   try {
@@ -21,6 +22,27 @@ router.get('/', protect, async (req, res) => {
       : { coach_id: req.user.id };
     const clients = await Client.findAll({ where });
     res.json(clients);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/unassigned', protect, requireRole('admin'), async (req, res) => {
+  try {
+    const clients = await Client.findAll({ where: { coach_id: null } });
+    res.json(clients);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.patch('/:id/claim', protect, requireRole('admin'), async (req, res) => {
+  try {
+    const client = await Client.findByPk(req.params.id);
+    if (!client) return res.status(404).json({ error: 'Client not found' });
+    if (client.coach_id !== null) return res.status(409).json({ error: 'Client already has a coach' });
+    await client.update({ coach_id: req.user.id });
+    res.json(client);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -50,7 +72,7 @@ router.post('/', protect, async (req, res) => {
   }
 });
 
-router.put('/:id', protect, async (req, res) => {
+router.put('/:id', protect, requireRole('admin'), async (req, res) => {
   try {
     const client = await Client.findByPk(req.params.id);
     if (!client) return res.status(404).json({ error: 'Client not found' });
@@ -61,7 +83,7 @@ router.put('/:id', protect, async (req, res) => {
   }
 });
 
-router.delete('/:id', protect, async (req, res) => {
+router.delete('/:id', protect, requireRole('admin'), async (req, res) => {
   try {
     const client = await Client.findByPk(req.params.id);
     if (!client) return res.status(404).json({ error: 'Client not found' });

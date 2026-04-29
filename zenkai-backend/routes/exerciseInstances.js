@@ -7,6 +7,8 @@
 const express = require('express');
 const router = express.Router();
 const { ExerciseInstance } = require('../models');
+const protect = require('../middleware/protect');
+const requireRole = require('../middleware/requireRole');
 
 const VALID_TYPES = ['compound', 'accessory', 'custom'];
 const VALID_EQUIPMENT_TYPES = ['barbell', 'dumbbell', 'machine', 'cable'];
@@ -102,7 +104,7 @@ router.get('/day/:dayId', async (req, res) => {
 });
 
 // * CREATE exercise
-router.post('/', async (req, res) => {
+router.post('/', protect, requireRole('admin', 'self-serve'), async (req, res) => {
   const validationErrors = validateExercisePayload(req.body, false);
   if (validationErrors.length > 0) {
     return res.status(400).json({ errors: validationErrors, field: validationErrors[0].field, error: validationErrors[0].error });
@@ -117,7 +119,7 @@ router.post('/', async (req, res) => {
 });
 
 // * UPDATE exercise
-router.put('/:id', async (req, res) => {
+router.put('/:id', protect, requireRole('admin', 'self-serve'), async (req, res) => {
   try {
     const exercise = await ExerciseInstance.findByPk(req.params.id);
     if (!exercise) return res.status(404).json({ error: 'Exercise not found' });
@@ -137,7 +139,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // * DELETE exercise
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', protect, requireRole('admin', 'self-serve'), async (req, res) => {
   try {
     const exercise = await ExerciseInstance.findByPk(req.params.id);
     if (!exercise) return res.status(404).json({ error: 'Exercise not found' });

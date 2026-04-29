@@ -4,6 +4,7 @@ const router = express.Router();
 const { Op } = require('sequelize');
 const { Program, ProgramDay, ExerciseInstance } = require('../models');
 const protect = require('../middleware/protect');
+const requireRole = require('../middleware/requireRole');
 
 router.get('/', protect, async (req, res) => {
   try {
@@ -46,7 +47,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.post('/', protect, async (req, res) => {
+router.post('/', protect, requireRole('admin', 'self-serve'), async (req, res) => {
   try {
     const { id: userId } = req.user;
     const { name, weeks, deload_weeks } = req.body;
@@ -57,7 +58,7 @@ router.post('/', protect, async (req, res) => {
   }
 });
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', protect, requireRole('admin', 'self-serve'), async (req, res) => {
   try {
     const program = await Program.findByPk(req.params.id);
     if (!program) return res.status(404).json({ error: 'Program not found' });
@@ -69,7 +70,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', protect, requireRole('admin', 'self-serve'), async (req, res) => {
   try {
     const program = await Program.findByPk(req.params.id);
     if (!program) return res.status(404).json({ error: 'Program not found' });

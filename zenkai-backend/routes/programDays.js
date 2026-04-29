@@ -4,6 +4,8 @@
 const express = require('express');
 const router = express.Router();
 const { ProgramDay, ExerciseInstance } = require('../models');
+const protect = require('../middleware/protect');
+const requireRole = require('../middleware/requireRole');
 
 // *Returns all days for a program with exercises nested — used in program builder
 router.get('/program/:programId', async (req, res) => {
@@ -23,7 +25,7 @@ router.get('/program/:programId', async (req, res) => {
 });
 
 // *Creates a day on a program. Expects { program_id, day_number, name }
-router.post('/', async (req, res) => {
+router.post('/', protect, requireRole('admin', 'self-serve'), async (req, res) => {
   try {
     const { program_id, day_number, name } = req.body;
     const day = await ProgramDay.create({ program_id, day_number, name });
@@ -34,7 +36,7 @@ router.post('/', async (req, res) => {
 });
 
 // *Updates day_number and/or name for an existing day
-router.put('/:id', async (req, res) => {
+router.put('/:id', protect, requireRole('admin', 'self-serve'), async (req, res) => {
   try {
     const day = await ProgramDay.findByPk(req.params.id);
     if (!day) return res.status(404).json({ error: 'Day not found' });
@@ -46,7 +48,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // * Cascades — deletes all exercise instances under this day
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', protect, requireRole('admin', 'self-serve'), async (req, res) => {
   try {
     const day = await ProgramDay.findByPk(req.params.id);
     if (!day) return res.status(404).json({ error: 'Day not found' });

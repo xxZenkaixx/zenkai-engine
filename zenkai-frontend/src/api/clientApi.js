@@ -49,3 +49,18 @@ export const deleteClient = async (id) => {
   if (res.status === 204) return null;
   return res.json();
 };
+
+export const fetchUnassignedClients = async () => {
+  const res = await fetch(`${BASE_URL}/unassigned`, { headers: getAuthHeaders() });
+  if (!res.ok) throw new Error('Failed to fetch unassigned clients');
+  return res.json();
+};
+
+export const claimClient = async (id) => {
+  const res = await fetch(`${BASE_URL}/${id}/claim`, {
+    method: 'PATCH',
+    headers: getAuthHeaders()
+  });
+  if (!res.ok) throw new Error('Failed to claim client');
+  return res.json();
+};

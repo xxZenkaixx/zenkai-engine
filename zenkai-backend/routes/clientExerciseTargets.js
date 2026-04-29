@@ -12,6 +12,8 @@ const {
   ExerciseInstance,
   ClientExerciseTarget
 } = require('../models');
+const protect = require('../middleware/protect');
+const requireRole = require('../middleware/requireRole');
 
 router.get('/:clientProgramId', async (req, res) => {
   try {
@@ -72,7 +74,7 @@ router.get('/:clientProgramId', async (req, res) => {
   }
 });
 
-router.put('/:clientProgramId/exercise/:exerciseInstanceId', async (req, res) => {
+router.put('/:clientProgramId/exercise/:exerciseInstanceId', protect, requireRole('admin', 'self-serve'), async (req, res) => {
   try {
     const { clientProgramId, exerciseInstanceId } = req.params;
     const raw = req.body.target_weight;
