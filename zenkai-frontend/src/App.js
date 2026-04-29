@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import AdminDashboard from './components/AdminDashboard';
+import SelfServeDashboard from './components/SelfServeDashboard';
 import AdminLayout from './components/AdminLayout';
 import ClientWorkoutView from './components/ClientWorkoutView';
 import ClientHome from './components/ClientHome';
@@ -81,6 +82,10 @@ function AppShell() {
         onBack={() => setView('main')}
       />
     );
+  }
+
+  if (user.role === 'self-serve') {
+    return <SelfServeDashboard />;
   }
 
   if (view === 'clientHome' && activeClientId) {

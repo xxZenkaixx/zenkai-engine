@@ -12,14 +12,18 @@ const sign = (user) =>
 
 exports.signup = async (req, res) => {
   try {
-    const { email, password, coach_id = null } = req.body;
-    const role = 'client';
+    const { email, password, role } = req.body;
     if (!email || !password) {
       return res.status(400).json({ error: 'email and password required' });
     }
+    if (!role || !['client', 'self-serve'].includes(role)) {
+      return res.status(400).json({ error: 'role must be client or self-serve' });
+    }
     const hash = await bcrypt.hash(password, 10);
-    const user = await User.create({ email, password: hash, role, coach_id });
-    await Client.create({ name: email, user_id: user.id });
+    const user = await User.create({ email, password: hash, role, coach_id: null });
+    if (role === 'client') {
+      await Client.create({ name: email, user_id: user.id });
+    }
     res.status(201).json({
       token: sign(user),
       user: { id: user.id, email: user.email, role: user.role }
