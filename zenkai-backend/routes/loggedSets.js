@@ -157,6 +157,32 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+router.get('/note', async (req, res) => {
+  try {
+    const { exerciseInstanceId, clientId, programDayId, sessionDate } = req.query;
+    if (!exerciseInstanceId || !clientId || !programDayId || !sessionDate) {
+      return res.status(400).json({ error: 'exerciseInstanceId, clientId, programDayId, and sessionDate are required' });
+    }
+    const rows = await sequelize.query(
+      `SELECT note, session_date FROM exercise_session_notes
+       WHERE exercise_instance_id = :eiId
+         AND client_id = :clientId
+         AND program_day_id = :programDayId
+         AND session_date = :sessionDate`,
+      {
+        replacements: { eiId: exerciseInstanceId, clientId, programDayId, sessionDate },
+        type: QueryTypes.SELECT
+      }
+    );
+    res.json({
+      note: rows.length > 0 ? rows[0].note : null,
+      session_date: rows.length > 0 ? rows[0].session_date : null
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/last-note', async (req, res) => {
   try {
     const { exerciseInstanceId, clientId, programDayId, sessionDate } = req.query;
@@ -169,7 +195,7 @@ router.get('/last-note', async (req, res) => {
        WHERE exercise_instance_id = :eiId
          AND client_id = :clientId
          AND program_day_id = :programDayId
-         AND session_date <= :sessionDate
+         AND session_date < :sessionDate
          AND note IS NOT NULL
          AND note != ''
        ORDER BY session_date DESC

@@ -3,7 +3,7 @@
 // * Allows previous-set edits without affecting the active timer.
 
 import { useState, useEffect } from 'react';
-import { logSet, editSet, saveExerciseNote, fetchLastNote } from '../api/loggedSetApi';
+import { logSet, editSet, saveExerciseNote, fetchNote, fetchLastNote } from '../api/loggedSetApi';
 import { generateId, saveLog, removeLog } from '../utils/localWorkoutLogs';
 import { updateExerciseInstance } from '../api/exerciseInstanceApi';
 import { roundWeight, getBackoffWeight, formatWeight, getBackoffRest } from '../utils/weightUtils';
@@ -106,26 +106,20 @@ export default function ExerciseCard({
   }, [sessionSets, exercise.id, onSessionSetsChange]);
 
   useEffect(() => {
-    const loadLastNote = async () => {
+    const loadNotes = async () => {
       try {
-        const data = await fetchLastNote(exercise.id, clientId, programDayId, sessionDate);
-
-        setExerciseNote('');
-        setLastSessionNote(null);
-
-        if (data.note) {
-          if (data.session_date === sessionDate) {
-            setExerciseNote(data.note);
-          } else {
-            setLastSessionNote(data.note);
-          }
-        }
+        const [current, last] = await Promise.all([
+          fetchNote(exercise.id, clientId, programDayId, sessionDate),
+          fetchLastNote(exercise.id, clientId, programDayId, sessionDate)
+        ]);
+        setExerciseNote(current.note || '');
+        setLastSessionNote(last.note || null);
       } catch {
         // non-critical
       }
     };
 
-    loadLastNote();
+    loadNotes();
   }, [exercise.id, clientId, programDayId, sessionDate]);
 
   const [cableForm, setCableForm] = useState(EMPTY_CABLE_FORM);
@@ -527,6 +521,12 @@ export default function ExerciseCard({
         <div className="ec-note-modal-overlay" onClick={() => setNoteModalOpen(false)}>
           <div className="ec-note-modal" onClick={e => e.stopPropagation()}>
             <p className="ec-note-modal__title">Exercise Note</p>
+            {lastSessionNote && (
+              <>
+                <p className="ec-note-modal__last-label">Last session note:</p>
+                <p className="ec-note-modal__last-text">"{lastSessionNote}"</p>
+              </>
+            )}
             <textarea
               className="ec-note-modal__input"
               placeholder="Notes for this exercise..."
