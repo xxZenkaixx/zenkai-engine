@@ -2,6 +2,7 @@
 // * Keeps program builder independent from client selection.
 
 import { useState, useEffect, useRef } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { fetchClients } from '../api/clientApi';
 import { fetchPrograms } from '../api/programApi';
 import { fetchActiveProgram, deactivateProgram, fetchAssignmentHistory } from '../api/clientProgramApi';
@@ -13,6 +14,8 @@ import ProgramBuilder from './ProgramBuilder';
 import ClientProgramAssignment from './ClientProgramAssignment';
 
 export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
+  const { user } = useAuth();
+
   const [adminSection, setAdminSection] = useState(() => {
     const saved = localStorage.getItem('adminSection');
     if (
@@ -168,6 +171,8 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
   const handleBuilderBack = () => {
     setAdminSection('programs');
   };
+
+  if (user?.role !== 'admin') return null;
 
   const navSection = adminSection === 'programBuilder' ? 'programs' : adminSection;
 

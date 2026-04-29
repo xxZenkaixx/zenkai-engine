@@ -2,9 +2,13 @@
 // * Full-width focused context for building days and exercises.
 // * Reuses ProgramDayList — does not duplicate edit logic.
 
+import { useAuth } from '../contexts/AuthContext';
 import ProgramDayList from './ProgramDayList';
 
 export default function ProgramBuilder({ program, onBack }) {
+  const { user } = useAuth();
+  if (user?.role !== 'admin' && user?.role !== 'self-serve') return null;
+
   return (
     <div className="pb-shell">
       <div className="pb-header">
