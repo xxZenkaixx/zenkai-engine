@@ -27,6 +27,14 @@ export default function LoginPage({ variant = 'member' }) {
         setError(data.error || 'Something went wrong');
         return;
       }
+      if (isAdmin && data.user.role !== 'admin') {
+        setError('This login is for admins only. Please use the member login.');
+        return;
+      }
+      if (!isAdmin && data.user.role === 'admin') {
+        setError('Admin accounts must log in at /admin.');
+        return;
+      }
       login(data.user, data.token);
     } catch {
       setError('Network error');
@@ -38,7 +46,7 @@ export default function LoginPage({ variant = 'member' }) {
   return (
     <div className="lp-wrap">
       <div className="lp-card">
-        <h1 className="lp-title">ZENKAI</h1>
+        <h1 className="lp-title">{isAdmin ? 'Admin Login' : 'Member Login'}</h1>
         <p className={`lp-sub${isAdmin ? ' lp-sub--admin' : ''}`}>
           {isAdmin
             ? 'Admin access only'
