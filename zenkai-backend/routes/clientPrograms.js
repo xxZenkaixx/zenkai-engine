@@ -7,7 +7,7 @@ const protect = require('../middleware/protect');
 const ownsClient = async (req, clientId) => {
   const client = await Client.findByPk(clientId);
   if (!client) return false;
-  if (req.user.role === 'client') return client.user_id === req.user.id;
+  if (req.user.role === 'client' || req.user.role === 'self-serve') return client.user_id === req.user.id;
   return client.coach_id === req.user.id;
 };
 
@@ -81,7 +81,7 @@ router.delete('/:clientId', protect, async (req, res) => {
 
 router.post('/', protect, async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
+    if (req.user.role !== 'admin' && req.user.role !== 'self-serve') {
       return res.status(403).json({ error: 'Admin only' });
     }
 

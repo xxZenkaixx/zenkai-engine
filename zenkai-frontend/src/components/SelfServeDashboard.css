@@ -1,0 +1,222 @@
+.ssd-wrap {
+  min-height: 100vh;
+  background: #0a0a0a;
+  color: #e0e0e0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ssd-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid #1c1c1c;
+}
+
+.ssd-topbar__brand {
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: #c8ff00;
+}
+
+.ssd-topbar__role {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #444;
+  margin-top: 2px;
+}
+
+.ssd-topbar__logout {
+  background: none;
+  border: 1px solid #222;
+  border-radius: 6px;
+  color: #555;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.ssd-topbar__logout:hover {
+  color: #e0e0e0;
+  border-color: #444;
+}
+
+.ssd-body {
+  flex: 1;
+  padding: 36px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ssd-hero {
+  text-align: center;
+  margin-bottom: 36px;
+}
+
+.ssd-hero__title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #f0f0f0;
+  margin: 0 0 6px;
+  letter-spacing: -0.02em;
+}
+
+.ssd-hero__sub {
+  font-size: 13px;
+  color: #555;
+  margin: 0;
+}
+
+.ssd-card {
+  width: 100%;
+  max-width: 400px;
+  background: #111;
+  border: 1px solid #1e1e1e;
+  border-radius: 16px;
+  padding: 28px 28px 32px;
+}
+
+.ssd-card__label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #555;
+  margin: 0 0 16px;
+}
+
+.ssd-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ssd-input {
+  background: #141414;
+  border: 1px solid #222;
+  border-radius: 8px;
+  color: #e0e0e0;
+  font-size: 14px;
+  padding: 11px 14px;
+  width: 100%;
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.ssd-input:focus {
+  border-color: #3a3a3a;
+}
+
+.ssd-input::placeholder {
+  color: #3a3a3a;
+}
+
+.ssd-btn {
+  background: #141a00;
+  border: 1px solid #3a4a00;
+  border-radius: 8px;
+  color: #c8ff00;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 12px;
+  cursor: pointer;
+  margin-top: 4px;
+  transition: background 0.15s, border-color 0.15s;
+  width: 100%;
+}
+
+.ssd-btn:hover {
+  background: #1c2400;
+  border-color: #c8ff00;
+}
+
+.ssd-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.ssd-error {
+  color: #ff5555;
+  font-size: 12px;
+  margin: 0;
+}
+
+@media (max-width: 480px) {
+  .ssd-topbar { padding: 16px; }
+  .ssd-body   { padding: 24px 16px; }
+  .ssd-card   { padding: 20px 20px 24px; border-radius: 12px; }
+}
+
+.ssd-tabs {
+  display: flex;
+  border-bottom: 1px solid #1c1c1c;
+  background: #0a0a0a;
+}
+
+.ssd-tab {
+  flex: 1;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #555;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 14px 8px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  text-align: center;
+}
+
+.ssd-tab:hover {
+  color: #aaa;
+}
+
+.ssd-tab--active {
+  color: #c8ff00;
+  border-bottom-color: #c8ff00;
+}
+
+.ssd-content {
+  flex: 1;
+  padding: 28px 24px;
+  overflow-y: auto;
+}
+
+.ssd-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 260px;
+  background: #0e0e0e;
+  border: 1px dashed #222;
+  border-radius: 12px;
+  gap: 8px;
+}
+
+.ssd-placeholder__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #3a3a3a;
+  margin: 0;
+}
+
+.ssd-placeholder__sub {
+  font-size: 13px;
+  color: #2a2a2a;
+  margin: 0;
+}
+
+@media (max-width: 480px) {
+  .ssd-content { padding: 20px 16px; }
+  .ssd-tab { font-size: 11px; padding: 12px 4px; }
+}

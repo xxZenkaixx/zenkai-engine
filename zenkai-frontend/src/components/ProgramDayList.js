@@ -21,6 +21,7 @@ export default function ProgramDayList({ programId }) {
 
   useEffect(() => {
     if (!programId) return;
+    setSelectedDayId(null);
     loadDays();
   }, [programId]);
 

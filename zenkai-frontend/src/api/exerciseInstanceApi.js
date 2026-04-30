@@ -1,5 +1,5 @@
 // * Handles API calls for exercise instance CRUD and reordering.
-import { API_BASE } from './base';
+import { API_BASE, getAuthHeaders } from './base';
 
 const BASE_URL = `${API_BASE}/api/exercise-instances`;
 
@@ -12,10 +12,9 @@ export const fetchExerciseInstances = async (dayId) => {
 export const createExerciseInstance = async (data) => {
   const res = await fetch(BASE_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: JSON.stringify(data)
   });
-
   if (!res.ok) throw new Error('Failed to create exercise');
   return res.json();
 };
@@ -23,7 +22,7 @@ export const createExerciseInstance = async (data) => {
 export async function updateExerciseInstance(id, updates) {
   const res = await fetch(`${BASE_URL}/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: JSON.stringify(updates)
   });
 
@@ -40,11 +39,10 @@ export async function updateExerciseInstance(id, updates) {
 
 export const deleteExerciseInstance = async (id) => {
   const res = await fetch(`${BASE_URL}/${id}`, {
-    method: 'DELETE'
+    method: 'DELETE',
+    headers: getAuthHeaders()
   });
-
   if (!res.ok) throw new Error('Failed to delete exercise');
-
   if (res.status === 204) return null;
   return res.json();
 };
@@ -52,11 +50,7 @@ export const deleteExerciseInstance = async (id) => {
 // * Swaps order_index between two exercises
 export const swapExerciseOrder = async (exerciseA, exerciseB) => {
   await Promise.all([
-    updateExerciseInstance(exerciseA.id, {
-      order_index: exerciseB.order_index
-    }),
-    updateExerciseInstance(exerciseB.id, {
-      order_index: exerciseA.order_index
-    })
+    updateExerciseInstance(exerciseA.id, { order_index: exerciseB.order_index }),
+    updateExerciseInstance(exerciseB.id, { order_index: exerciseA.order_index })
   ]);
 };

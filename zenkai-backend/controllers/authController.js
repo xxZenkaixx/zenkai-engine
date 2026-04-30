@@ -21,7 +21,7 @@ exports.signup = async (req, res) => {
     }
     const hash = await bcrypt.hash(password, 10);
     const user = await User.create({ email, password: hash, role, coach_id: null });
-    if (role === 'client') {
+    if (role === 'client' || role === 'self-serve') {
       await Client.create({ name: email, user_id: user.id });
     }
     res.status(201).json({

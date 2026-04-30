@@ -7,7 +7,10 @@ const requireRole = require('../middleware/requireRole');
 
 router.get('/me', protect, async (req, res) => {
   try {
-    const client = await Client.findOne({ where: { user_id: req.user.id } });
+    let client = await Client.findOne({ where: { user_id: req.user.id } });
+    if (!client && (req.user.role === 'self-serve' || req.user.role === 'client')) {
+      client = await Client.create({ name: req.user.email, user_id: req.user.id });
+    }
     if (!client) return res.status(404).json({ error: 'No linked client record' });
     res.json(client);
   } catch (err) {

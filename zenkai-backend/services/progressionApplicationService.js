@@ -117,7 +117,13 @@ async function applyProgressionForWorkout(clientId, programDayId) {
     }
 
     const { min, max } = parseRepRange(instance.target_reps);
-    const completedReps = instanceSets.map((s) => s.completed_reps);
+
+    // For backoff exercises, evaluate set 1 only; all sets otherwise
+    const topSet = instanceSets.find(s => s.set_number === 1);
+    const evalSets = instance.backoff_enabled
+      ? (topSet ? [topSet] : [instanceSets[0]])
+      : instanceSets;
+    const completedReps = evalSets.map((s) => s.completed_reps);
 
     const all_hit_top = completedReps.every((r) => r >= max);
     const any_below_min = completedReps.some((r) => r < min);
@@ -151,7 +157,9 @@ async function applyProgressionForWorkout(clientId, programDayId) {
           next_cable_state = result;
         } else {
           // * Use completed_weight from logged sets — already client-specific
-          const baseWeight = instanceSets[0].completed_weight;
+          const baseWeight = instance.backoff_enabled
+            ? (topSet?.completed_weight ?? instanceSets[0].completed_weight)
+            : instanceSets[0].completed_weight;
 
           next_weight = await calculateNextWeight({
             type: instance.type,
