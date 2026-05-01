@@ -7,8 +7,8 @@
 
 const { DataTypes } = require('sequelize');
 
-const VALID_TYPES = ['compound', 'accessory', 'custom'];
-const VALID_EQUIPMENT_TYPES = ['barbell', 'dumbbell', 'machine', 'cable'];
+const VALID_TYPES = ['compound', 'accessory', 'custom', 'bodyweight'];
+const VALID_EQUIPMENT_TYPES = ['barbell', 'dumbbell', 'machine', 'cable', 'bodyweight'];
 const VALID_CABLE_UNITS = ['lb', 'kg'];
 const VALID_PROGRESSION_MODES = ['percent', 'absolute'];
 

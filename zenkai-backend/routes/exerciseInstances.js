@@ -10,8 +10,8 @@ const { ExerciseInstance } = require('../models');
 const protect = require('../middleware/protect');
 const requireRole = require('../middleware/requireRole');
 
-const VALID_TYPES = ['compound', 'accessory', 'custom'];
-const VALID_EQUIPMENT_TYPES = ['barbell', 'dumbbell', 'machine', 'cable'];
+const VALID_TYPES = ['compound', 'accessory', 'custom', 'bodyweight'];
+const VALID_EQUIPMENT_TYPES = ['barbell', 'dumbbell', 'machine', 'cable', 'bodyweight'];
 const VALID_PROGRESSION_MODES = ['percent', 'absolute'];
 const VALID_CABLE_UNITS = ['lb', 'kg'];
 
@@ -22,7 +22,7 @@ function validateExercisePayload(body, isUpdate = false) {
 
   // * equipment_type required on create; validated on update if present
   if (!isUpdate || body.hasOwnProperty('equipment_type')) {
-    if (!body.equipment_type && !isUpdate) {
+    if (!body.equipment_type && !isUpdate && body.type !== 'bodyweight') {
       errors.push({ field: 'equipment_type', error: 'Equipment type is required.' });
     } else if (body.equipment_type && !VALID_EQUIPMENT_TYPES.includes(body.equipment_type)) {
       errors.push({ field: 'equipment_type', error: 'Invalid equipment type.' });

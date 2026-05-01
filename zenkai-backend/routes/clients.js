@@ -9,7 +9,8 @@ router.get('/me', protect, async (req, res) => {
   try {
     let client = await Client.findOne({ where: { user_id: req.user.id } });
     if (!client && (req.user.role === 'self-serve' || req.user.role === 'client')) {
-      client = await Client.create({ name: req.user.email, user_id: req.user.id });
+      const local = req.user.email.split('@')[0];
+      client = await Client.create({ name: local.charAt(0).toUpperCase() + local.slice(1), user_id: req.user.id });
     }
     if (!client) return res.status(404).json({ error: 'No linked client record' });
     res.json(client);

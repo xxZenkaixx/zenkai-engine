@@ -49,6 +49,8 @@ router.post('/', async (req, res) => {
       resolvedWeight =
         instance.base_stack_weight +
         instance.current_micro_level * instance.micro_step_value;
+    } else if (instance.type === 'bodyweight') {
+      resolvedWeight = null;
     } else {
       if (instance.target_weight == null) {
         console.error('POST /loggedSets BLOCKED: missing target_weight', { exercise_instance_id });

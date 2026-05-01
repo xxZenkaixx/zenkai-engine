@@ -6,6 +6,7 @@ import { fetchActiveProgram, assignProgram } from '../api/clientProgramApi';
 import ProgramList from './ProgramList';
 import ProgramBuilder from './ProgramBuilder';
 import ClientWorkoutView from './ClientWorkoutView';
+import ClientWorkoutHistoryList from './ClientWorkoutHistoryList';
 import './SelfServeDashboard.css';
 
 const TABS = ['Programs', 'Workouts', 'History', 'Log Book'];
@@ -61,25 +62,6 @@ export default function SelfServeDashboard() {
     }
   };
 
-  if (builderProgram) {
-    return (
-      <ProgramBuilder
-        program={builderProgram}
-        onBack={handleBuilderBack}
-      />
-    );
-  }
-
-  if (workoutDayId && linkedClientId) {
-    return (
-      <ClientWorkoutView
-        clientId={linkedClientId}
-        initialDayId={workoutDayId}
-        onWorkoutFinished={() => setWorkoutDayId(null)}
-      />
-    );
-  }
-
   return (
     <div className="ssd-wrap">
       <div className="ssd-topbar">
@@ -103,65 +85,85 @@ export default function SelfServeDashboard() {
       </div>
 
       <div className="ssd-content">
-        {tab === 'Programs' && (
-          <ProgramList
-            programs={programs}
-            clients={[]}
-            onProgramsChanged={handleProgramsChanged}
-            onOpenBuilder={handleOpenBuilder}
+        {builderProgram ? (
+          <ProgramBuilder
+            program={builderProgram}
+            onBack={handleBuilderBack}
           />
-        )}
+        ) : workoutDayId && linkedClientId ? (
+          <ClientWorkoutView
+            clientId={linkedClientId}
+            initialDayId={workoutDayId}
+            onWorkoutFinished={() => setWorkoutDayId(null)}
+          />
+        ) : (
+          <>
+            {tab === 'Programs' && (
+              <ProgramList
+                programs={programs}
+                clients={[]}
+                onProgramsChanged={handleProgramsChanged}
+                onOpenBuilder={handleOpenBuilder}
+              />
+            )}
 
-        {tab === 'Workouts' && (
-          <div className="ssd-workouts">
-            {workoutsLoading && <p className="ssd-workouts__loading">Loading...</p>}
+            {tab === 'Workouts' && (
+              <div className="ssd-workouts">
+                {workoutsLoading && <p className="ssd-workouts__loading">Loading...</p>}
 
-            {!workoutsLoading && !activeProgram && (
-              <div className="ssd-workouts__picker">
-                <p className="ssd-workouts__picker-label">No active program. Pick one to start:</p>
-                {programs.length === 0 && (
-                  <p className="ssd-workouts__empty">No programs yet. Build one in the Programs tab.</p>
+                {!workoutsLoading && !activeProgram && (
+                  <div className="ssd-workouts__picker">
+                    <p className="ssd-workouts__picker-label">No active program. Pick one to start:</p>
+                    {programs.length === 0 && (
+                      <p className="ssd-workouts__empty">No programs yet. Build one in the Programs tab.</p>
+                    )}
+                    {programs.map(p => (
+                      <button
+                        key={p.id}
+                        className="ssd-workouts__program-btn"
+                        onClick={() => handleAssignProgram(p.id)}
+                      >
+                        {p.name}
+                      </button>
+                    ))}
+                  </div>
                 )}
-                {programs.map(p => (
-                  <button
-                    key={p.id}
-                    className="ssd-workouts__program-btn"
-                    onClick={() => handleAssignProgram(p.id)}
-                  >
-                    {p.name}
-                  </button>
-                ))}
+
+                {!workoutsLoading && activeProgram && (
+                  <div className="ssd-workouts__days">
+                    <p className="ssd-workouts__program-name">{activeProgram.Program.name}</p>
+                    {activeProgram.Program.ProgramDays.map(day => (
+                      <button
+                        key={day.id}
+                        className="ssd-workouts__day-btn"
+                        onClick={() => setWorkoutDayId(day.id)}
+                      >
+                        {day.name || `Day ${day.day_number}`}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
-            {!workoutsLoading && activeProgram && (
-              <div className="ssd-workouts__days">
-                <p className="ssd-workouts__program-name">{activeProgram.Program.name}</p>
-                {activeProgram.Program.ProgramDays.map(day => (
-                  <button
-                    key={day.id}
-                    className="ssd-workouts__day-btn"
-                    onClick={() => setWorkoutDayId(day.id)}
-                  >
-                    {day.name || `Day ${day.day_number}`}
-                  </button>
-                ))}
+            {tab === 'History' && (
+              linkedClientId ? (
+                <ClientWorkoutHistoryList clientId={linkedClientId} />
+              ) : (
+                <div className="ssd-placeholder">
+                  <p className="ssd-placeholder__title">History</p>
+                  <p className="ssd-placeholder__sub">Loading history...</p>
+                </div>
+              )
+            )}
+
+            {tab === 'Log Book' && (
+              <div className="ssd-placeholder">
+                <p className="ssd-placeholder__title">Log Book</p>
+                <p className="ssd-placeholder__sub">Log book coming soon.</p>
               </div>
             )}
-          </div>
-        )}
-
-        {tab === 'History' && (
-          <div className="ssd-placeholder">
-            <p className="ssd-placeholder__title">History</p>
-            <p className="ssd-placeholder__sub">History coming soon.</p>
-          </div>
-        )}
-        {tab === 'Log Book' && (
-          <div className="ssd-placeholder">
-            <p className="ssd-placeholder__title">Log Book</p>
-            <p className="ssd-placeholder__sub">Log book coming soon.</p>
-          </div>
+          </>
         )}
       </div>
     </div>

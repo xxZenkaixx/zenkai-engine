@@ -77,13 +77,14 @@ function cableSetupComplete(fields) {
 function buildPayload(fields) {
   const isCable = fields.equipment_type === 'cable';
   const isCustom = fields.type === 'custom';
+  const isBodyweight = fields.type === 'bodyweight';
   return {
     name: fields.name,
     type: fields.type,
-    equipment_type: fields.equipment_type,
+    equipment_type: isBodyweight ? 'bodyweight' : fields.equipment_type,
     target_sets: parseInt(fields.target_sets),
     target_reps: fields.target_reps,
-    target_weight: fields.target_weight !== '' ? parseFloat(fields.target_weight) : null,
+    target_weight: isBodyweight ? null : (fields.target_weight !== '' ? parseFloat(fields.target_weight) : null),
     rest_seconds: parseInt(fields.rest_seconds),
     notes: fields.notes,
     progression_mode: isCustom ? fields.progression_mode : null,
@@ -96,8 +97,8 @@ function buildPayload(fields) {
     micro_display_label: isCable && fields.micro_type !== 'none' && fields.micro_display_label !== '' ? fields.micro_display_label : null,
     cable_setup_locked: isCable ? cableSetupComplete(fields) : false,
     ...(isCable ? { current_micro_level: 0 } : {}),
-    backoff_enabled: fields.backoff_enabled,
-    backoff_percent: fields.backoff_enabled ? parseInt(fields.backoff_percent) : null,
+    backoff_enabled: isBodyweight ? false : fields.backoff_enabled,
+    backoff_percent: (!isBodyweight && fields.backoff_enabled) ? parseInt(fields.backoff_percent) : null,
   };
 }
 
@@ -211,13 +212,16 @@ export default function ExerciseInstanceForm({ dayId }) {
                     <option value="compound">Compound</option>
                     <option value="accessory">Accessory</option>
                     <option value="custom">Custom</option>
+                    <option value="bodyweight">Bodyweight</option>
                   </select>
-                  <select className="prog-input" value={editFields.equipment_type} onChange={(e) => se('equipment_type', e.target.value)}>
-                    <option value="barbell">Barbell</option>
-                    <option value="dumbbell">Dumbbell</option>
-                    <option value="machine">Machine</option>
-                    <option value="cable">Cable</option>
-                  </select>
+                  {editFields.type !== 'bodyweight' && (
+                    <select className="prog-input" value={editFields.equipment_type} onChange={(e) => se('equipment_type', e.target.value)}>
+                      <option value="barbell">Barbell</option>
+                      <option value="dumbbell">Dumbbell</option>
+                      <option value="machine">Machine</option>
+                      <option value="cable">Cable</option>
+                    </select>
+                  )}
                 </div>
 
                 {editFields.type === 'custom' && (
@@ -236,7 +240,7 @@ export default function ExerciseInstanceForm({ dayId }) {
                   </div>
                 )}
 
-                {editFields.equipment_type === 'cable' && (
+                {editFields.equipment_type === 'cable' && editFields.type !== 'bodyweight' && (
                   <>
                     <div className="ex-edit-form__row">
                       <input
@@ -302,43 +306,45 @@ export default function ExerciseInstanceForm({ dayId }) {
                 <div className="ex-edit-form__row">
                   <input className="prog-input" placeholder="Sets *" value={editFields.target_sets} onChange={(e) => se('target_sets', e.target.value)} />
                   <input className="prog-input" placeholder="Reps *" value={editFields.target_reps} onChange={(e) => se('target_reps', e.target.value)} />
-                  {editFields.equipment_type !== 'cable' && (
+                  {editFields.type !== 'bodyweight' && editFields.equipment_type !== 'cable' && (
                     <input className="prog-input" placeholder="Weight (optional)" value={editFields.target_weight} onChange={(e) => se('target_weight', e.target.value)} />
                   )}
                   <input className="prog-input" placeholder="Rest (sec) *" value={editFields.rest_seconds} onChange={(e) => se('rest_seconds', e.target.value)} />
                 </div>
 
-                <div className="ex-edit-form__row">
-                  <label
-                    style={{
-                      color: '#888',
-                      fontSize: 13,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={editFields.backoff_enabled}
-                      onChange={(e) => se('backoff_enabled', e.target.checked)}
-                    />
-                    Back-off sets
-                  </label>
-
-                  {editFields.backoff_enabled && (
-                    <select
-                      className="prog-input"
-                      value={editFields.backoff_percent}
-                      onChange={(e) => se('backoff_percent', e.target.value)}
+                {editFields.type !== 'bodyweight' && (
+                  <div className="ex-edit-form__row">
+                    <label
+                      style={{
+                        color: '#888',
+                        fontSize: 13,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        cursor: 'pointer'
+                      }}
                     >
-                      <option value={10}>10% reduction</option>
-                      <option value={15}>15% reduction</option>
-                      <option value={20}>20% reduction</option>
-                    </select>
-                  )}
-                </div>
+                      <input
+                        type="checkbox"
+                        checked={editFields.backoff_enabled}
+                        onChange={(e) => se('backoff_enabled', e.target.checked)}
+                      />
+                      Back-off sets
+                    </label>
+
+                    {editFields.backoff_enabled && (
+                      <select
+                        className="prog-input"
+                        value={editFields.backoff_percent}
+                        onChange={(e) => se('backoff_percent', e.target.value)}
+                      >
+                        <option value={10}>10% reduction</option>
+                        <option value={15}>15% reduction</option>
+                        <option value={20}>20% reduction</option>
+                      </select>
+                    )}
+                  </div>
+                )}
 
                 <div className="ex-edit-form__row">
                   <input className="prog-input ex-edit-form__notes" placeholder="Notes (optional)" value={editFields.notes} onChange={(e) => se('notes', e.target.value)} />
@@ -396,13 +402,16 @@ export default function ExerciseInstanceForm({ dayId }) {
             <option value="compound">Compound</option>
             <option value="accessory">Accessory</option>
             <option value="custom">Custom</option>
+            <option value="bodyweight">Bodyweight</option>
           </select>
-          <select className="prog-input" value={form.equipment_type} onChange={(e) => sf('equipment_type', e.target.value)}>
-            <option value="barbell">Barbell</option>
-            <option value="dumbbell">Dumbbell</option>
-            <option value="machine">Machine</option>
-            <option value="cable">Cable</option>
-          </select>
+          {form.type !== 'bodyweight' && (
+            <select className="prog-input" value={form.equipment_type} onChange={(e) => sf('equipment_type', e.target.value)}>
+              <option value="barbell">Barbell</option>
+              <option value="dumbbell">Dumbbell</option>
+              <option value="machine">Machine</option>
+              <option value="cable">Cable</option>
+            </select>
+          )}
         </div>
 
         {form.type === 'custom' && (
@@ -421,7 +430,7 @@ export default function ExerciseInstanceForm({ dayId }) {
           </div>
         )}
 
-        {form.equipment_type === 'cable' && (
+        {form.equipment_type === 'cable' && form.type !== 'bodyweight' && (
           <>
             <div className="ex-add-form__row">
               <input
@@ -487,29 +496,31 @@ export default function ExerciseInstanceForm({ dayId }) {
         <div className="ex-add-form__row">
           <input className="prog-input" placeholder="Sets *" value={form.target_sets} onChange={(e) => sf('target_sets', e.target.value)} />
           <input className="prog-input" placeholder="Reps *" value={form.target_reps} onChange={(e) => sf('target_reps', e.target.value)} />
-          {form.equipment_type !== 'cable' && (
+          {form.type !== 'bodyweight' && form.equipment_type !== 'cable' && (
             <input className="prog-input" placeholder="Weight (optional)" value={form.target_weight} onChange={(e) => sf('target_weight', e.target.value)} />
           )}
           <input className="prog-input" placeholder="Rest (sec) *" value={form.rest_seconds} onChange={(e) => sf('rest_seconds', e.target.value)} />
         </div>
 
-        <div className="ex-add-form__row">
-          <label style={{ color: '#888', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={form.backoff_enabled}
-              onChange={(e) => sf('backoff_enabled', e.target.checked)}
-            />
-            Back-off sets
-          </label>
-          {form.backoff_enabled && (
-            <select className="prog-input" value={form.backoff_percent} onChange={(e) => sf('backoff_percent', e.target.value)}>
-              <option value={10}>10% reduction</option>
-              <option value={15}>15% reduction</option>
-              <option value={20}>20% reduction</option>
-            </select>
-          )}
-        </div>
+        {form.type !== 'bodyweight' && (
+          <div className="ex-add-form__row">
+            <label style={{ color: '#888', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={form.backoff_enabled}
+                onChange={(e) => sf('backoff_enabled', e.target.checked)}
+              />
+              Back-off sets
+            </label>
+            {form.backoff_enabled && (
+              <select className="prog-input" value={form.backoff_percent} onChange={(e) => sf('backoff_percent', e.target.value)}>
+                <option value={10}>10% reduction</option>
+                <option value={15}>15% reduction</option>
+                <option value={20}>20% reduction</option>
+              </select>
+            )}
+          </div>
+        )}
 
         <div className="ex-add-form__row">
           <input className="prog-input ex-add-form__notes" placeholder="Notes (optional)" value={form.notes} onChange={(e) => sf('notes', e.target.value)} />

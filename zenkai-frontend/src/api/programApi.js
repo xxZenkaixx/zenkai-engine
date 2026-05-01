@@ -35,7 +35,7 @@ export const updateProgram = async (id, data) => {
 };
 
 export const deleteProgram = async (id) => {
-  const res = await fetch(`${BASE_URL}/${id}`, { method: 'DELETE' });
+  const res = await fetch(`${BASE_URL}/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
   if (!res.ok) throw new Error('Failed to delete program');
   if (res.status === 204) return null;
   return res.json();

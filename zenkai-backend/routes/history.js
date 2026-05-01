@@ -71,6 +71,8 @@ router.get('/:clientId/detail', async (req, res) => {
         ei.id AS exercise_instance_id,
         ei.name AS exercise_name,
         ei.order_index,
+        ei.type,
+        ei.equipment_type,
         ls.id AS set_id,
         ls.set_number,
         ls.completed_reps,
@@ -94,6 +96,8 @@ router.get('/:clientId/detail', async (req, res) => {
         exerciseMap[row.exercise_instance_id] = {
           exercise_name: row.exercise_name,
           order_index: row.order_index,
+          equipment_type: row.equipment_type,
+          type: row.type,
           exercise_note: null,
           sets: []
         };

@@ -95,6 +95,10 @@ export default function ClientHome({ clientId, clientName, onStartWorkout, onBac
   const programWeeks = activeProgram?.Program?.weeks;
   const programId = activeProgram?.Program?.id;
 
+  const displayName = clientName?.includes('@')
+    ? clientName.split('@')[0].replace(/^(.)/, (c) => c.toUpperCase())
+    : clientName;
+
   if (loading) {
     return (
       <div className="ch-wrap">
@@ -108,7 +112,9 @@ export default function ClientHome({ clientId, clientName, onStartWorkout, onBac
       <div className="ch-topbar">
         <button className="ch-back-btn" onClick={onBack}>← Back</button>
         <div className="ch-topbar-info">
-          <h1 className="ch-title">{clientName ? `${clientName}'s Portal` : 'My Training'}</h1>
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#c8ff00', lineHeight: 1, marginBottom: 2 }}>ZENKAI</div>
+          <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#444', lineHeight: 1, marginBottom: 6 }}>Client Side</div>
+          <h1 className="ch-title">{displayName ? `${displayName}'s Portal` : 'My Training'}</h1>
           {programName && (
             <p className="ch-sub">{programName} · {programWeeks} weeks</p>
           )}

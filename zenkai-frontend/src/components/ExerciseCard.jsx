@@ -68,6 +68,7 @@ export default function ExerciseCard({
   } = exercise;
 
   const isCable = equipment_type === 'cable';
+  const isBodyweight = equipment_type === 'bodyweight';
   const needsCableSetup = isCable && !cable_setup_locked;
 
   const cableDisplayWeight = isCable && cable_setup_locked
@@ -373,9 +374,11 @@ export default function ExerciseCard({
             ? cableTargetLines.map((line, i) => (
                 <span key={i} className="ec-target__line">{i > 0 ? '+ ' : ''}{line}</span>
               ))
-            : effectiveWeight != null
-              ? <span className="ec-target__line">{formatWeight(effectiveWeight, equipment_type)}</span>
-              : null}
+            : isBodyweight
+              ? <span className="ec-target__line">Bodyweight</span>
+              : effectiveWeight != null
+                ? <span className="ec-target__line">{formatWeight(effectiveWeight, equipment_type)}</span>
+                : null}
         </div>
       </div>
 
@@ -414,7 +417,7 @@ export default function ExerciseCard({
         <div className="ec-next-set" ref={nextSetRef}>
           <p className="ec-set-counter">Set {nextSetNumber} of {target_sets}</p>
           <div className="ec-log-row">
-            {!isCable && effectiveWeight != null && (
+            {!isCable && !isBodyweight && effectiveWeight != null && (
               <p className="ec-prescribed">
                 Prescribed:{' '}
                 {formatWeight(
@@ -424,6 +427,10 @@ export default function ExerciseCard({
                   equipment_type
                 )}
               </p>
+            )}
+
+            {isBodyweight && (
+              <p className="ec-prescribed">Bodyweight</p>
             )}
             {isCable && completedWeight !== '' && (
               <div className="ec-cable-adjust">
