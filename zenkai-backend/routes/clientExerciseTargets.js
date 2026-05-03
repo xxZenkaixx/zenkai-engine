@@ -41,7 +41,8 @@ router.get('/:clientProgramId', async (req, res) => {
     const targetMap = targets.reduce((acc, t) => {
       acc[t.exercise_instance_id] = {
         target_weight: t.target_weight != null ? parseFloat(t.target_weight) : null,
-        cable_state:   t.cable_state || null
+        cable_state:   t.cable_state || null,
+        target_reps:   t.target_reps || null
       };
       return acc;
     }, {});
@@ -55,17 +56,20 @@ router.get('/:clientProgramId', async (req, res) => {
         name: day.name,
         exercises: [...(day.ExerciseInstances || [])]
           .sort((a, b) => a.order_index - b.order_index)
-          .map((ex) => ({
-            id: ex.id,
-            name: ex.name,
-            type: ex.type,
-            equipment_type: ex.equipment_type,
-            target_sets: ex.target_sets,
-            target_reps: ex.target_reps,
-            template_weight: ex.target_weight != null ? parseFloat(ex.target_weight) : null,
-            client_weight:   targetMap[ex.id]?.target_weight ?? null,
-            cable_state:     targetMap[ex.id]?.cable_state ?? null
-          }))
+          .map((ex) => {
+            const target = targetMap[ex.id];
+            return {
+              id: ex.id,
+              name: ex.name,
+              type: ex.type,
+              equipment_type: ex.equipment_type,
+              target_sets: ex.target_sets,
+              target_reps: target?.target_reps || ex.target_reps,
+              template_weight: ex.target_weight != null ? parseFloat(ex.target_weight) : null,
+              client_weight:   target?.target_weight ?? null,
+              cable_state:     target?.cable_state ?? null
+            };
+          })
       }));
 
     res.json({ days });

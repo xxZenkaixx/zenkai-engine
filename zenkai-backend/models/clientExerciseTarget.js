@@ -23,6 +23,10 @@ module.exports = (sequelize) => {
     cable_state: {
       type: DataTypes.JSON,
       allowNull: true
+    },
+    target_reps: {
+      type: DataTypes.STRING,
+      allowNull: true
     }
   }, {
     tableName: 'client_exercise_targets',

@@ -32,6 +32,10 @@ module.exports = (sequelize) => {
         type: DataTypes.JSON,
         allowNull: true
       },
+      next_target_reps: {
+        type: DataTypes.STRING,
+        allowNull: true
+      },
       applied_at: {
         type: DataTypes.DATE,
         allowNull: true

@@ -1,7 +1,7 @@
 'use strict';
 const express = require('express');
 const router = express.Router();
-const { ClientProgram, Program, ProgramDay, ExerciseInstance, Client } = require('../models');
+const { ClientProgram, Program, ProgramDay, ExerciseInstance, Client, ClientExerciseTarget } = require('../models');
 const protect = require('../middleware/protect');
 
 const ownsClient = async (req, clientId) => {
@@ -51,7 +51,25 @@ router.get('/:clientId', protect, async (req, res) => {
       ]
     });
     if (!clientProgram) return res.status(404).json({ error: 'No active program found' });
-    res.json(clientProgram);
+
+    const clientTargets = await ClientExerciseTarget.findAll({
+      where: { client_program_id: clientProgram.id },
+      attributes: ['exercise_instance_id', 'target_reps']
+    });
+
+    const repsOverrideMap = clientTargets.reduce((acc, t) => {
+      if (t.target_reps != null) acc[t.exercise_instance_id] = t.target_reps;
+      return acc;
+    }, {});
+
+    const result = clientProgram.toJSON();
+    for (const day of result.Program?.ProgramDays || []) {
+      for (const ex of day.ExerciseInstances || []) {
+        if (repsOverrideMap[ex.id]) ex.target_reps = repsOverrideMap[ex.id];
+      }
+    }
+
+    res.json(result);
   } catch (err) {
     console.error('GET /client-programs/:clientId ERROR:', err);
     res.status(500).json({ error: err.message });

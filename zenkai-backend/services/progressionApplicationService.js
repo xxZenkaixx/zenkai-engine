@@ -111,6 +111,32 @@ async function applyProgressionForWorkout(clientId, programDayId) {
 
     const instanceSets = grouped[instanceId];
 
+    if (instance.type === 'bodyweight') {
+      const currentTargetReps = clientTargetMap[instanceId]?.target_reps ?? instance.target_reps;
+      const { min, max } = parseRepRange(currentTargetReps);
+      const allHitTop = instanceSets.every((s) => s.completed_reps >= max);
+
+      if (allHitTop) {
+        const isRange = currentTargetReps.includes('-');
+        const nextReps = isRange ? `${min + 1}-${max + 1}` : `${max + 1}`;
+
+        await ExerciseProgression.destroy({
+          where: { client_id: clientId, exercise_instance_id: instanceId }
+        });
+        await ExerciseProgression.create({
+          client_id: clientId,
+          exercise_instance_id: instanceId,
+          next_target_reps: nextReps,
+          next_weight: null,
+          next_cable_state: null
+        });
+        results.push({ exercise_instance_id: instanceId, outcome: 'increase', next_target_reps: nextReps });
+      } else {
+        results.push({ exercise_instance_id: instanceId, outcome: 'no_change' });
+      }
+      continue;
+    }
+
     if (instanceSets[0].completed_weight == null) {
       results.push({ exercise_instance_id: instanceId, outcome: 'skipped', reason: 'missing completed_weight' });
       continue;
@@ -223,7 +249,8 @@ async function mutateTargetsFromProgressions(clientId, programDayId) {
       applied_at: null,
       [Op.or]: [
         { next_weight: { [Op.ne]: null } },
-        { next_cable_state: { [Op.ne]: null } }
+        { next_cable_state: { [Op.ne]: null } },
+        { next_target_reps: { [Op.ne]: null } }
       ]
     },
     order: [['created_at', 'DESC']]
@@ -281,15 +308,30 @@ async function mutateTargetsFromProgressions(clientId, programDayId) {
       if (!created) {
         await record.update({ target_weight: prog.next_weight });
       }
+
+    } else if (prog.next_target_reps != null) {
+      // * Write to client_exercise_targets — template untouched
+      const [record, created] = await ClientExerciseTarget.findOrCreate({
+        where: {
+          client_program_id: clientProgramId,
+          exercise_instance_id: prog.exercise_instance_id
+        },
+        defaults: { target_reps: prog.next_target_reps }
+      });
+      if (!created) {
+        await record.update({ target_reps: prog.next_target_reps });
+      }
     }
 
     await prog.update({ applied_at: new Date() });
 
     results.push({
       exercise_instance_id: prog.exercise_instance_id,
-      applied: prog.next_cable_state ? 'cable_state' : 'weight',
+      applied: prog.next_cable_state ? 'cable_state' : prog.next_target_reps ? 'target_reps' : 'weight',
       ...(prog.next_cable_state
         ? { next_cable_state: prog.next_cable_state }
+        : prog.next_target_reps
+        ? { next_target_reps: prog.next_target_reps }
         : { next_weight: prog.next_weight })
     });
   }
