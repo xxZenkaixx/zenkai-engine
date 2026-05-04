@@ -77,7 +77,7 @@ export default function SelfServeDashboard() {
           <button
             key={t}
             className={`ssd-tab${tab === t ? ' ssd-tab--active' : ''}`}
-            onClick={() => setTab(t)}
+            onClick={() => { setWorkoutDayId(null); setBuilderProgram(null); setTab(t); }}
           >
             {t}
           </button>

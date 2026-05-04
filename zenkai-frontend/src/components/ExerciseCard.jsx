@@ -48,6 +48,7 @@ export default function ExerciseCard({
   const {
     id,
     name,
+    type,
     target_sets,
     target_reps,
     target_weight,
@@ -68,7 +69,7 @@ export default function ExerciseCard({
   } = exercise;
 
   const isCable = equipment_type === 'cable';
-  const isBodyweight = equipment_type === 'bodyweight';
+  const isBodyweight = type === 'bodyweight';
   const needsCableSetup = isCable && !cable_setup_locked;
 
   const cableDisplayWeight = isCable && cable_setup_locked
@@ -554,7 +555,7 @@ export default function ExerciseCard({
         </div>
       )}
 
-      <HistoryPanel exerciseInstanceId={id} clientId={clientId} targetWeight={effectiveWeight} equipmentType={equipment_type} />
+      <HistoryPanel exerciseInstanceId={id} clientId={clientId} targetWeight={effectiveWeight} equipmentType={equipment_type} type={type} target_reps={target_reps} />
     </div>
   );
 }

@@ -15,12 +15,12 @@ const SIGNAL_LABELS = {
   insufficient: 'Not enough data'
 };
 
-export default function ProgressionSummary({ history }) {
+export default function ProgressionSummary({ history, type, target_reps }) {
   if (!history || history.length === 0) {
     return null;
   }
 
-  const signal = getProgressionSignal(history);
+  const signal = getProgressionSignal(history, type, target_reps);
   const bestSet = getPersonalBest(history);
   const lastSet = history[history.length - 1];
   const lastLoggedDate = getLastLoggedDate(history);

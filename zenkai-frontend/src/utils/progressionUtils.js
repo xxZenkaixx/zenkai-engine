@@ -2,9 +2,22 @@
 // * Weight-primary logic with reps tiebreaker
 // ! Falls back to reps-only for legacy sets without completed_weight
 
-export function getProgressionSignal(history) {
+export function getProgressionSignal(history, type, target_reps) {
   if (!history || history.length < 2) {
     return 'insufficient';
+  }
+
+  if (type === 'bodyweight') {
+    const parts = (target_reps || '').split('-').map(Number).filter(Boolean);
+    const max = parts.length === 2 ? parts[1] : parts[0];
+    if (!max) return 'same';
+
+    const lastDate = new Date(history[history.length - 1].completed_at).toDateString();
+    const lastSessionSets = history.filter(
+      (s) => new Date(s.completed_at).toDateString() === lastDate
+    );
+    const allHitTop = lastSessionSets.every((s) => s.completed_reps >= max);
+    return allHitTop ? 'up' : 'same';
   }
 
   const last = history[history.length - 1];

@@ -8,7 +8,7 @@ import ProgressionSummary from './ProgressionSummary';
 import { groupHistoryByDate } from '../utils/progressionUtils';
 import { formatWeight } from '../utils/weightUtils';
 
-export default function HistoryPanel({ exerciseInstanceId, clientId, targetWeight, equipmentType }) {
+export default function HistoryPanel({ exerciseInstanceId, clientId, targetWeight, equipmentType, type, target_reps }) {
   const [isOpen, setIsOpen] = useState(false);
   const [history, setHistory] = useState([]);
   const [groupedHistory, setGroupedHistory] = useState([]);
@@ -58,7 +58,7 @@ export default function HistoryPanel({ exerciseInstanceId, clientId, targetWeigh
 
           {!isLoading && !historyError && history.length > 0 && (
             <>
-              <ProgressionSummary history={history} />
+              <ProgressionSummary history={history} type={type} target_reps={target_reps} />
 
               {groupedHistory.map(({ date, sets }) => (
                 <div key={date}>
