@@ -26,9 +26,14 @@ router.post('/apply', async (req, res) => {
       (result) => result.outcome === 'increase' || result.outcome === 'decrease'
     );
 
+    console.log('[PROG ROUTE] progressionResults:', JSON.stringify(progressionResults, null, 2));
+    console.log('[PROG ROUTE] hasApplicableChanges:', hasApplicableChanges);
+
     const mutationResults = hasApplicableChanges
       ? await mutateTargetsFromProgressions(clientId, programDayId)
       : [];
+
+    console.log('[PROG ROUTE] mutationResults:', JSON.stringify(mutationResults, null, 2));
 
     return res.status(200).json({ progressionResults, mutationResults });
   } catch (err) {

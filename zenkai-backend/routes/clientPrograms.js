@@ -54,7 +54,7 @@ router.get('/:clientId', protect, async (req, res) => {
 
     const clientTargets = await ClientExerciseTarget.findAll({
       where: { client_program_id: clientProgram.id },
-      attributes: ['exercise_instance_id', 'target_reps']
+      attributes: ['exercise_instance_id', 'target_reps', 'target_weight']
     });
 
     const repsOverrideMap = clientTargets.reduce((acc, t) => {
@@ -62,10 +62,19 @@ router.get('/:clientId', protect, async (req, res) => {
       return acc;
     }, {});
 
+    const weightOverrideMap = clientTargets.reduce((acc, t) => {
+      if (t.target_weight != null) acc[t.exercise_instance_id] = parseFloat(t.target_weight);
+      return acc;
+    }, {});
+
+    console.log('[CP GET] weightOverrideMap:', JSON.stringify(weightOverrideMap));
+    console.log('[CP GET] repsOverrideMap:', JSON.stringify(repsOverrideMap));
+
     const result = clientProgram.toJSON();
     for (const day of result.Program?.ProgramDays || []) {
       for (const ex of day.ExerciseInstances || []) {
         if (repsOverrideMap[ex.id]) ex.target_reps = repsOverrideMap[ex.id];
+        if (weightOverrideMap[ex.id] != null) ex.target_weight = weightOverrideMap[ex.id];
       }
     }
 

@@ -26,7 +26,7 @@ router.get('/', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const { id, exercise_instance_id, client_id, set_number, completed_reps, completed_weight } = req.body;
+    const { id, exercise_instance_id, client_id, set_number, completed_reps, completed_weight, session_id } = req.body;
 
     if (id) {
       const existing = await LoggedSet.findOne({
@@ -67,13 +67,15 @@ router.post('/', async (req, res) => {
       set_number,
       completed_reps,
       completed_weight: resolvedWeight,
-      idempotency_key: id || null
+      idempotency_key: id || null,
+      session_id: session_id || null
     });
 
     console.log('POST /loggedSets SUCCESS:', {
       exercise_instance_id,
       completed_reps,
-      completed_weight
+      completed_weight,
+      session_id
     });
 
     res.status(201).json(loggedSet);

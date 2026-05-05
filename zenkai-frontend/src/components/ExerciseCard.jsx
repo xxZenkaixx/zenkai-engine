@@ -43,7 +43,8 @@ export default function ExerciseCard({
   restTimerActive,
   restTimerRemaining,
   initialSets,
-  onSkip
+  onSkip,
+  sessionId
 }) {
   const {
     id,
@@ -209,7 +210,8 @@ export default function ExerciseCard({
       client_id: clientId,
       set_number: nextSetNumber,
       completed_reps: parsedReps,
-      completed_weight: completedWeight !== '' ? parseFloat(completedWeight) : effectiveWeight
+      completed_weight: completedWeight !== '' ? parseFloat(completedWeight) : effectiveWeight,
+      session_id: sessionId || null
     };
 
     saveLog(payload);
@@ -246,7 +248,8 @@ export default function ExerciseCard({
       client_id: clientId,
       set_number: nextSetNumber,
       completed_reps: 0,
-      completed_weight: 0
+      completed_weight: 0,
+      session_id: sessionId || null
     };
 
     saveLog(payload);

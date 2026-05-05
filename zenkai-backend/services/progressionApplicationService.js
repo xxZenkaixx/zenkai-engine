@@ -49,12 +49,14 @@ async function fetchLatestSetsForDay(clientId, programDayId) {
 
   if (!allSets.length) return [];
 
-  const latestDate = allSets[0].completed_at;
-  const latestDay = new Date(latestDate).toDateString();
+  const latestWithSession = allSets.find((s) => s.session_id != null);
+  if (latestWithSession) {
+    return allSets.filter((s) => s.session_id === latestWithSession.session_id);
+  }
 
-  return allSets.filter(
-    (s) => new Date(s.completed_at).toDateString() === latestDay
-  );
+  // Fallback for rows predating session_id
+  const latestDay = new Date(allSets[0].completed_at).toDateString();
+  return allSets.filter((s) => new Date(s.completed_at).toDateString() === latestDay);
 }
 
 async function applyProgressionForWorkout(clientId, programDayId) {
@@ -94,6 +96,8 @@ async function applyProgressionForWorkout(clientId, programDayId) {
     return acc;
   }, {});
 
+  console.log(`[PROG] applyProgressionForWorkout clientId=${clientId} programDayId=${programDayId} instanceCount=${instanceIds.length} setCount=${sets.length} validSetCount=${validSets.length}`);
+
   const results = [];
 
   for (const instanceId of instanceIds) {
@@ -111,15 +115,32 @@ async function applyProgressionForWorkout(clientId, programDayId) {
 
     const instanceSets = grouped[instanceId];
 
+    console.log(`[PROG] -- ${instance.name} | type=${instance.type} | equipment=${instance.equipment_type} | backoff=${instance.backoff_enabled} | template_target_weight=${instance.target_weight} | template_target_reps=${instance.target_reps}`);
+
     if (instance.type === 'bodyweight') {
       const currentTargetReps = clientTargetMap[instanceId]?.target_reps ?? instance.target_reps;
       const { min, max } = parseRepRange(currentTargetReps);
       const allHitTop = instanceSets.every((s) => s.completed_reps >= max);
+      const anyBelowMin = instanceSets.some((s) => s.completed_reps < min);
+
+      let nextReps = null;
+      let outcome = 'no_change';
 
       if (allHitTop) {
         const isRange = currentTargetReps.includes('-');
-        const nextReps = isRange ? `${min + 1}-${max + 1}` : `${max + 1}`;
+        nextReps = isRange ? `${min + 1}-${max + 1}` : `${max + 1}`;
+        outcome = 'increase';
+      } else if (anyBelowMin) {
+        const nextMin = Math.max(1, min - 1);
+        const nextMax = Math.max(1, max - 1);
+        const isRange = currentTargetReps.includes('-');
+        nextReps = isRange ? `${nextMin}-${nextMax}` : `${nextMax}`;
+        outcome = 'decrease';
+      }
 
+      console.log(`[PROG]   bodyweight reps=[${instanceSets.map(s => s.completed_reps).join(',')}] range=${min}-${max} allHitTop=${allHitTop} anyBelowMin=${anyBelowMin} outcome=${outcome} nextReps=${nextReps}`);
+
+      if (outcome !== 'no_change') {
         await ExerciseProgression.destroy({
           where: { client_id: clientId, exercise_instance_id: instanceId }
         });
@@ -130,14 +151,14 @@ async function applyProgressionForWorkout(clientId, programDayId) {
           next_weight: null,
           next_cable_state: null
         });
-        results.push({ exercise_instance_id: instanceId, outcome: 'increase', next_target_reps: nextReps });
-      } else {
-        results.push({ exercise_instance_id: instanceId, outcome: 'no_change' });
       }
+
+      results.push({ exercise_instance_id: instanceId, outcome, ...(nextReps ? { next_target_reps: nextReps } : {}) });
       continue;
     }
 
     if (instanceSets[0].completed_weight == null) {
+      console.log(`[PROG]   SKIPPED — completed_weight is null`);
       results.push({ exercise_instance_id: instanceId, outcome: 'skipped', reason: 'missing completed_weight' });
       continue;
     }
@@ -155,6 +176,8 @@ async function applyProgressionForWorkout(clientId, programDayId) {
     const any_below_min = completedReps.some((r) => r < min);
 
     const outcome = all_hit_top ? 'increase' : any_below_min ? 'decrease' : 'no_change';
+
+    console.log(`[PROG]   evalSets=${evalSets.length} completedReps=[${completedReps.join(',')}] completedWeights=[${evalSets.map(s => s.completed_weight).join(',')}] range=${min}-${max} all_hit_top=${all_hit_top} any_below_min=${any_below_min} outcome=${outcome}`);
 
     let next_weight = null;
     let next_cable_state = null;
@@ -181,6 +204,7 @@ async function applyProgressionForWorkout(clientId, programDayId) {
             }
           });
           next_cable_state = result;
+          console.log(`[PROG]   cable next_cable_state=${JSON.stringify(result)}`);
         } else {
           // * Use completed_weight from logged sets — already client-specific
           const baseWeight = instance.backoff_enabled
@@ -195,8 +219,10 @@ async function applyProgressionForWorkout(clientId, programDayId) {
             rep_range_max: max,
             completed_reps_array: completedReps
           });
+          console.log(`[PROG]   next_weight=${next_weight} (baseWeight=${baseWeight})`);
         }
       } catch (err) {
+        console.log(`[PROG]   calculateNextWeight THREW: ${err.message}`);
         results.push({ exercise_instance_id: instanceId, outcome: 'skipped', reason: err.message });
         continue;
       }

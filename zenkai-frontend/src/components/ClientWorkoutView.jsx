@@ -70,6 +70,13 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
     return draft.activeOrderOverride || [];
   });
 
+  const [sessionId, setSessionId] = useState(() => {
+    const dayId = readSelectedDayId(clientId);
+    const draft = readDraft(clientId, dayId);
+    if (!dayId || draft.programDayId !== dayId) return null;
+    return draft.sessionId || null;
+  });
+
   const intervalRef = useRef(null);
   const timerEndRef = useRef(null);
   const timerExerciseIdRef = useRef(null);
@@ -145,6 +152,20 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
     const wasNull = prevSelectedDayIdRef.current === null;
     prevSelectedDayIdRef.current = selectedDayId;
 
+    if (!selectedDayId) return;
+
+    // ALWAYS ensure sessionId exists
+    const draft = readDraft(clientId, selectedDayId);
+
+    if (draft.sessionId) {
+      setSessionId(draft.sessionId);
+    } else {
+      const newId = crypto.randomUUID();
+      writeDraft(clientId, selectedDayId, { sessionId: newId });
+      setSessionId(newId);
+    }
+
+    // preserve original "skip reset on first load" behavior
     if (wasNull && selectedDayId) return;
 
     clearInterval(intervalRef.current);
@@ -339,6 +360,7 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
       await applyProgression(clientId, selectedDayId);
       setWorkoutFinished(true);
       clearDraft(clientId, selectedDayId);
+      setSessionId(null);
       if (onWorkoutFinished) onWorkoutFinished();
     } catch (err) {
       setFinishError(err.message);
@@ -543,6 +565,7 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
             restTimerActive={timerActive && timerExerciseId === ex.id}
             restTimerRemaining={timerRemaining}
             initialSets={draftSets[selectedDayId]?.[ex.id] || []}
+            sessionId={sessionId}
             onSkip={isCurrent && nextUpExs.length > 0 ? handleSkip : null}
           />
         );

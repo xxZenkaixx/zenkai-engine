@@ -38,6 +38,10 @@ module.exports = (sequelize) => {
       allowNull: true,
       unique: true
     },
+    session_id: {
+      type: DataTypes.UUID,
+      allowNull: true
+    },
     exercise_note: {
       type: DataTypes.TEXT,
       allowNull: true
