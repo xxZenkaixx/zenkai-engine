@@ -54,7 +54,7 @@ router.get('/:clientId', protect, async (req, res) => {
 
     const clientTargets = await ClientExerciseTarget.findAll({
       where: { client_program_id: clientProgram.id },
-      attributes: ['exercise_instance_id', 'target_reps', 'target_weight']
+      attributes: ['exercise_instance_id', 'target_reps', 'target_weight', 'cable_state']
     });
 
     const repsOverrideMap = clientTargets.reduce((acc, t) => {
@@ -67,14 +67,26 @@ router.get('/:clientId', protect, async (req, res) => {
       return acc;
     }, {});
 
+    const cableOverrideMap = clientTargets.reduce((acc, t) => {
+      if (t.cable_state != null) acc[t.exercise_instance_id] = t.cable_state;
+      return acc;
+    }, {});
+
     console.log('[CP GET] weightOverrideMap:', JSON.stringify(weightOverrideMap));
     console.log('[CP GET] repsOverrideMap:', JSON.stringify(repsOverrideMap));
+    console.log('[CP GET] cableOverrideMap:', JSON.stringify(cableOverrideMap));
 
     const result = clientProgram.toJSON();
+
     for (const day of result.Program?.ProgramDays || []) {
       for (const ex of day.ExerciseInstances || []) {
         if (repsOverrideMap[ex.id]) ex.target_reps = repsOverrideMap[ex.id];
         if (weightOverrideMap[ex.id] != null) ex.target_weight = weightOverrideMap[ex.id];
+
+        if (cableOverrideMap[ex.id] != null) {
+          ex.base_stack_weight = cableOverrideMap[ex.id].base_stack_weight;
+          ex.current_micro_level = cableOverrideMap[ex.id].current_micro_level;
+        }
       }
     }
 
