@@ -40,6 +40,41 @@ function clearDraft(clientId, programDayId) {
   } catch {}
 }
 
+function filterValidDraftSets(draft) {
+  if (!draft.sessionId) return {};
+  const sessionSets = draft.sessionSets || {};
+  const filtered = {};
+  for (const [dayId, dayBucket] of Object.entries(sessionSets)) {
+    if (typeof dayBucket !== 'object' || dayBucket === null) continue;
+    const filteredBucket = {};
+    for (const [exId, sets] of Object.entries(dayBucket)) {
+      if (!Array.isArray(sets)) continue;
+      const valid = sets.filter(s => s && s.session_id === draft.sessionId);
+      if (valid.length > 0) filteredBucket[exId] = valid;
+    }
+    if (Object.keys(filteredBucket).length > 0) filtered[dayId] = filteredBucket;
+  }
+  return filtered;
+}
+
+function isDraftSessionValid(draft) {
+  if (!draft.sessionId) return false;
+  const sessionSets = draft.sessionSets || {};
+
+  let hasSets = false;
+  for (const dayBucket of Object.values(sessionSets)) {
+    if (typeof dayBucket !== 'object' || dayBucket === null) continue;
+    for (const sets of Object.values(dayBucket)) {
+      if (Array.isArray(sets) && sets.length > 0) { hasSets = true; break; }
+    }
+    if (hasSets) break;
+  }
+
+  if (!hasSets) return true;
+
+  return Object.keys(filterValidDraftSets(draft)).length > 0;
+}
+
 export default function ClientWorkoutView({ clientId, onWorkoutFinished, initialDayId, onNavigateHistory }) {
   const [programData, setProgramData] = useState(null);
   const [selectedDayId, setSelectedDayId] = useState(null);
@@ -59,23 +94,25 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
   const [draftSets, setDraftSets] = useState(() => {
     const dayId = readSelectedDayId(clientId);
     const draft = readDraft(clientId, dayId);
-    if (!dayId || draft.programDayId !== dayId) return {};
-    return draft.sessionSets || {};
+    if (!dayId || draft.programDayId !== dayId || !isDraftSessionValid(draft)) return {};
+    return filterValidDraftSets(draft);
   });
 
   const [activeOrderOverride, setActiveOrderOverride] = useState(() => {
     const dayId = readSelectedDayId(clientId);
     const draft = readDraft(clientId, dayId);
-    if (!dayId || draft.programDayId !== dayId) return [];
+    if (!dayId || draft.programDayId !== dayId || !isDraftSessionValid(draft)) return [];
     return draft.activeOrderOverride || [];
   });
 
   const [sessionId, setSessionId] = useState(() => {
     const dayId = readSelectedDayId(clientId);
     const draft = readDraft(clientId, dayId);
-    if (!dayId || draft.programDayId !== dayId) return null;
-    return draft.sessionId || null;
+    if (!dayId || draft.programDayId !== dayId || !isDraftSessionValid(draft)) return null;
+    return draft.sessionId;
   });
+
+  const [sessionOverrides, setSessionOverrides] = useState({});
 
   const intervalRef = useRef(null);
   const timerEndRef = useRef(null);
@@ -105,6 +142,10 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
       return next;
     });
   }, [clientId, selectedDayId]);
+
+  const handleSessionOverrideChange = useCallback((exerciseId, override) => {
+    setSessionOverrides((prev) => ({ ...prev, [exerciseId]: override }));
+  }, []);
 
   const handleSkip = () => {
     const incompleteInOrder = effectiveOrder.filter(id => incompleteExerciseIds.has(id));
@@ -154,15 +195,15 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
 
     if (!selectedDayId) return;
 
-    // ALWAYS ensure sessionId exists
     const draft = readDraft(clientId, selectedDayId);
 
-    if (draft.sessionId) {
+    if (isDraftSessionValid(draft)) {
       setSessionId(draft.sessionId);
     } else {
       const newId = crypto.randomUUID();
       writeDraft(clientId, selectedDayId, { sessionId: newId });
       setSessionId(newId);
+      setDraftSets(prev => ({ ...prev, [selectedDayId]: {} }));
     }
 
     // preserve original "skip reset on first load" behavior
@@ -176,6 +217,7 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
     setFinishError(null);
     setConfirmFinishEarly(false);
     setExerciseLoggedCounts({});
+    setSessionOverrides({});
     setActiveOrderOverride([]);
   }, [selectedDayId]);
 
@@ -567,6 +609,8 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
             initialSets={draftSets[selectedDayId]?.[ex.id] || []}
             sessionId={sessionId}
             onSkip={isCurrent && nextUpExs.length > 0 ? handleSkip : null}
+            sessionOverride={sessionOverrides[ex.id] ?? null}
+            onSessionOverrideChange={(override) => handleSessionOverrideChange(ex.id, override)}
           />
         );
 

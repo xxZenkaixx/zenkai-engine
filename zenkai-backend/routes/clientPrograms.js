@@ -1,7 +1,7 @@
 'use strict';
 const express = require('express');
 const router = express.Router();
-const { ClientProgram, Program, ProgramDay, ExerciseInstance, Client, ClientExerciseTarget } = require('../models');
+const { ClientProgram, Program, ProgramDay, ExerciseInstance, Client, ClientExerciseTarget, ProgressionRule } = require('../models');
 const protect = require('../middleware/protect');
 
 const ownsClient = async (req, clientId) => {
@@ -78,6 +78,20 @@ router.get('/:clientId', protect, async (req, res) => {
 
     const result = clientProgram.toJSON();
 
+    const progressionRules = await ProgressionRule.findAll({
+      attributes: ['type', 'decrease_percent', 'increase_percent']
+    });
+
+    const decreaseMap = progressionRules.reduce((acc, r) => {
+      acc[r.type] = r.decrease_percent;
+      return acc;
+    }, {});
+
+    const increaseMap = progressionRules.reduce((acc, r) => {
+      acc[r.type] = r.increase_percent;
+      return acc;
+    }, {});
+
     for (const day of result.Program?.ProgramDays || []) {
       for (const ex of day.ExerciseInstances || []) {
         if (repsOverrideMap[ex.id]) ex.target_reps = repsOverrideMap[ex.id];
@@ -87,6 +101,9 @@ router.get('/:clientId', protect, async (req, res) => {
           ex.base_stack_weight = cableOverrideMap[ex.id].base_stack_weight;
           ex.current_micro_level = cableOverrideMap[ex.id].current_micro_level;
         }
+
+        if (decreaseMap[ex.type] != null) ex.decrease_percent = decreaseMap[ex.type];
+        if (increaseMap[ex.type] != null) ex.increase_percent = increaseMap[ex.type];
       }
     }
 

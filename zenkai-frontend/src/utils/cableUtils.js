@@ -61,3 +61,50 @@ export function formatCableTarget({
 
   return `${baseString} + ${safeLevel} ${label}`;
 }
+
+// * Compute regressed cable state after a failed set
+export function computeNextCableStateOnRegression(
+  cableState,
+  { stack_step_value, max_micro_levels, decrease_percent }
+) {
+  const base = parseFloat(cableState.base_stack_weight);
+  const level = parseInt(cableState.current_micro_level) || 0;
+  const stackStep = parseFloat(stack_step_value);
+  const maxLevels = parseInt(max_micro_levels) || 0;
+
+  const microStep = computeMicroStepValue(stack_step_value, max_micro_levels);
+  const currentWeight = base + level * microStep;
+  const targetWeight = currentWeight * (1 - decrease_percent);
+
+  const pinOffset = Math.floor((targetWeight - base) / stackStep);
+  const newBase = Math.max(stackStep, base + pinOffset * stackStep);
+
+  let newLevel = 0;
+  if (microStep > 0 && maxLevels > 0) {
+    newLevel = Math.min(maxLevels, Math.floor((targetWeight - newBase) / microStep));
+    if (newLevel < 0) newLevel = 0;
+  }
+
+  return { base_stack_weight: newBase, current_micro_level: newLevel };
+}
+
+// * Compute progressed cable state after a max-rep set
+export function computeNextCableStateOnProgression(
+  cableState,
+  { stack_step_value, max_micro_levels }
+) {
+  const base = parseFloat(cableState.base_stack_weight);
+  const level = parseInt(cableState.current_micro_level) || 0;
+  const stackStep = parseFloat(stack_step_value);
+  const maxLevels = parseInt(max_micro_levels) || 0;
+
+  let newLevel = level + 1;
+  let newBase = base;
+
+  if (newLevel > maxLevels) {
+    newBase = base + stackStep;
+    newLevel = 0;
+  }
+
+  return { base_stack_weight: newBase, current_micro_level: newLevel };
+}

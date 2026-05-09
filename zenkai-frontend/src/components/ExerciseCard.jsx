@@ -2,12 +2,12 @@
 // * Receives workout-level timer state from ClientWorkoutView.
 // * Allows previous-set edits without affecting the active timer.
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { logSet, editSet, saveExerciseNote, fetchNote, fetchLastNote } from '../api/loggedSetApi';
 import { generateId, saveLog, removeLog } from '../utils/localWorkoutLogs';
 import { updateExerciseInstance } from '../api/exerciseInstanceApi';
-import { roundWeight, getBackoffWeight, formatWeight, getBackoffRest } from '../utils/weightUtils';
-import { getCableDisplayWeight, formatCableTarget } from '../utils/cableUtils';
+import { roundWeight, getBackoffWeight, formatWeight, getBackoffRest, floorWeight, ceilWeight } from '../utils/weightUtils';
+import { getCableDisplayWeight, formatCableTarget, computeNextCableStateOnRegression, computeNextCableStateOnProgression } from '../utils/cableUtils';
 import HistoryPanel from './HistoryPanel';
 import LastPerformanceSnapshot from './LastPerformanceSnapshot';
 
@@ -44,7 +44,9 @@ export default function ExerciseCard({
   restTimerRemaining,
   initialSets,
   onSkip,
-  sessionId
+  sessionId,
+  sessionOverride,
+  onSessionOverrideChange
 }) {
   const {
     id,
@@ -66,15 +68,26 @@ export default function ExerciseCard({
     micro_display_label,
     cable_unit,
     backoff_enabled,
-    backoff_percent
+    backoff_percent,
+    decrease_percent,
+    increase_percent,
+    progression_mode,
+    progression_value
   } = exercise;
 
   const isCable = equipment_type === 'cable';
   const isBodyweight = type === 'bodyweight';
   const needsCableSetup = isCable && !cable_setup_locked;
 
+  const effectiveCableState = isCable && cable_setup_locked
+    ? {
+        base_stack_weight: sessionOverride?.cableState?.base_stack_weight ?? base_stack_weight,
+        current_micro_level: sessionOverride?.cableState?.current_micro_level ?? current_micro_level
+      }
+    : { base_stack_weight, current_micro_level };
+
   const cableDisplayWeight = isCable && cable_setup_locked
-    ? getCableDisplayWeight(base_stack_weight, stack_step_value, current_micro_level, max_micro_levels)
+    ? getCableDisplayWeight(effectiveCableState.base_stack_weight, stack_step_value, effectiveCableState.current_micro_level, max_micro_levels)
     : null;
 
   const effectiveWeight = isCable && cable_setup_locked
@@ -96,6 +109,9 @@ export default function ExerciseCard({
   const [lastSessionNote, setLastSessionNote] = useState(null);
   const [showSkipModal, setShowSkipModal] = useState(false);
   const [cableWeightEditing, setCableWeightEditing] = useState(false);
+
+  const sessionOverrideRef = useRef(null);
+  useEffect(() => { sessionOverrideRef.current = sessionOverride; }, [sessionOverride]);
 
   const today = new Date();
   const sessionDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
@@ -132,18 +148,25 @@ export default function ExerciseCard({
   const nextSetNumber = sessionSets.length + 1;
 
   useEffect(() => {
+    if (!isCable && sessionOverride?.weight != null) {
+      setCompletedWeight(String(sessionOverride.weight));
+      return;
+    }
+
     if (effectiveWeight == null) return;
 
     let displayWeight;
 
     if (!backoff_enabled || nextSetNumber === 1) {
-      displayWeight = effectiveWeight;
+      displayWeight = isCable
+        ? effectiveWeight
+        : roundWeight(effectiveWeight, equipment_type);
     } else if (isCable && stack_step_value > 0) {
       const levels = max_micro_levels || 0;
       const microStep = stack_step_value / (levels + 1);
       const backoffTarget = effectiveWeight * (1 - backoff_percent / 100);
-      const stepsDown = Math.ceil((base_stack_weight - backoffTarget) / stack_step_value);
-      const pin = base_stack_weight - stepsDown * stack_step_value;
+      const stepsDown = Math.ceil((effectiveCableState.base_stack_weight - backoffTarget) / stack_step_value);
+      const pin = effectiveCableState.base_stack_weight - stepsDown * stack_step_value;
       const rawMicro = (backoffTarget - pin) / microStep;
       let microCount = Math.round(rawMicro);
       if (microCount > levels) {
@@ -159,7 +182,7 @@ export default function ExerciseCard({
 
     setCompletedWeight(displayWeight != null ? String(displayWeight) : '');
     setCableWeightEditing(false);
-  }, [nextSetNumber, effectiveWeight, backoff_enabled, backoff_percent, equipment_type, isCable, stack_step_value, max_micro_levels, base_stack_weight]);
+  }, [nextSetNumber, effectiveWeight, backoff_enabled, backoff_percent, equipment_type, isCable, stack_step_value, max_micro_levels, sessionOverride, effectiveCableState.base_stack_weight]);
 
   const allSetsComplete = sessionSets.length >= target_sets;
   const cableMicroStep = isCable && stack_step_value > 0
@@ -168,9 +191,9 @@ export default function ExerciseCard({
 
   const cableTargetLines = isCable && cable_setup_locked
     ? formatCableTarget({
-        baseStackWeight: base_stack_weight,
+        baseStackWeight: effectiveCableState.base_stack_weight,
         stackStepValue: stack_step_value,
-        currentMicroLevel: current_micro_level,
+        currentMicroLevel: effectiveCableState.current_micro_level,
         maxMicroLevels: max_micro_levels,
         cableUnit: cable_unit,
         microType: micro_type,
@@ -210,7 +233,9 @@ export default function ExerciseCard({
       client_id: clientId,
       set_number: nextSetNumber,
       completed_reps: parsedReps,
-      completed_weight: completedWeight !== '' ? parseFloat(completedWeight) : effectiveWeight,
+      completed_weight: isCable && cable_setup_locked
+        ? (cableWeightEditing ? parseFloat(completedWeight) : cableDisplayWeight)
+        : (completedWeight !== '' ? parseFloat(completedWeight) : effectiveWeight),
       session_id: sessionId || null
     };
 
@@ -225,6 +250,119 @@ export default function ExerciseCard({
 
     setSessionSets((prev) => [...prev, payload].sort((a, b) => a.set_number - b.set_number));
     setCompletedReps('');
+
+    const currentTargetReps = sessionOverrideRef.current?.reps ?? target_reps;
+    const minReps = parseInt(String(currentTargetReps).split('-')[0], 10);
+    const maxReps = parseInt(String(currentTargetReps).split('-').at(-1), 10);
+
+    if (!isNaN(minReps) && parsedReps < minReps) {
+      if (isCable) {
+        const currentCableState = sessionOverrideRef.current?.cableState ?? {
+          base_stack_weight,
+          current_micro_level
+        };
+
+        const nextState = computeNextCableStateOnRegression(currentCableState, {
+          stack_step_value,
+          max_micro_levels,
+          decrease_percent
+        });
+
+        onSessionOverrideChange({
+          weight: null,
+          cableState: nextState,
+          reps: null
+        });
+      } else if (isBodyweight) {
+        const repsStr = String(currentTargetReps);
+        const isRange = repsStr.includes('-');
+        let nextReps;
+
+        if (isRange) {
+          const [lo, hi] = repsStr.split('-');
+          nextReps = `${Math.max(1, parseInt(lo, 10) - 1)}-${Math.max(1, parseInt(hi, 10) - 1)}`;
+        } else {
+          nextReps = String(Math.max(1, parseInt(repsStr, 10) - 1));
+        }
+
+        onSessionOverrideChange({
+          weight: null,
+          cableState: null,
+          reps: nextReps
+        });
+      } else if (type === 'custom' && progression_mode && progression_value != null) {
+        const base = sessionOverrideRef.current?.weight ?? effectiveWeight;
+        const next = progression_mode === 'absolute'
+          ? floorWeight(base - progression_value, equipment_type)
+          : floorWeight(base * (1 - progression_value / 100), equipment_type);
+
+        onSessionOverrideChange({
+          weight: next,
+          cableState: null,
+          reps: null
+        });
+      } else if (decrease_percent != null) {
+        const base = sessionOverrideRef.current?.weight ?? effectiveWeight;
+        const next = floorWeight(base * (1 - decrease_percent), equipment_type);
+
+        onSessionOverrideChange({
+          weight: next,
+          cableState: null,
+          reps: null
+        });
+      }
+    } else if (!isNaN(maxReps) && parsedReps >= maxReps && nextSetNumber < target_sets) {
+      if (isCable) {
+        const currentCableState = sessionOverrideRef.current?.cableState ?? effectiveCableState;
+        const nextState = computeNextCableStateOnProgression(currentCableState, {
+          stack_step_value,
+          max_micro_levels
+        });
+
+        onSessionOverrideChange({
+          weight: null,
+          cableState: nextState,
+          reps: null
+        });
+      } else if (isBodyweight) {
+        const repsStr = String(currentTargetReps);
+        const isRange = repsStr.includes('-');
+        let nextReps;
+
+        if (isRange) {
+          const [lo, hi] = repsStr.split('-');
+          nextReps = `${parseInt(lo, 10) + 1}-${parseInt(hi, 10) + 1}`;
+        } else {
+          nextReps = String(parseInt(repsStr, 10) + 1);
+        }
+
+        onSessionOverrideChange({
+          weight: null,
+          cableState: null,
+          reps: nextReps
+        });
+      } else if (type === 'custom' && progression_mode && progression_value != null) {
+        const base = sessionOverrideRef.current?.weight ?? effectiveWeight;
+        const next = progression_mode === 'absolute'
+          ? ceilWeight(base + progression_value, equipment_type)
+          : ceilWeight(base * (1 + progression_value / 100), equipment_type);
+
+        onSessionOverrideChange({
+          weight: next,
+          cableState: null,
+          reps: null
+        });
+      } else if (increase_percent != null) {
+        const base = sessionOverrideRef.current?.weight ?? effectiveWeight;
+        const next = ceilWeight(base * (1 + increase_percent), equipment_type);
+
+        onSessionOverrideChange({
+          weight: next,
+          cableState: null,
+          reps: null
+        });
+      }
+    }
 
     const isLastSet = nextSetNumber === target_sets;
 
@@ -269,17 +407,18 @@ export default function ExerciseCard({
   };
 
   const getNextCableWeight = (currentWeight, direction) => {
-    if (!stack_step_value || !base_stack_weight) return currentWeight;
+    const effBase = effectiveCableState.base_stack_weight;
+    if (!stack_step_value || !effBase) return currentWeight;
 
     const levels = max_micro_levels || 0;
     const microStep = stack_step_value / (levels + 1);
-    const steps = Math.round((currentWeight - base_stack_weight) / microStep);
+    const steps = Math.round((currentWeight - effBase) / microStep);
 
     const minWeight = 2.5;
-    const minSteps = Math.ceil((minWeight - base_stack_weight) / microStep);
+    const minSteps = Math.ceil((minWeight - effBase) / microStep);
     const nextSteps = Math.max(minSteps, steps + direction);
 
-    return base_stack_weight + nextSteps * microStep;
+    return effBase + nextSteps * microStep;
   };
 
   const handleCableWeightUp = () => {
@@ -381,7 +520,7 @@ export default function ExerciseCard({
             : isBodyweight
               ? <span className="ec-target__line">Bodyweight</span>
               : effectiveWeight != null
-                ? <span className="ec-target__line">{formatWeight(effectiveWeight, equipment_type)}</span>
+                ? <span className="ec-target__line">{formatWeight(roundWeight(effectiveWeight, equipment_type), equipment_type)}</span>
                 : null}
         </div>
       </div>
@@ -421,30 +560,30 @@ export default function ExerciseCard({
         <div className="ec-next-set" ref={nextSetRef}>
           <p className="ec-set-counter">Set {nextSetNumber} of {target_sets}</p>
           <div className="ec-log-row">
-            {!isCable && !isBodyweight && effectiveWeight != null && (
+            {!isCable && !isBodyweight && (sessionOverride?.weight ?? effectiveWeight) != null && (
               <p className="ec-prescribed">
                 Prescribed:{' '}
                 {formatWeight(
-                  backoff_enabled && nextSetNumber > 1
+                  !sessionOverride && backoff_enabled && nextSetNumber > 1
                     ? getBackoffWeight(effectiveWeight, backoff_percent, equipment_type)
-                    : roundWeight(effectiveWeight, equipment_type),
+                    : roundWeight(sessionOverride?.weight ?? effectiveWeight, equipment_type),
                   equipment_type
                 )}
               </p>
             )}
 
             {isBodyweight && (
-              <p className="ec-prescribed">Bodyweight</p>
+              <p className="ec-prescribed">Bodyweight · {sessionOverride?.reps ?? target_reps} reps</p>
             )}
-            {isCable && completedWeight !== '' && (
+            {isCable && cable_setup_locked && cableDisplayWeight != null && (
               <div className="ec-cable-adjust">
                 {!cableWeightEditing ? (
                   <>
                     <p className="ec-prescribed">
                       Prescribed:{' '}
                       {buildCableLabel(
-                        parseFloat(completedWeight),
-                        base_stack_weight,
+                        cableDisplayWeight,
+                        effectiveCableState.base_stack_weight,
                         stack_step_value,
                         max_micro_levels,
                         cable_unit
@@ -460,7 +599,7 @@ export default function ExerciseCard({
                     <span className="ec-cable-step-label">
                       {buildCableLabel(
                         parseFloat(completedWeight),
-                        base_stack_weight,
+                        effectiveCableState.base_stack_weight,
                         stack_step_value,
                         max_micro_levels,
                         cable_unit

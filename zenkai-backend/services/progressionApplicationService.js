@@ -108,7 +108,7 @@ async function applyProgressionForWorkout(clientId, programDayId) {
       continue;
     }
 
-    if (instance.type === 'custom') {
+    if (instance.type === 'custom' && instance.equipment_type !== 'cable') {
       results.push({ exercise_instance_id: instanceId, outcome: 'skipped', reason: 'custom exercise' });
       continue;
     }
@@ -116,6 +116,91 @@ async function applyProgressionForWorkout(clientId, programDayId) {
     const instanceSets = grouped[instanceId];
 
     console.log(`[PROG] -- ${instance.name} | type=${instance.type} | equipment=${instance.equipment_type} | backoff=${instance.backoff_enabled} | template_target_weight=${instance.target_weight} | template_target_reps=${instance.target_reps}`);
+
+    if (instance.equipment_type === 'cable') {
+      const finalSet = [...instanceSets].sort((a, b) => b.set_number - a.set_number)[0];
+
+      if (finalSet?.completed_weight == null) {
+        console.log(`[PROG]   ${instance.name} — cable SKIPPED, completed_weight null on final set`);
+        results.push({ exercise_instance_id: instanceId, outcome: 'skipped', reason: 'missing completed_weight' });
+        continue;
+      }
+
+      const completedWeight = parseFloat(finalSet.completed_weight);
+      const anchor = parseFloat(instance.base_stack_weight);
+      const stackStep = parseFloat(instance.stack_step_value);
+      const maxLevels = parseInt(instance.max_micro_levels) || 0;
+
+      if (isNaN(anchor) || !(stackStep > 0)) {
+        console.log(`[PROG]   ${instance.name} — cable SKIPPED, invalid setup (anchor=${anchor}, stackStep=${stackStep})`);
+        results.push({ exercise_instance_id: instanceId, outcome: 'skipped', reason: 'invalid cable setup' });
+        continue;
+      }
+
+      // Reverse-engineer final performed state onto valid grid (anchor + n*stackStep)
+      const microStep = stackStep / (maxLevels + 1);
+      const totalMicroSteps = Math.round((completedWeight - anchor) / microStep);
+      const stacksFromAnchor = Math.floor(totalMicroSteps / (maxLevels + 1));
+      const derivedLevel = totalMicroSteps - stacksFromAnchor * (maxLevels + 1);
+      const derivedBase = anchor + stacksFromAnchor * stackStep;
+
+      // One-step advance/retreat from derived state, based on final set's reps vs rep range
+      const targetReps = clientTargetMap[instanceId]?.target_reps ?? instance.target_reps;
+      const { min, max } = parseRepRange(targetReps);
+      const finalReps = finalSet.completed_reps;
+
+      let newBase = derivedBase;
+      let newLevel = derivedLevel;
+
+      if (finalReps >= max) {
+        if (derivedLevel < maxLevels) {
+          newLevel = derivedLevel + 1;
+        } else {
+          newBase = derivedBase + stackStep;
+          newLevel = 0;
+        }
+      } else if (finalReps < min) {
+        if (derivedLevel > 0) {
+          newLevel = derivedLevel - 1;
+        } else if (derivedBase > stackStep) {
+          newBase = derivedBase - stackStep;
+          newLevel = maxLevels;
+        }
+        // else: already at floor; stay
+      }
+
+      const prior = clientTargetMap[instanceId]?.cable_state;
+      const priorBase = prior?.base_stack_weight ?? anchor;
+      const priorLevel = prior?.current_micro_level ?? (parseInt(instance.current_micro_level) || 0);
+
+      const changed = newBase !== priorBase || newLevel !== priorLevel;
+      const cableOutcome = !changed
+        ? 'no_change'
+        : (newBase > priorBase || (newBase === priorBase && newLevel > priorLevel))
+          ? 'increase'
+          : 'decrease';
+
+      console.log(`[PROG]   ${instance.name} — cable | completed=${completedWeight} reps=${finalReps} range=${min}-${max} | derived={${derivedBase},${derivedLevel}} | next={${newBase},${newLevel}} | prior={${priorBase},${priorLevel}} | outcome=${cableOutcome}`);
+
+      await ExerciseProgression.destroy({
+        where: { client_id: clientId, exercise_instance_id: instanceId }
+      });
+
+      await ExerciseProgression.create({
+        client_id: clientId,
+        exercise_instance_id: instanceId,
+        next_weight: null,
+        next_cable_state: changed ? { base_stack_weight: newBase, current_micro_level: newLevel } : null
+      });
+
+      results.push({
+        exercise_instance_id: instanceId,
+        outcome: cableOutcome,
+        ...(changed ? { next_cable_state: { base_stack_weight: newBase, current_micro_level: newLevel } } : {})
+      });
+
+      continue;
+    }
 
     if (instance.type === 'bodyweight') {
       const currentTargetReps = clientTargetMap[instanceId]?.target_reps ?? instance.target_reps;
@@ -184,43 +269,19 @@ async function applyProgressionForWorkout(clientId, programDayId) {
 
     if (outcome === 'increase' || outcome === 'decrease') {
       try {
-        if (instance.equipment_type === 'cable') {
-          // * Dynamic state: prefer client-specific, fall back to template
-          const clientCableState = clientTargetMap[instanceId]?.cable_state || null;
+        const baseWeight = instance.backoff_enabled
+          ? (topSet?.completed_weight ?? instanceSets[0].completed_weight)
+          : instanceSets[0].completed_weight;
 
-          const result = await calculateNextWeight({
-            type: instance.type,
-            equipment_type: 'cable',
-            target_weight: null,
-            rep_range_min: min,
-            rep_range_max: max,
-            completed_reps_array: completedReps,
-            cable_state: {
-              base_stack_weight:   clientCableState?.base_stack_weight   ?? instance.base_stack_weight,
-              current_micro_level: clientCableState?.current_micro_level ?? instance.current_micro_level,
-              // * Static setup — always from template, never client-specific
-              stack_step_value: instance.stack_step_value,
-              max_micro_levels: instance.max_micro_levels
-            }
-          });
-          next_cable_state = result;
-          console.log(`[PROG]   cable next_cable_state=${JSON.stringify(result)}`);
-        } else {
-          // * Use completed_weight from logged sets — already client-specific
-          const baseWeight = instance.backoff_enabled
-            ? (topSet?.completed_weight ?? instanceSets[0].completed_weight)
-            : instanceSets[0].completed_weight;
-
-          next_weight = await calculateNextWeight({
-            type: instance.type,
-            equipment_type: instance.equipment_type,
-            target_weight: parseFloat(baseWeight),
-            rep_range_min: min,
-            rep_range_max: max,
-            completed_reps_array: completedReps
-          });
-          console.log(`[PROG]   next_weight=${next_weight} (baseWeight=${baseWeight})`);
-        }
+        next_weight = await calculateNextWeight({
+          type: instance.type,
+          equipment_type: instance.equipment_type,
+          target_weight: parseFloat(baseWeight),
+          rep_range_min: min,
+          rep_range_max: max,
+          completed_reps_array: completedReps
+        });
+        console.log(`[PROG]   next_weight=${next_weight} (baseWeight=${baseWeight})`);
       } catch (err) {
         console.log(`[PROG]   calculateNextWeight THREW: ${err.message}`);
         results.push({ exercise_instance_id: instanceId, outcome: 'skipped', reason: err.message });

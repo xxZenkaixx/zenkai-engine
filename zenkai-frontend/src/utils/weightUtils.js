@@ -26,6 +26,18 @@ export function getBackoffRest(assignedRest) {
 
 // * Returns display string. Barbell gets per-side annotation.
 // * Does NOT round — caller is responsible for passing a rounded value if needed.
+export function floorWeight(weight, equipmentType) {
+  if (weight == null) return weight;
+  const step = equipmentType === 'dumbbell' ? 2.5 : 5;
+  return Math.max(step, Math.floor(weight / step) * step);
+}
+
+export function ceilWeight(weight, equipmentType) {
+  if (weight == null) return weight;
+  const step = equipmentType === 'dumbbell' ? 2.5 : 5;
+  return Math.ceil(weight / step) * step;
+}
+
 export function formatWeight(weight, equipmentType) {
   if (weight == null) return null;
 
