@@ -46,8 +46,8 @@ export default function LastPerformanceSnapshot({ exerciseInstanceId, clientId, 
 
   const lastLabel =
     snapshot.lastWeight != null
-      ? `${snapshot.lastReps} reps @ ${formatWeight(snapshot.lastWeight, equipmentType)} — ${snapshot.lastDate}`
-      : `${snapshot.lastReps} reps — ${snapshot.lastDate}`;
+      ? `${snapshot.lastReps} reps @ ${formatWeight(snapshot.lastWeight, equipmentType)}`
+      : `${snapshot.lastReps} reps`;
 
   const bestLabel =
     snapshot.bestWeight != null
@@ -55,9 +55,9 @@ export default function LastPerformanceSnapshot({ exerciseInstanceId, clientId, 
       : `${snapshot.bestReps} reps`;
 
   return (
-    <div>
-      <p>Last: {lastLabel}</p>
-      <p>Best: {bestLabel}</p>
+    <div className="ec-snapshot">
+      <p>Last set: {lastLabel}</p>
+      <p>Best set: {bestLabel}</p>
     </div>
   );
 }

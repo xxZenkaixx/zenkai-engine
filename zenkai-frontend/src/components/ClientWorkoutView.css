@@ -1169,26 +1169,32 @@
 
 .ec-skip-btn {
   display: block;
+  width: 100%;
   margin-top: 6px;
-  font-size: 11px;
-  padding: 3px 8px;
+  padding: 8px;
   background: transparent;
-  border: 1px solid #333;
-  border-radius: 6px;
-  color: #666;
+  border: 1px dashed #333;
+  border-radius: 8px;
+  color: #555;
+  font-size: 12px;
   cursor: pointer;
-  white-space: nowrap;
+  text-align: center;
   transition: all 0.15s ease;
 }
 
 .ec-skip-btn:hover {
   border-color: #c8ff00;
   color: #c8ff00;
-  background: rgba(200,255,0,0.05);
+  background: rgba(200, 255, 0, 0.05);
 }
 
 .ec-skip-btn:active {
-  background: rgba(200,255,0,0.12);
+  background: rgba(200, 255, 0, 0.12);
+}
+
+.ec-skip-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
 .ec-skip-trigger {
@@ -1207,8 +1213,13 @@
 }
 
 .ec-skip-trigger:hover {
-  border-color: #666;
-  color: #888;
+  border-color: #c8ff00;
+  color: #c8ff00;
+  background: rgba(200, 255, 0, 0.05);
+}
+
+.ec-skip-trigger:active {
+  background: rgba(200, 255, 0, 0.12);
 }
 
 .ec-skip-modal-overlay {
@@ -1275,6 +1286,18 @@
   margin-bottom: 6px;
 }
 
+.ec-cable-target-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.ec-cable-target-label {
+  font-size: 14px;
+  color: #fff;
+}
+
 .ec-cable-edit-btn {
   background: none;
   border: 1px solid #444;
@@ -1283,12 +1306,36 @@
   padding: 2px 8px;
   border-radius: 4px;
   cursor: pointer;
+  align-self: flex-start;
+}
+
+.ec-cable-stepper-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .ec-cable-stepper {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.ec-cable-done-btn {
+  align-self: flex-start;
+  background: none;
+  border: 1px solid #555;
+  color: #fff;
+  font-size: 12px;
+  padding: 4px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.ec-cable-done-btn:hover,
+.ec-cable-done-btn:active {
+  border-color: #c8ff00;
+  color: #c8ff00;
 }
 
 .ec-cable-step-btn {
@@ -1303,6 +1350,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.ec-cable-step-btn:hover,
+.ec-cable-step-btn:active {
+  border-color: #c8ff00;
+  color: #c8ff00;
 }
 
 .ec-cable-step-label {
@@ -1409,4 +1462,39 @@
 .ec-last-note__text {
   font-size: 13px;
   color: #ddd;
+}
+
+.ec-note-open-btn:hover,
+.ec-cable-edit-btn:hover {
+  border-color: #c8ff00;
+  color: #c8ff00;
+  background: rgba(200, 255, 0, 0.05);
+}
+
+.ec-note-open-btn:active,
+.ec-cable-edit-btn:active {
+  background: rgba(200, 255, 0, 0.12);
+}
+
+.ec-note-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.ec-snapshot {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-left: auto;
+}
+
+.ec-snapshot p {
+  font-size: 11px;
+  color: #555;
+  margin: 0;
+  line-height: 1.4;
+  white-space: nowrap;
 }
