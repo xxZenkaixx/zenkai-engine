@@ -152,11 +152,12 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
     if (incompleteInOrder.length < 2) return;
 
     const first = incompleteInOrder[0];
-    const second = incompleteInOrder[1];
+    const lastIncomplete = incompleteInOrder[incompleteInOrder.length - 1];
     const next = [...effectiveOrder];
     const idxFirst = next.indexOf(first);
-    const idxSecond = next.indexOf(second);
-    [next[idxFirst], next[idxSecond]] = [next[idxSecond], next[idxFirst]];
+    next.splice(idxFirst, 1);
+    const idxLast = next.indexOf(lastIncomplete);
+    next.splice(idxLast + 1, 0, first);
 
     setActiveOrderOverride(next);
     writeDraft(clientId, selectedDayId, { activeOrderOverride: next });

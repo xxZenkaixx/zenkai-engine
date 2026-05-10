@@ -146,6 +146,30 @@ export default function ExerciseCard({
 
   const nextSetNumber = sessionSets.length + 1;
 
+  const backoffBaseWeight = sessionSets[0]?.completed_weight != null
+    ? Number(sessionSets[0].completed_weight)
+    : effectiveWeight;
+
+  const cableBackoffDisplayWeight = (
+    backoff_enabled
+    && nextSetNumber > 1
+    && isCable
+    && cable_setup_locked
+    && stack_step_value > 0
+    && backoffBaseWeight != null
+  ) ? (() => {
+    const levels = max_micro_levels || 0;
+    const microStep = stack_step_value / (levels + 1);
+    const backoffTarget = backoffBaseWeight * (1 - backoff_percent / 100);
+    const stepsDown = Math.ceil((effectiveCableState.base_stack_weight - backoffTarget) / stack_step_value);
+    const pin = effectiveCableState.base_stack_weight - stepsDown * stack_step_value;
+    const rawMicro = (backoffTarget - pin) / microStep;
+    const microCount = Math.round(rawMicro);
+    if (microCount > levels) return pin + stack_step_value;
+    if (microCount === 0) return pin;
+    return pin + microCount * microStep;
+  })() : null;
+
   useEffect(() => {
     if (!isCable && sessionOverride?.weight != null) {
       setCompletedWeight(String(sessionOverride.weight));
@@ -163,7 +187,7 @@ export default function ExerciseCard({
     } else if (isCable && stack_step_value > 0) {
       const levels = max_micro_levels || 0;
       const microStep = stack_step_value / (levels + 1);
-      const backoffTarget = effectiveWeight * (1 - backoff_percent / 100);
+      const backoffTarget = backoffBaseWeight * (1 - backoff_percent / 100);
       const stepsDown = Math.ceil((effectiveCableState.base_stack_weight - backoffTarget) / stack_step_value);
       const pin = effectiveCableState.base_stack_weight - stepsDown * stack_step_value;
       const rawMicro = (backoffTarget - pin) / microStep;
@@ -181,7 +205,7 @@ export default function ExerciseCard({
 
     setCompletedWeight(displayWeight != null ? String(displayWeight) : '');
     setCableWeightEditing(false);
-  }, [nextSetNumber, effectiveWeight, backoff_enabled, backoff_percent, equipment_type, isCable, stack_step_value, max_micro_levels, sessionOverride, effectiveCableState.base_stack_weight]);
+  }, [nextSetNumber, effectiveWeight, backoffBaseWeight, backoff_enabled, backoff_percent, equipment_type, isCable, stack_step_value, max_micro_levels, sessionOverride, effectiveCableState.base_stack_weight]);
 
   const allSetsComplete = sessionSets.length >= target_sets;
   const cableMicroStep = isCable && stack_step_value > 0
@@ -233,7 +257,9 @@ export default function ExerciseCard({
       set_number: nextSetNumber,
       completed_reps: parsedReps,
       completed_weight: isCable && cable_setup_locked
-        ? (cableWeightEditing ? parseFloat(completedWeight) : cableDisplayWeight)
+        ? (completedWeight !== ''
+            ? parseFloat(completedWeight)
+            : (cableBackoffDisplayWeight ?? cableDisplayWeight))
         : (completedWeight !== '' ? parseFloat(completedWeight) : effectiveWeight),
       session_id: sessionId || null
     };
@@ -254,7 +280,7 @@ export default function ExerciseCard({
     const minReps = parseInt(String(currentTargetReps).split('-')[0], 10);
     const maxReps = parseInt(String(currentTargetReps).split('-').at(-1), 10);
 
-    if (!isNaN(minReps) && parsedReps < minReps) {
+    if (!backoff_enabled && !isNaN(minReps) && parsedReps < minReps) {
       if (isCable) {
         const currentCableState = sessionOverrideRef.current?.cableState ?? {
           base_stack_weight,
@@ -310,7 +336,7 @@ export default function ExerciseCard({
           reps: null
         });
       }
-    } else if (!isNaN(maxReps) && parsedReps >= maxReps && nextSetNumber < target_sets) {
+    } else if (!backoff_enabled && !isNaN(maxReps) && parsedReps >= maxReps && nextSetNumber < target_sets) {
       if (isCable) {
         const currentCableState = sessionOverrideRef.current?.cableState ?? effectiveCableState;
         const nextState = computeNextCableStateOnProgression(currentCableState, {
@@ -579,7 +605,9 @@ export default function ExerciseCard({
                     <div className="ec-cable-target-row">
                       <span className="ec-cable-target-label">
                         {buildCableLabel(
-                          cableDisplayWeight,
+                          completedWeight !== ''
+                            ? parseFloat(completedWeight)
+                            : (cableBackoffDisplayWeight ?? cableDisplayWeight),
                           effectiveCableState.base_stack_weight,
                           stack_step_value,
                           max_micro_levels,
