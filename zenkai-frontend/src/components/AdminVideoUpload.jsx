@@ -56,26 +56,23 @@ export default function AdminVideoUpload() {
     <div style={{ padding: '24px', color: '#e0e0e0', maxWidth: 600 }}>
       <h2 style={{ color: '#c8ff00', marginBottom: 16 }}>Upload Exercise Video</h2>
 
-      <input
-        type="file"
-        accept="video/*"
-        onChange={handleFile}
-        style={{ marginBottom: 12, display: 'block', color: '#aaa' }}
-      />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+        <label className="avu-file-label">
+          {file ? 'Change File' : 'Choose File'}
+          <input
+            type="file"
+            accept="video/*"
+            onChange={handleFile}
+            style={{ display: 'none' }}
+          />
+        </label>
+        {file && <span className="avu-file-name">{file.name}</span>}
+      </div>
 
       <button
+        className="avu-upload-btn"
         onClick={handleUpload}
         disabled={!file || loading}
-        style={{
-          background: loading || !file ? '#222' : '#c8ff00',
-          color: '#000',
-          border: 'none',
-          padding: '10px 24px',
-          borderRadius: 8,
-          fontWeight: 700,
-          cursor: file && !loading ? 'pointer' : 'default',
-          marginBottom: 16,
-        }}
       >
         {loading ? 'Uploading…' : 'Upload'}
       </button>

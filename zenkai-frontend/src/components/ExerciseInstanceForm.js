@@ -14,6 +14,25 @@ import { formatCableTarget } from '../utils/cableUtils';
 import { API_BASE, getAuthHeaders } from '../api/base';
 
 
+async function uploadVideoToCloudinary(file, authHeaders) {
+  const sigRes = await fetch(`${API_BASE}/api/admin/videos/sign-upload`, { headers: authHeaders });
+  if (!sigRes.ok) throw new Error('Failed to get upload signature');
+  const { signature, timestamp, folder, api_key, cloud_name } = await sigRes.json();
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('api_key', api_key);
+  formData.append('timestamp', timestamp);
+  formData.append('signature', signature);
+  formData.append('folder', folder);
+  const uploadRes = await fetch(
+    `https://api.cloudinary.com/v1_1/${cloud_name}/video/upload`,
+    { method: 'POST', body: formData }
+  );
+  const json = await uploadRes.json();
+  if (!uploadRes.ok) throw new Error(json.error?.message || 'Upload failed');
+  return json.secure_url;
+}
+
 const EMPTY_FORM = {
   name: '',
   type: 'accessory',
@@ -34,7 +53,9 @@ const EMPTY_FORM = {
   micro_display_label: '',
   backoff_enabled: false,
   backoff_percent: 10,
-  exercise_id: ''
+  exercise_id: '',
+  save_to_library: false,
+  video_url: ''
 };
 
 const EMPTY_ERRORS = {
@@ -84,6 +105,7 @@ function buildPayload(fields) {
     name: fields.name,
     type: fields.type,
     equipment_type: isBodyweight ? 'bodyweight' : fields.equipment_type,
+    video_url: fields.video_url?.trim() || null,
     target_sets: parseInt(fields.target_sets),
     target_reps: fields.target_reps,
     target_weight: isBodyweight ? null : (fields.target_weight !== '' ? parseFloat(fields.target_weight) : null),
@@ -102,6 +124,7 @@ function buildPayload(fields) {
     backoff_enabled: isBodyweight ? false : fields.backoff_enabled,
     backoff_percent: (!isBodyweight && fields.backoff_enabled) ? parseInt(fields.backoff_percent) : null,
     exercise_id: fields.exercise_id || null,
+    saveToLibrary: !fields.exercise_id && fields.save_to_library === true,
   };
 }
 
@@ -117,6 +140,8 @@ export default function ExerciseInstanceForm({ dayId }) {
   const [library, setLibrary] = useState([]);
   const [librarySearch, setLibrarySearch] = useState('');
   const [editLibrarySearch, setEditLibrarySearch] = useState('');
+  const [uploadingAddVideo, setUploadingAddVideo] = useState(false);
+  const [uploadingEditVideo, setUploadingEditVideo] = useState(false);
 
   useEffect(() => { if (!dayId) return; loadExercises(); }, [dayId]);
 
@@ -132,6 +157,30 @@ export default function ExerciseInstanceForm({ dayId }) {
       const data = await fetchExerciseInstances(dayId);
       setExercises([...data].sort((a, b) => a.order_index - b.order_index));
     } catch (err) { setError(err.message); }
+  };
+
+  const handleAddVideoUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    e.target.value = '';
+    setUploadingAddVideo(true);
+    try {
+      const url = await uploadVideoToCloudinary(file, getAuthHeaders());
+      sf('video_url', url);
+    } catch (err) { setError(err.message); }
+    finally { setUploadingAddVideo(false); }
+  };
+
+  const handleEditVideoUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    e.target.value = '';
+    setUploadingEditVideo(true);
+    try {
+      const url = await uploadVideoToCloudinary(file, getAuthHeaders());
+      se('video_url', url);
+    } catch (err) { setError(err.message); }
+    finally { setUploadingEditVideo(false); }
   };
 
   const autofillFromLibrary = (lib, isEdit) => {
@@ -195,6 +244,8 @@ export default function ExerciseInstanceForm({ dayId }) {
       backoff_enabled: ex.backoff_enabled || false,
       backoff_percent: ex.backoff_percent ?? 10,
       exercise_id: ex.exercise_id ?? '',
+      video_url: ex.video_url ?? '',
+      save_to_library: false,
     });
   };
 
@@ -405,6 +456,19 @@ export default function ExerciseInstanceForm({ dayId }) {
                 )}
 
                 <div className="ex-edit-form__row">
+                  <input
+                    className="prog-input"
+                    placeholder="Video URL (optional)"
+                    value={editFields.video_url}
+                    onChange={(e) => se('video_url', e.target.value)}
+                  />
+                  <label className="prog-btn" style={{ color: uploadingEditVideo ? '#555' : '#c8ff00', borderColor: '#3a4a00', cursor: uploadingEditVideo ? 'default' : 'pointer', whiteSpace: 'nowrap' }}>
+                    {uploadingEditVideo ? 'Uploading…' : 'Upload'}
+                    <input type="file" accept="video/*" style={{ display: 'none' }} disabled={uploadingEditVideo} onChange={handleEditVideoUpload} />
+                  </label>
+                </div>
+
+                <div className="ex-edit-form__row">
                   <input className="prog-input ex-edit-form__notes" placeholder="Notes (optional)" value={editFields.notes} onChange={(e) => se('notes', e.target.value)} />
                   <input className="prog-input" placeholder="Order #" value={editFields.order_index} onChange={(e) => se('order_index', e.target.value)} />
                 </div>
@@ -413,6 +477,19 @@ export default function ExerciseInstanceForm({ dayId }) {
                   <p className="ex-error">
                     {editErrors.name || editErrors.type || editErrors.target_sets || editErrors.target_reps || editErrors.rest_seconds || editErrors.progression_mode || editErrors.progression_value}
                   </p>
+                )}
+
+                {!editFields.exercise_id && (
+                  <div className="ex-edit-form__row">
+                    <label style={{ color: '#888', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={editFields.save_to_library}
+                        onChange={(e) => se('save_to_library', e.target.checked)}
+                      />
+                      Also update Exercise Library with these changes
+                    </label>
+                  </div>
                 )}
 
                 <div className="ex-edit-form__actions">
@@ -598,11 +675,37 @@ export default function ExerciseInstanceForm({ dayId }) {
         )}
 
         <div className="ex-add-form__row">
+          <input
+            className="prog-input"
+            placeholder="Video URL (optional)"
+            value={form.video_url}
+            onChange={(e) => sf('video_url', e.target.value)}
+          />
+          <label className="prog-btn" style={{ color: uploadingAddVideo ? '#555' : '#c8ff00', borderColor: '#3a4a00', cursor: uploadingAddVideo ? 'default' : 'pointer', whiteSpace: 'nowrap' }}>
+            {uploadingAddVideo ? 'Uploading…' : 'Upload'}
+            <input type="file" accept="video/*" style={{ display: 'none' }} disabled={uploadingAddVideo} onChange={handleAddVideoUpload} />
+          </label>
+        </div>
+
+        <div className="ex-add-form__row">
           <input className="prog-input ex-add-form__notes" placeholder="Notes (optional)" value={form.notes} onChange={(e) => sf('notes', e.target.value)} />
           <button className="ex-add-btn" onClick={handleCreate} disabled={loading}>
             {loading ? 'Saving...' : 'Save'}
           </button>
         </div>
+
+        {!form.exercise_id && (
+          <div className="ex-add-form__row">
+            <label style={{ color: '#888', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={form.save_to_library}
+                onChange={(e) => sf('save_to_library', e.target.checked)}
+              />
+              Also save to Exercise Library
+            </label>
+          </div>
+        )}
 
         {(formErrors.name || formErrors.type || formErrors.target_sets || formErrors.target_reps || formErrors.rest_seconds || formErrors.progression_mode || formErrors.progression_value) && (
           <p className="ex-error">

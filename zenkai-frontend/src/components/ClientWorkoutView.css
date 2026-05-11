@@ -172,8 +172,11 @@
 }
 
 .ec-header {
-  padding: 16px 18px 14px;
-  border-bottom: 1px solid #1a1a1a;
+  padding: 18px 18px 14px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .ec-name {
@@ -284,7 +287,7 @@
 
 /* Next set area */
 .ec-next-set {
-  padding: 14px 18px;
+  padding: 14px 0 6px;
 }
 
 .ec-set-counter {
@@ -293,7 +296,7 @@
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: #555;
-  margin: 0 0 10px;
+  margin: 0 0 6px;
 }
 
 .ec-timer-inline {
@@ -328,11 +331,20 @@
   margin: 0;
 }
 
+.ec-target-line {
+  font-size: 14px;
+  font-weight: 700;
+  color: #c8ff00;
+  letter-spacing: 0.01em;
+  margin: 0 0 8px;
+}
+
 .ec-log-inputs {
   display: flex;
   align-items: center;
   gap: 10px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  padding: 4px 18px 0;
 }
 
 .ec-weight-input {
@@ -387,12 +399,13 @@
   background: #c8ff00;
   color: #000;
   border: none;
-  padding: 10px 22px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 700;
+  padding: 16px 0;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 800;
   cursor: pointer;
   transition: background 0.15s;
+  flex: 1;
 }
 
 .ec-log-btn:hover { background: #d4ff1a; }
@@ -1487,30 +1500,135 @@
 .ec-snapshot {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  margin-left: auto;
+  align-items: center;
+  margin-left: 0;
 }
 
 /* Video button — top-right of card header */
 .ec-video-btn {
   background: none;
-  border: 1px solid #c8ff00;
+  border: 1.5px solid #c8ff00;
   color: #c8ff00;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 3px 10px;
-  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 9px 18px;
+  border-radius: 24px;
   cursor: pointer;
   letter-spacing: 0.3px;
   white-space: nowrap;
+  transition: background 0.15s, box-shadow 0.15s;
+  box-shadow: 0 0 8px rgba(200, 255, 0, 0.25);
+  flex-shrink: 0;
 }
 
 .ec-video-btn:hover {
   background: rgba(200, 255, 0, 0.1);
+  box-shadow: 0 0 16px rgba(200, 255, 0, 0.45);
 }
 
 .ec-video-btn:active {
   background: rgba(200, 255, 0, 0.2);
+}
+
+/* Lime divider bar */
+.ec-divider {
+  width: 100%;
+  background: rgba(200, 255, 0, 0.6);
+  height: 3px;
+  margin: 8px 0;
+}
+
+/* Weight hero */
+.ec-weight-hero {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 18px 18px 2px;
+}
+
+.ec-weight-hero__num {
+  font-size: 52px;
+  font-weight: 800;
+  color: #c8ff00;
+  line-height: 1;
+  letter-spacing: -2px;
+}
+
+.ec-weight-hero__per-side {
+  font-size: 18px;
+  font-weight: 500;
+  color: #e0e0e0;
+}
+
+.ec-weight-hero__bw {
+  font-size: 36px;
+  font-weight: 800;
+  color: #c8ff00;
+  padding: 18px 18px 2px;
+  margin: 0;
+}
+
+/* Reps hero */
+.ec-reps-hero {
+  font-size: 20px;
+  font-weight: 600;
+  color: #e0e0e0;
+  margin: 0;
+  padding: 4px 18px 14px;
+}
+
+/* Coaching cues box */
+.ec-coaching-box {
+  margin: 0 18px 16px;
+  background: #1c1c1c;
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.ec-coaching-box__text {
+  font-size: 14px;
+  color: #999;
+  margin: 0;
+  line-height: 1.55;
+}
+
+/* Bottom action bar */
+.ec-snapshot-wrap {
+  padding: 6px 18px 4px;
+  display: flex;
+  justify-content: center;
+}
+
+.ec-bottom-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px 14px;
+  flex-wrap: wrap;
+}
+
+.ec-bottom-btn {
+  background: #1a1a1a;
+  border: 1px solid #252525;
+  border-radius: 20px;
+  color: #777;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.ec-bottom-btn:hover {
+  color: #e0e0e0;
+  border-color: #3a3a3a;
+}
+
+.ec-bottom-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
 /* Video modal overlay — full-screen dark backdrop */

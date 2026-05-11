@@ -532,34 +532,26 @@ export default function ExerciseCard({
     );
   }
 
+  const displayReps = sessionOverride?.reps ?? target_reps;
+  const targetLineWeight = !isBodyweight && !isCable && effectiveWeight != null
+    ? (!sessionOverride && backoff_enabled && nextSetNumber > 1
+        ? getBackoffWeight(effectiveWeight, backoff_percent, equipment_type)
+        : roundWeight(sessionOverride?.weight ?? effectiveWeight, equipment_type))
+    : null;
+
   return (
     <div className={`ec-card${allSetsComplete ? ' ec-card--complete' : ''}`} ref={cardRef}>
       <div className="ec-header">
         <div className="ec-header__left">
           <p className="ec-name">{name}</p>
-          <p className="ec-meta">{equipment_type} · {target_sets} sets × {target_reps} reps</p>
-          {notes && <p className="ec-notes">{notes}</p>}
+          <p className="ec-meta">{equipment_type} · {target_sets} sets · {target_reps} reps</p>
         </div>
-        <div className="ec-header__right">
-          {video_url && (
-            <button
-              className="ec-video-btn"
-              onClick={() => setIsVideoOpen(true)}
-            >
-              ▶ Video
-            </button>
-          )}
-          {cableTargetLines
-            ? cableTargetLines.map((line, i) => (
-                <span key={i} className="ec-target__line">{i > 0 ? '+ ' : ''}{line}</span>
-              ))
-            : isBodyweight
-              ? <span className="ec-target__line">Bodyweight</span>
-              : effectiveWeight != null
-                ? <span className="ec-target__line">{formatWeight(roundWeight(effectiveWeight, equipment_type), equipment_type)}</span>
-                : null}
-        </div>
+        {video_url && (
+          <button className="ec-video-btn" onClick={() => setIsVideoOpen(true)}>↗ Video</button>
+        )}
       </div>
+
+      <div className="ec-divider" />
 
       {lastSessionNote && (
         <div className="ec-last-note">
@@ -593,102 +585,97 @@ export default function ExerciseCard({
       {!allSetsComplete && (
         <div className="ec-next-set" ref={nextSetRef}>
           <p className="ec-set-counter">Set {nextSetNumber} of {target_sets}</p>
-          <div className="ec-log-row">
-            {!isCable && !isBodyweight && (sessionOverride?.weight ?? effectiveWeight) != null && (
-              <p className="ec-prescribed">
-                Prescribed:{' '}
-                {formatWeight(
-                  !sessionOverride && backoff_enabled && nextSetNumber > 1
-                    ? getBackoffWeight(effectiveWeight, backoff_percent, equipment_type)
-                    : roundWeight(sessionOverride?.weight ?? effectiveWeight, equipment_type),
-                  equipment_type
-                )}
-              </p>
-            )}
 
-            {isBodyweight && (
-              <p className="ec-prescribed">Bodyweight · {sessionOverride?.reps ?? target_reps} reps</p>
-            )}
-            {isCable && cable_setup_locked && cableDisplayWeight != null && (
-              <div className="ec-cable-adjust">
-                {!cableWeightEditing ? (
-                  <>
-                    <div className="ec-cable-target-row">
-                      <span className="ec-cable-target-label">
-                        {buildCableLabel(
-                          completedWeight !== ''
-                            ? parseFloat(completedWeight)
-                            : (cableBackoffDisplayWeight ?? cableDisplayWeight),
-                          effectiveCableState.base_stack_weight,
-                          stack_step_value,
-                          max_micro_levels,
-                          cable_unit
-                        )}
-                        {' @ '}{sessionOverride?.reps ?? target_reps} reps
-                      </span>
-                      <button className="ec-cable-edit-btn" onClick={() => setCableWeightEditing(true)}>
-                        Edit Weight
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  <div className="ec-cable-stepper-wrapper">
-                    <div className="ec-cable-stepper">
-                      <button className="ec-cable-step-btn" onClick={handleCableWeightDown}>−</button>
-                      <span className="ec-cable-step-label">
-                        {buildCableLabel(
-                          parseFloat(completedWeight),
-                          effectiveCableState.base_stack_weight,
-                          stack_step_value,
-                          max_micro_levels,
-                          cable_unit
-                        )}
-                      </span>
-                      <button className="ec-cable-step-btn" onClick={handleCableWeightUp}>+</button>
-                    </div>
-                    <button
-                      className="ec-cable-done-btn"
-                      onClick={() => setCableWeightEditing(false)}
-                    >
-                      ✓ Done
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-            <div className="ec-log-inputs">
-              <input
-                className="ec-reps-input"
-                type="text"
-                inputMode="numeric"
-                placeholder="reps"
-                value={completedReps}
-                onChange={(e) => setCompletedReps(e.target.value)}
-              />
-              {!isCable && effectiveWeight != null && (
-                <input
-                  className="ec-weight-input"
-                  type="text"
-                  inputMode="decimal"
-                  value={completedWeight}
-                  onChange={(e) => setCompletedWeight(e.target.value)}
-                />
+          {/* Weight hero */}
+          {!isCable && !isBodyweight && targetLineWeight != null && (
+            <div className="ec-weight-hero">
+              <span className="ec-weight-hero__num">{targetLineWeight} lb</span>
+              {(equipment_type === 'barbell' || equipment_type === 'machine') && (
+                <span className="ec-weight-hero__per-side"> ({targetLineWeight / 2} per side)</span>
               )}
-              <button className="ec-log-btn" onClick={handleLogSet} disabled={loading}>
-                {loading ? 'Saving...' : 'Log Set'}
-              </button>
             </div>
-            <button className="ec-skip-btn" onClick={handleSkipSet} disabled={loading}>
-              Skip Set
+          )}
+          {!isCable && isBodyweight && <p className="ec-weight-hero__bw">Bodyweight</p>}
+          {!isCable && <p className="ec-reps-hero">{displayReps} reps</p>}
+
+          {/* Coaching cues */}
+          {notes && (
+            <div className="ec-coaching-box">
+              <p className="ec-coaching-box__text">{notes}</p>
+            </div>
+          )}
+
+          {/* Cable section — unchanged logic */}
+          {isCable && cable_setup_locked && cableDisplayWeight != null && (
+            <div className="ec-cable-adjust">
+              {!cableWeightEditing ? (
+                <>
+                  <p className="ec-target-line">
+                    {buildCableLabel(
+                      completedWeight !== ''
+                        ? parseFloat(completedWeight)
+                        : (cableBackoffDisplayWeight ?? cableDisplayWeight),
+                      effectiveCableState.base_stack_weight,
+                      stack_step_value,
+                      max_micro_levels,
+                      cable_unit
+                    )} · {displayReps} reps
+                  </p>
+                  <button className="ec-cable-edit-btn" onClick={() => setCableWeightEditing(true)}>
+                    Edit Weight
+                  </button>
+                </>
+              ) : (
+                <div className="ec-cable-stepper-wrapper">
+                  <div className="ec-cable-stepper">
+                    <button className="ec-cable-step-btn" onClick={handleCableWeightDown}>−</button>
+                    <span className="ec-cable-step-label">
+                      {buildCableLabel(
+                        parseFloat(completedWeight),
+                        effectiveCableState.base_stack_weight,
+                        stack_step_value,
+                        max_micro_levels,
+                        cable_unit
+                      )}
+                    </span>
+                    <button className="ec-cable-step-btn" onClick={handleCableWeightUp}>+</button>
+                  </div>
+                  <button className="ec-cable-done-btn" onClick={() => setCableWeightEditing(false)}>
+                    ✓ Done
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="ec-log-inputs">
+            <input
+              className="ec-reps-input"
+              type="text"
+              inputMode="numeric"
+              placeholder="reps"
+              value={completedReps}
+              onChange={(e) => setCompletedReps(e.target.value)}
+            />
+            {!isCable && effectiveWeight != null && (
+              <input
+                className="ec-weight-input"
+                type="text"
+                inputMode="decimal"
+                value={completedWeight}
+                onChange={(e) => setCompletedWeight(e.target.value)}
+              />
+            )}
+            <button className="ec-log-btn" onClick={handleLogSet} disabled={loading}>
+              {loading ? 'Saving...' : 'Log Set'}
             </button>
           </div>
-          {onSkip && (
-            <button className="ec-skip-trigger" onClick={() => setShowSkipModal(true)}>
-              Machine in use?
-            </button>
-          )}
         </div>
       )}
+
+      <div className="ec-snapshot-wrap">
+        <LastPerformanceSnapshot exerciseInstanceId={id} clientId={clientId} targetWeight={effectiveWeight} equipmentType={equipment_type} />
+      </div>
 
       {showSkipModal && (
         <div className="ec-skip-modal-overlay" onClick={() => setShowSkipModal(false)}>
@@ -708,11 +695,20 @@ export default function ExerciseCard({
       {allSetsComplete && <p className="ec-complete">✓ All sets complete</p>}
       {error && <p className="ec-error">{error}</p>}
 
-      <div className="ec-note-section">
-        <button className="ec-note-open-btn" onClick={() => { setNoteDraft(exerciseNote); setNoteModalOpen(true); }}>
+      <div className="ec-bottom-bar">
+        <button className="ec-bottom-btn" onClick={() => { setNoteDraft(exerciseNote); setNoteModalOpen(true); }}>
           Add Note
         </button>
-        <LastPerformanceSnapshot exerciseInstanceId={id} clientId={clientId} targetWeight={effectiveWeight} equipmentType={equipment_type} />
+        {!allSetsComplete && (
+          <button className="ec-bottom-btn" onClick={handleSkipSet} disabled={loading}>
+            Skip Set
+          </button>
+        )}
+        {!allSetsComplete && onSkip && (
+          <button className="ec-bottom-btn" onClick={() => setShowSkipModal(true)}>
+            Machine in use?
+          </button>
+        )}
       </div>
       {noteModalOpen && (
         <div className="ec-note-modal-overlay" onClick={() => setNoteModalOpen(false)}>

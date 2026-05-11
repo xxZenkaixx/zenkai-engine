@@ -106,7 +106,8 @@ router.get('/day/:dayId', async (req, res) => {
 // * CREATE exercise
 router.post('/', protect, requireRole('admin', 'self-serve'), async (req, res) => {
   try {
-    let payload = { ...req.body };
+    const { saveToLibrary, ...rest } = req.body;
+    let payload = { ...rest };
 
     // * Snapshot copy from library when exercise_id is provided.
     // * Library values are defaults; caller-supplied fields override.
@@ -127,7 +128,7 @@ router.post('/', protect, requireRole('admin', 'self-serve'), async (req, res) =
         target_reps:    lib.default_target_reps,
       };
 
-      payload = { ...snapshot, ...req.body };
+      payload = { ...snapshot, ...rest };
     }
 
     const validationErrors = validateExercisePayload(payload, false);
@@ -136,6 +137,26 @@ router.post('/', protect, requireRole('admin', 'self-serve'), async (req, res) =
     }
 
     const exercise = await ExerciseInstance.create(payload);
+
+    // * Optional save-to-library — only on free-text path (no exercise_id link).
+    if ((saveToLibrary === true || saveToLibrary === 'true') && !payload.exercise_id) {
+      try {
+        await Exercise.upsert({
+          name:                payload.name,
+          type:                payload.type,
+          equipment_type:      payload.equipment_type,
+          body_part:           payload.body_part ?? null,
+          video_url:           payload.video_url ?? null,
+          notes:               payload.notes ?? null,
+          default_target_sets: payload.target_sets ?? null,
+          default_target_reps: payload.target_reps ?? null,
+          created_by:          req.user?.id,
+        });
+      } catch (libErr) {
+        console.error('Save-to-library upsert failed:', libErr.message);
+      }
+    }
+
     res.status(201).json(exercise);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -145,17 +166,40 @@ router.post('/', protect, requireRole('admin', 'self-serve'), async (req, res) =
 // * UPDATE exercise
 router.put('/:id', protect, requireRole('admin', 'self-serve'), async (req, res) => {
   try {
+    const { saveToLibrary, ...rest } = req.body;
     const exercise = await ExerciseInstance.findByPk(req.params.id);
     if (!exercise) return res.status(404).json({ error: 'Exercise not found' });
 
     // * Merge existing values with incoming body for validation context
-    const merged = { ...exercise.toJSON(), ...req.body };
+    const merged = { ...exercise.toJSON(), ...rest };
     const validationErrors = validateExercisePayload(merged, true);
     if (validationErrors.length > 0) {
       return res.status(400).json({ errors: validationErrors, field: validationErrors[0].field, error: validationErrors[0].error });
     }
 
-    await exercise.update(req.body);
+    await exercise.update(rest);
+
+    // * Optional save-to-library on edit — same guard as POST
+    if ((saveToLibrary === true || saveToLibrary === 'true') && !merged.exercise_id) {
+      try {
+        await Exercise.upsert({
+          name:                merged.name,
+          type:                merged.type,
+          equipment_type:      merged.equipment_type,
+          body_part:           merged.body_part ?? null,
+          video_url:           merged.video_url ?? null,
+          notes:               merged.notes ?? null,
+          default_target_sets: merged.target_sets ?? null,
+          default_target_reps: merged.target_reps ?? null,
+          created_by:          req.user?.id,
+        }, {
+          returning: false,
+        });
+      } catch (libErr) {
+        console.error('Save-to-library upsert failed (edit):', libErr.message);
+      }
+    }
+
     res.json(exercise);
   } catch (err) {
     res.status(500).json({ error: err.message });
