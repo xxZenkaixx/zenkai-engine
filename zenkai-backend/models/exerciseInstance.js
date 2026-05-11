@@ -82,6 +82,10 @@ module.exports = (sequelize) => {
         type: DataTypes.TEXT,
         allowNull: true
       },
+      video_url: {
+        type: DataTypes.STRING,
+        allowNull: true
+      },
 
       // * Cable-only fields — null for all other equipment types
       base_stack_weight: {

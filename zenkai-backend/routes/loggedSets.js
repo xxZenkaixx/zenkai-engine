@@ -5,6 +5,7 @@ const express = require('express');
 const router = express.Router();
 const { LoggedSet, ExerciseInstance, ExerciseSessionNote, sequelize } = require('../models');
 const { QueryTypes } = require('sequelize');
+const { recomputeTargetAfterDelete } = require('../services/progressionApplicationService');
 
 router.get('/', async (req, res) => {
   try {
@@ -148,12 +149,13 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const loggedSet = await LoggedSet.findByPk(req.params.id);
-
     if (!loggedSet) {
       return res.status(404).json({ error: 'Set not found' });
     }
 
+    const { client_id, exercise_instance_id } = loggedSet;
     await loggedSet.destroy();
+    await recomputeTargetAfterDelete(client_id, exercise_instance_id);
 
     res.json({ success: true });
   } catch (err) {

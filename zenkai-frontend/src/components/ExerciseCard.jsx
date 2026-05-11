@@ -55,6 +55,7 @@ export default function ExerciseCard({
     target_reps,
     target_weight,
     notes,
+    video_url,
     rest_seconds,
     equipment_type,
     cable_setup_locked,
@@ -104,6 +105,8 @@ export default function ExerciseCard({
   const [noteSaving, setNoteSaving] = useState(false);
   const [noteSaved, setNoteSaved] = useState(false);
   const [noteModalOpen, setNoteModalOpen] = useState(false);
+  const [isVideoOpen, setIsVideoOpen] = useState(false);
+  const [isVideoBuffering, setIsVideoBuffering] = useState(false);
   const [noteDraft, setNoteDraft] = useState('');
   const [lastSessionNote, setLastSessionNote] = useState(null);
   const [showSkipModal, setShowSkipModal] = useState(false);
@@ -538,6 +541,14 @@ export default function ExerciseCard({
           {notes && <p className="ec-notes">{notes}</p>}
         </div>
         <div className="ec-header__right">
+          {video_url && (
+            <button
+              className="ec-video-btn"
+              onClick={() => setIsVideoOpen(true)}
+            >
+              ▶ Video
+            </button>
+          )}
           {cableTargetLines
             ? cableTargetLines.map((line, i) => (
                 <span key={i} className="ec-target__line">{i > 0 ? '+ ' : ''}{line}</span>
@@ -729,6 +740,28 @@ export default function ExerciseCard({
                 Cancel
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {isVideoOpen && video_url && (
+        <div className="ec-video-modal-overlay" onClick={() => setIsVideoOpen(false)}>
+          <div className="ec-video-modal" onClick={e => e.stopPropagation()}>
+            <button className="ec-video-modal__close" onClick={() => setIsVideoOpen(false)}>×</button>
+            {isVideoBuffering && <div className="ec-video-modal__spinner" />}
+            <video
+              className="ec-video-modal__video"
+              src={video_url}
+              autoPlay
+              muted
+              loop
+              playsInline
+              controls
+              preload="metadata"
+              onWaiting={() => setIsVideoBuffering(true)}
+              onCanPlay={() => setIsVideoBuffering(false)}
+              onPlaying={() => setIsVideoBuffering(false)}
+            />
           </div>
         </div>
       )}

@@ -59,7 +59,7 @@ async function fetchLatestSetsForDay(clientId, programDayId) {
   return allSets.filter((s) => new Date(s.completed_at).toDateString() === latestDay);
 }
 
-async function applyProgressionForWorkout(clientId, programDayId) {
+async function applyProgressionForWorkout(clientId, programDayId, options = {}) {
   // * Resolve active assignment — needed to scope client_exercise_targets reads
   const assignment = await ClientProgram.findOne({
     where: { client_id: clientId, active: true }
@@ -101,6 +101,7 @@ async function applyProgressionForWorkout(clientId, programDayId) {
   const results = [];
 
   for (const instanceId of instanceIds) {
+    if (options.targetExerciseInstanceId && instanceId !== options.targetExerciseInstanceId) continue;
     const instance = instanceMap[instanceId];
 
     if (!instance) {
@@ -314,7 +315,7 @@ async function applyProgressionForWorkout(clientId, programDayId) {
 // * Reads staged ExerciseProgression rows and writes results to client_exercise_targets.
 // * NEVER writes to exercise_instances — template data must not be mutated by client progression.
 // * applied_at guard prevents double-application.
-async function mutateTargetsFromProgressions(clientId, programDayId) {
+async function mutateTargetsFromProgressions(clientId, programDayId, options = {}) {
   const assignment = await ClientProgram.findOne({
     where: { client_id: clientId, active: true }
   });
@@ -329,17 +330,21 @@ async function mutateTargetsFromProgressions(clientId, programDayId) {
   const instanceIds = instances.map((i) => i.id);
   if (!instanceIds.length) return [];
 
+  const progressionWhere = {
+    client_id: clientId,
+    exercise_instance_id: options.targetExerciseInstanceId
+      ? options.targetExerciseInstanceId
+      : { [Op.in]: instanceIds },
+    applied_at: null,
+    [Op.or]: [
+      { next_weight: { [Op.ne]: null } },
+      { next_cable_state: { [Op.ne]: null } },
+      { next_target_reps: { [Op.ne]: null } }
+    ]
+  };
+
   const progressions = await ExerciseProgression.findAll({
-    where: {
-      client_id: clientId,
-      exercise_instance_id: { [Op.in]: instanceIds },
-      applied_at: null,
-      [Op.or]: [
-        { next_weight: { [Op.ne]: null } },
-        { next_cable_state: { [Op.ne]: null } },
-        { next_target_reps: { [Op.ne]: null } }
-      ]
-    },
+    where: progressionWhere,
     order: [['created_at', 'DESC']]
   });
 
@@ -426,4 +431,38 @@ async function mutateTargetsFromProgressions(clientId, programDayId) {
   return results;
 }
 
-module.exports = { applyProgressionForWorkout, mutateTargetsFromProgressions };
+async function recomputeTargetAfterDelete(clientId, exerciseInstanceId) {
+  const assignment = await ClientProgram.findOne({
+    where: { client_id: clientId, active: true }
+  });
+  if (!assignment) return;
+
+  const instance = await ExerciseInstance.findByPk(exerciseInstanceId);
+  if (!instance) return;
+  const programDayId = instance.program_day_id;
+
+  await ExerciseProgression.destroy({
+    where: {
+      client_id: clientId,
+      exercise_instance_id: exerciseInstanceId,
+      applied_at: null
+    }
+  });
+
+  await ClientExerciseTarget.destroy({
+    where: {
+      client_program_id: assignment.id,
+      exercise_instance_id: exerciseInstanceId
+    }
+  });
+
+  const remaining = await LoggedSet.count({
+    where: { client_id: clientId, exercise_instance_id: exerciseInstanceId }
+  });
+  if (remaining === 0) return;
+
+  await applyProgressionForWorkout(clientId, programDayId, { targetExerciseInstanceId: exerciseInstanceId });
+  await mutateTargetsFromProgressions(clientId, programDayId, { targetExerciseInstanceId: exerciseInstanceId });
+}
+
+module.exports = { applyProgressionForWorkout, mutateTargetsFromProgressions, recomputeTargetAfterDelete };

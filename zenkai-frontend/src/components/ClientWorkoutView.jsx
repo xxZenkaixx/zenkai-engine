@@ -497,9 +497,7 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
     if (onNavigateHistory) onNavigateHistory();
     else if (onWorkoutFinished) onWorkoutFinished();
   };
-  const handleTabProfile = () => {
-    console.log('Profile tab — coming soon');
-  };
+  const handleTabProfile = () => {};
 
   return (
     <div className="cwv-shell">

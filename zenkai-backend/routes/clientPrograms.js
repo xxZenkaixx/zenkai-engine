@@ -38,7 +38,7 @@ router.get('/:clientId', protect, async (req, res) => {
                     'notes', 'base_stack_weight', 'stack_step_value',
                     'micro_step_value', 'max_micro_levels', 'current_micro_level',
                     'cable_unit', 'cable_setup_locked', 'backoff_enabled',
-                    'backoff_percent', 'micro_type', 'micro_display_label'
+                    'backoff_percent', 'micro_type', 'micro_display_label', 'video_url'
                   ]
                 }
               ]
