@@ -26,6 +26,7 @@ const ProgressionRule = require('./progressionRule')(sequelize);
 const ExerciseProgression = require('./exerciseProgression')(sequelize);
 const ClientExerciseTarget = require('./clientExerciseTarget')(sequelize);
 const ExerciseSessionNote = require('./exerciseSessionNote')(sequelize);
+const Exercise = require('./exercise')(sequelize);
 
 /* Associations */
 
@@ -61,6 +62,9 @@ ClientExerciseTarget.belongsTo(ClientProgram, { foreignKey: 'client_program_id' 
 ExerciseInstance.hasMany(ClientExerciseTarget, { foreignKey: 'exercise_instance_id' });
 ClientExerciseTarget.belongsTo(ExerciseInstance, { foreignKey: 'exercise_instance_id' });
 
+User.hasMany(Exercise, { foreignKey: 'created_by', as: 'CreatedExercises' });
+Exercise.belongsTo(User, { foreignKey: 'created_by', as: 'Creator' });
+
 module.exports = {
   sequelize,
   User,
@@ -73,5 +77,6 @@ module.exports = {
   ProgressionRule,
   ExerciseProgression,
   ClientExerciseTarget,
-  ExerciseSessionNote
+  ExerciseSessionNote,
+  Exercise,
 };

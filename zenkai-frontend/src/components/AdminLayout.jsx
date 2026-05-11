@@ -3,17 +3,21 @@ import { useAuth } from '../contexts/AuthContext';
 import './AdminLayout.css';
 
 const NAV_ITEMS = [
-  { id: 'dashboard',    label: 'Dashboard' },
-  { id: 'clients',      label: 'Clients' },
-  { id: 'programs',     label: 'Programs' },
-  { id: 'clientPortal', label: 'Client Portal' },
+  { id: 'dashboard',       label: 'Dashboard' },
+  { id: 'clients',         label: 'Clients' },
+  { id: 'programs',        label: 'Programs' },
+  { id: 'clientPortal',    label: 'Client Portal' },
+  { id: 'exerciseLibrary', label: 'Library' },
+  { id: 'videos',          label: 'Videos' },
 ];
 
 const MOBILE_NAV_ITEMS = [
-  { id: 'dashboard',    label: 'Dashboard' },
-  { id: 'clients',      label: 'Clients' },
-  { id: 'programs',     label: 'Programs' },
-  { id: 'clientPortal', label: 'Assign' },
+  { id: 'dashboard',       label: 'Dashboard' },
+  { id: 'clients',         label: 'Clients' },
+  { id: 'programs',        label: 'Programs' },
+  { id: 'clientPortal',    label: 'Assign' },
+  { id: 'exerciseLibrary', label: 'Library' },
+  { id: 'videos',          label: 'Videos' },
 ];
 
 export default function AdminLayout({ activeSection, onSectionChange, children }) {

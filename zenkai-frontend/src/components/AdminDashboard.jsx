@@ -12,6 +12,8 @@ import ClientWorkoutHistoryList from './ClientWorkoutHistoryList';
 import ProgramList from './ProgramList';
 import ProgramBuilder from './ProgramBuilder';
 import ClientProgramAssignment from './ClientProgramAssignment';
+import AdminVideoUpload from './AdminVideoUpload';
+import AdminExerciseLibrary from './AdminExerciseLibrary';
 
 export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
   const { user } = useAuth();
@@ -23,7 +25,9 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
       saved === 'clients' ||
       saved === 'programs' ||
       saved === 'programBuilder' ||
-      saved === 'clientPortal'
+      saved === 'clientPortal' ||
+      saved === 'exerciseLibrary' ||
+      saved === 'videos'
     ) return saved;
     return 'dashboard';
   });
@@ -453,11 +457,12 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
       )}
 
       {/* ── Exercise Library (parked) ── */}
+      {adminSection === 'videos' && (
+        <AdminVideoUpload />
+      )}
+
       {adminSection === 'exerciseLibrary' && (
-        <div className="admin-parked-panel">
-          <p className="admin-parked-panel__title">Exercise Library</p>
-          <p className="admin-parked-panel__sub">Parked — coming in a future release.</p>
-        </div>
+        <AdminExerciseLibrary />
       )}
 
     </AdminLayout>
