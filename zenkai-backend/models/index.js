@@ -65,6 +65,9 @@ ClientExerciseTarget.belongsTo(ExerciseInstance, { foreignKey: 'exercise_instanc
 User.hasMany(Exercise, { foreignKey: 'created_by', as: 'CreatedExercises' });
 Exercise.belongsTo(User, { foreignKey: 'created_by', as: 'Creator' });
 
+Exercise.hasMany(ExerciseInstance, { foreignKey: 'exercise_id', as: 'Instances' });
+ExerciseInstance.belongsTo(Exercise, { foreignKey: 'exercise_id', as: 'LibraryExercise' });
+
 module.exports = {
   sequelize,
   User,

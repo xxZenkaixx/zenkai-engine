@@ -6,7 +6,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { ExerciseInstance } = require('../models');
+const { ExerciseInstance, Exercise } = require('../models');
 const protect = require('../middleware/protect');
 const requireRole = require('../middleware/requireRole');
 
@@ -105,13 +105,37 @@ router.get('/day/:dayId', async (req, res) => {
 
 // * CREATE exercise
 router.post('/', protect, requireRole('admin', 'self-serve'), async (req, res) => {
-  const validationErrors = validateExercisePayload(req.body, false);
-  if (validationErrors.length > 0) {
-    return res.status(400).json({ errors: validationErrors, field: validationErrors[0].field, error: validationErrors[0].error });
-  }
-
   try {
-    const exercise = await ExerciseInstance.create(req.body);
+    let payload = { ...req.body };
+
+    // * Snapshot copy from library when exercise_id is provided.
+    // * Library values are defaults; caller-supplied fields override.
+    if (payload.exercise_id) {
+      const lib = await Exercise.findByPk(payload.exercise_id);
+      if (!lib) {
+        return res.status(400).json({ field: 'exercise_id', error: 'Library exercise not found.' });
+      }
+
+      const snapshot = {
+        name:           lib.name,
+        type:           lib.type,
+        equipment_type: lib.equipment_type,
+        body_part:      lib.body_part,
+        video_url:      lib.video_url,
+        notes:          lib.notes,
+        target_sets:    lib.default_target_sets,
+        target_reps:    lib.default_target_reps,
+      };
+
+      payload = { ...snapshot, ...req.body };
+    }
+
+    const validationErrors = validateExercisePayload(payload, false);
+    if (validationErrors.length > 0) {
+      return res.status(400).json({ errors: validationErrors, field: validationErrors[0].field, error: validationErrors[0].error });
+    }
+
+    const exercise = await ExerciseInstance.create(payload);
     res.status(201).json(exercise);
   } catch (err) {
     res.status(500).json({ error: err.message });

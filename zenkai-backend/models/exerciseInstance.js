@@ -86,6 +86,10 @@ module.exports = (sequelize) => {
         type: DataTypes.STRING,
         allowNull: true
       },
+      body_part: {
+        type: DataTypes.STRING,
+        allowNull: true
+      },
 
       // * Cable-only fields — null for all other equipment types
       base_stack_weight: {
@@ -136,6 +140,10 @@ module.exports = (sequelize) => {
       },
       backoff_percent: {
         type: DataTypes.INTEGER,
+        allowNull: true
+      },
+      exercise_id: {
+        type: DataTypes.UUID,
         allowNull: true
       }
     },

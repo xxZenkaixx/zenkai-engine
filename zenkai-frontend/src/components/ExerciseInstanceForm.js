@@ -11,6 +11,7 @@ import {
   swapExerciseOrder
 } from '../api/exerciseInstanceApi';
 import { formatCableTarget } from '../utils/cableUtils';
+import { API_BASE, getAuthHeaders } from '../api/base';
 
 
 const EMPTY_FORM = {
@@ -32,7 +33,8 @@ const EMPTY_FORM = {
   micro_type: 'none',
   micro_display_label: '',
   backoff_enabled: false,
-  backoff_percent: 10
+  backoff_percent: 10,
+  exercise_id: ''
 };
 
 const EMPTY_ERRORS = {
@@ -99,6 +101,7 @@ function buildPayload(fields) {
     ...(isCable ? { current_micro_level: 0 } : {}),
     backoff_enabled: isBodyweight ? false : fields.backoff_enabled,
     backoff_percent: (!isBodyweight && fields.backoff_enabled) ? parseInt(fields.backoff_percent) : null,
+    exercise_id: fields.exercise_id || null,
   };
 }
 
@@ -111,14 +114,52 @@ export default function ExerciseInstanceForm({ dayId }) {
   const [editErrors, setEditErrors] = useState(EMPTY_ERRORS);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [library, setLibrary] = useState([]);
+  const [librarySearch, setLibrarySearch] = useState('');
+  const [editLibrarySearch, setEditLibrarySearch] = useState('');
 
   useEffect(() => { if (!dayId) return; loadExercises(); }, [dayId]);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/admin/exercises`, { headers: getAuthHeaders() })
+      .then(r => r.json())
+      .then(data => setLibrary(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, []);
 
   const loadExercises = async () => {
     try {
       const data = await fetchExerciseInstances(dayId);
       setExercises([...data].sort((a, b) => a.order_index - b.order_index));
     } catch (err) { setError(err.message); }
+  };
+
+  const autofillFromLibrary = (lib, isEdit) => {
+    const patch = {
+      name: lib.name,
+      type: lib.type || 'accessory',
+      equipment_type: lib.equipment_type || 'barbell',
+      notes: lib.notes ?? '',
+      target_sets: lib.default_target_sets ?? '',
+      target_reps: lib.default_target_reps ?? '',
+      exercise_id: lib.id,
+    };
+    if (isEdit) {
+      setEditFields(prev => ({ ...prev, ...patch }));
+    } else {
+      setForm(prev => ({ ...prev, ...patch }));
+    }
+  };
+
+  const onLibrarySearchChange = (val, isEdit) => {
+    if (isEdit) setEditLibrarySearch(val); else setLibrarySearch(val);
+    const match = library.find(l => l.name === val);
+    if (match) autofillFromLibrary(match, isEdit);
+    if (!match && val === '') {
+      const clearPatch = { exercise_id: '' };
+      if (isEdit) setEditFields(prev => ({ ...prev, ...clearPatch }));
+      else setForm(prev => ({ ...prev, ...clearPatch }));
+    }
   };
 
   const resolveOrderIndex = (rawValue) => {
@@ -134,13 +175,13 @@ export default function ExerciseInstanceForm({ dayId }) {
     setLoading(true); setError(null);
     try {
       await createExerciseInstance({ ...buildPayload(form), program_day_id: dayId, order_index: resolveOrderIndex(form.order_index) });
-      setForm(EMPTY_FORM); setFormErrors(EMPTY_ERRORS);
+      setForm(EMPTY_FORM); setFormErrors(EMPTY_ERRORS); setLibrarySearch('');
       await loadExercises();
     } catch (err) { setError(err.message); } finally { setLoading(false); }
   };
 
   const handleEditStart = (ex) => {
-    setEditingId(ex.id); setEditErrors(EMPTY_ERRORS);
+    setEditingId(ex.id); setEditErrors(EMPTY_ERRORS); setEditLibrarySearch('');
     setEditFields({
       name: ex.name, type: ex.type || 'accessory', equipment_type: ex.equipment_type || 'barbell',
       target_sets: ex.target_sets, target_reps: ex.target_reps, target_weight: ex.target_weight ?? '',
@@ -153,6 +194,7 @@ export default function ExerciseInstanceForm({ dayId }) {
       micro_display_label: ex.micro_display_label ?? '',
       backoff_enabled: ex.backoff_enabled || false,
       backoff_percent: ex.backoff_percent ?? 10,
+      exercise_id: ex.exercise_id ?? '',
     });
   };
 
@@ -201,6 +243,22 @@ export default function ExerciseInstanceForm({ dayId }) {
           <div key={ex.id} className="ex-row">
             {editingId === ex.id ? (
               <div className="ex-edit-form">
+                <div className="ex-edit-form__row">
+                  <input
+                    className="prog-input"
+                    list="zk-exercise-library"
+                    placeholder="Search library (optional)"
+                    value={editLibrarySearch}
+                    onChange={(e) => onLibrarySearchChange(e.target.value, true)}
+                  />
+                  {editFields.exercise_id && (
+                    <button
+                      className="prog-btn"
+                      style={{ fontSize: 11, padding: '2px 8px' }}
+                      onClick={() => { setEditLibrarySearch(''); setEditFields(prev => ({ ...prev, exercise_id: '' })); }}
+                    >Unlink</button>
+                  )}
+                </div>
                 <div className="ex-edit-form__row">
                   <input
                     className="prog-input ex-edit-form__name"
@@ -393,6 +451,23 @@ export default function ExerciseInstanceForm({ dayId }) {
 
         <div className="ex-add-form__row">
           <input
+            className="prog-input"
+            list="zk-exercise-library"
+            placeholder="Search library (optional)"
+            value={librarySearch}
+            onChange={(e) => onLibrarySearchChange(e.target.value, false)}
+          />
+          {form.exercise_id && (
+            <button
+              className="prog-btn"
+              style={{ fontSize: 11, padding: '2px 8px' }}
+              onClick={() => { setLibrarySearch(''); setForm(prev => ({ ...prev, exercise_id: '' })); }}
+            >Unlink</button>
+          )}
+        </div>
+
+        <div className="ex-add-form__row">
+          <input
             className="prog-input ex-add-form__name"
             placeholder="Exercise name *"
             value={form.name}
@@ -535,6 +610,9 @@ export default function ExerciseInstanceForm({ dayId }) {
           </p>
         )}
       </div>
+      <datalist id="zk-exercise-library">
+        {library.map(l => <option key={l.id} value={l.name} />)}
+      </datalist>
     </div>
   );
 }
