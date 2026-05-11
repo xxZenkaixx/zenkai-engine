@@ -12,6 +12,7 @@ import {
 } from '../api/exerciseInstanceApi';
 import { formatCableTarget } from '../utils/cableUtils';
 import { API_BASE, getAuthHeaders } from '../api/base';
+import { compressVideo } from '../utils/videoCompressor';
 
 
 async function uploadVideoToCloudinary(file, authHeaders) {
@@ -142,6 +143,10 @@ export default function ExerciseInstanceForm({ dayId }) {
   const [editLibrarySearch, setEditLibrarySearch] = useState('');
   const [uploadingAddVideo, setUploadingAddVideo] = useState(false);
   const [uploadingEditVideo, setUploadingEditVideo] = useState(false);
+  const [videoStatus, setVideoStatus] = useState('');
+  const [videoController, setVideoController] = useState(null);
+  const [videoFileName, setVideoFileName]     = useState('');
+  const [videoSizeInfo, setVideoSizeInfo]     = useState(null);
 
   useEffect(() => { if (!dayId) return; loadExercises(); }, [dayId]);
 
@@ -159,28 +164,67 @@ export default function ExerciseInstanceForm({ dayId }) {
     } catch (err) { setError(err.message); }
   };
 
-  const handleAddVideoUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    e.target.value = '';
-    setUploadingAddVideo(true);
+  const doVideoUpload = async (file, setField, setBusy) => {
+    const ctrl = new AbortController();
+    setVideoController(ctrl);
+    setBusy(true);
+    setVideoStatus('');
+    const originalMB = (file.size / 1048576).toFixed(1);
+    setVideoSizeInfo({ originalMB });
     try {
-      const url = await uploadVideoToCloudinary(file, getAuthHeaders());
-      sf('video_url', url);
-    } catch (err) { setError(err.message); }
-    finally { setUploadingAddVideo(false); }
+      let fileToUpload = file;
+      try {
+        const result = await compressVideo(file, {
+          signal: ctrl.signal,
+          onPhase: (p) =>
+            setVideoStatus(p === 'loading' ? 'Preparing compressor…' : 'Compressing video…'),
+          onProgress: (n) => setVideoStatus(`Compressing… ${Math.round(n * 100)}%`),
+        });
+        fileToUpload = result.compressedFile;
+        if (!result.skipped) {
+          const compressedMB = (result.compressedSize / 1048576).toFixed(1);
+          const savedMB = ((result.originalSize - result.compressedSize) / 1048576).toFixed(1);
+          setVideoSizeInfo({ originalMB, compressedMB, savedMB });
+        }
+      } catch (compErr) {
+        if (ctrl.signal.aborted) {
+          setVideoStatus('Compression canceled');
+          setVideoFileName('');
+          setVideoSizeInfo(null);
+          setVideoController(null);
+          setBusy(false);
+          return;
+        }
+        console.warn('Compression failed, uploading original:', compErr);
+        setVideoStatus('Compression failed — uploading original…');
+      }
+      setVideoController(null);
+      setVideoStatus('Uploading to Cloudinary…');
+      const url = await uploadVideoToCloudinary(fileToUpload, getAuthHeaders());
+      setField('video_url', url);
+    } catch (err) {
+      if (!ctrl.signal.aborted) setError(err.message);
+    } finally {
+      setVideoController(null);
+      setBusy(false);
+      if (!ctrl.signal.aborted) setVideoStatus('');
+    }
   };
 
-  const handleEditVideoUpload = async (e) => {
+  const handleAddFileSelect = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     e.target.value = '';
-    setUploadingEditVideo(true);
-    try {
-      const url = await uploadVideoToCloudinary(file, getAuthHeaders());
-      se('video_url', url);
-    } catch (err) { setError(err.message); }
-    finally { setUploadingEditVideo(false); }
+    setVideoFileName(file.name);
+    await doVideoUpload(file, sf, setUploadingAddVideo);
+  };
+
+  const handleEditFileSelect = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    e.target.value = '';
+    setVideoFileName(file.name);
+    await doVideoUpload(file, se, setUploadingEditVideo);
   };
 
   const autofillFromLibrary = (lib, isEdit) => {
@@ -225,12 +269,14 @@ export default function ExerciseInstanceForm({ dayId }) {
     try {
       await createExerciseInstance({ ...buildPayload(form), program_day_id: dayId, order_index: resolveOrderIndex(form.order_index) });
       setForm(EMPTY_FORM); setFormErrors(EMPTY_ERRORS); setLibrarySearch('');
+      setVideoFileName(''); setVideoSizeInfo(null);
       await loadExercises();
     } catch (err) { setError(err.message); } finally { setLoading(false); }
   };
 
   const handleEditStart = (ex) => {
     setEditingId(ex.id); setEditErrors(EMPTY_ERRORS); setEditLibrarySearch('');
+    setVideoFileName(''); setVideoSizeInfo(null);
     setEditFields({
       name: ex.name, type: ex.type || 'accessory', equipment_type: ex.equipment_type || 'barbell',
       target_sets: ex.target_sets, target_reps: ex.target_reps, target_weight: ex.target_weight ?? '',
@@ -455,17 +501,58 @@ export default function ExerciseInstanceForm({ dayId }) {
                   </div>
                 )}
 
-                <div className="ex-edit-form__row">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 4 }}>
                   <input
                     className="prog-input"
-                    placeholder="Video URL (optional)"
+                    placeholder="Paste video URL (optional)"
                     value={editFields.video_url}
                     onChange={(e) => se('video_url', e.target.value)}
                   />
-                  <label className="prog-btn" style={{ color: uploadingEditVideo ? '#555' : '#c8ff00', borderColor: '#3a4a00', cursor: uploadingEditVideo ? 'default' : 'pointer', whiteSpace: 'nowrap' }}>
-                    {uploadingEditVideo ? 'Uploading…' : 'Upload'}
-                    <input type="file" accept="video/*" style={{ display: 'none' }} disabled={uploadingEditVideo} onChange={handleEditVideoUpload} />
-                  </label>
+                  {editFields.video_url && !uploadingEditVideo ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <span style={{ color: '#c8ff00', fontSize: 13 }}>
+                        {videoFileName ? '✓ Video uploaded' : '✓ Video linked'}
+                      </span>
+                      {videoFileName && videoSizeInfo?.compressedMB ? (
+                        <span style={{ color: '#666', fontSize: 12 }}>
+                          {videoSizeInfo.originalMB} MB → {videoSizeInfo.compressedMB} MB · saved {videoSizeInfo.savedMB} MB
+                        </span>
+                      ) : videoFileName ? (
+                        <span style={{ color: '#666', fontSize: 12 }}>{videoFileName}</span>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => { se('video_url', ''); setVideoFileName(''); setVideoSizeInfo(null); }}
+                        style={{ color: '#777', background: 'transparent', border: '1px solid #333', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', fontSize: 12 }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : uploadingEditVideo ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ color: '#c8ff00', fontSize: 13 }}>
+                        {videoStatus || 'Uploading…'}
+                        {videoSizeInfo?.originalMB && ` · ${videoSizeInfo.originalMB} MB`}
+                      </span>
+                      {videoController && (
+                        <button
+                          type="button"
+                          onClick={() => videoController.abort()}
+                          style={{ background: 'transparent', color: '#ff6666', border: '1px solid #ff4444', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontWeight: 700, fontSize: 12 }}
+                        >
+                          Cancel
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <label
+                      className="prog-btn"
+                      style={{ color: '#c8ff00', borderColor: '#3a4a00', cursor: 'pointer', whiteSpace: 'nowrap', alignSelf: 'flex-start' }}
+                    >
+                      Upload Video
+                      <input type="file" accept="video/*" style={{ display: 'none' }} onChange={handleEditFileSelect} />
+                    </label>
+                  )}
                 </div>
 
                 <div className="ex-edit-form__row">
@@ -674,17 +761,58 @@ export default function ExerciseInstanceForm({ dayId }) {
           </div>
         )}
 
-        <div className="ex-add-form__row">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 4 }}>
           <input
             className="prog-input"
-            placeholder="Video URL (optional)"
+            placeholder="Paste video URL (optional)"
             value={form.video_url}
             onChange={(e) => sf('video_url', e.target.value)}
           />
-          <label className="prog-btn" style={{ color: uploadingAddVideo ? '#555' : '#c8ff00', borderColor: '#3a4a00', cursor: uploadingAddVideo ? 'default' : 'pointer', whiteSpace: 'nowrap' }}>
-            {uploadingAddVideo ? 'Uploading…' : 'Upload'}
-            <input type="file" accept="video/*" style={{ display: 'none' }} disabled={uploadingAddVideo} onChange={handleAddVideoUpload} />
-          </label>
+          {form.video_url && !uploadingAddVideo ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span style={{ color: '#c8ff00', fontSize: 13 }}>
+                {videoFileName ? '✓ Video uploaded' : '✓ Video linked'}
+              </span>
+              {videoFileName && videoSizeInfo?.compressedMB ? (
+                <span style={{ color: '#666', fontSize: 12 }}>
+                  {videoSizeInfo.originalMB} MB → {videoSizeInfo.compressedMB} MB · saved {videoSizeInfo.savedMB} MB
+                </span>
+              ) : videoFileName ? (
+                <span style={{ color: '#666', fontSize: 12 }}>{videoFileName}</span>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => { sf('video_url', ''); setVideoFileName(''); setVideoSizeInfo(null); }}
+                style={{ color: '#777', background: 'transparent', border: '1px solid #333', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', fontSize: 12 }}
+              >
+                Remove
+              </button>
+            </div>
+          ) : uploadingAddVideo ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ color: '#c8ff00', fontSize: 13 }}>
+                {videoStatus || 'Uploading…'}
+                {videoSizeInfo?.originalMB && ` · ${videoSizeInfo.originalMB} MB`}
+              </span>
+              {videoController && (
+                <button
+                  type="button"
+                  onClick={() => videoController.abort()}
+                  style={{ background: 'transparent', color: '#ff6666', border: '1px solid #ff4444', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontWeight: 700, fontSize: 12 }}
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
+          ) : (
+            <label
+              className="prog-btn"
+              style={{ color: '#c8ff00', borderColor: '#3a4a00', cursor: 'pointer', whiteSpace: 'nowrap', alignSelf: 'flex-start' }}
+            >
+              Upload Video
+              <input type="file" accept="video/*" style={{ display: 'none' }} onChange={handleAddFileSelect} />
+            </label>
+          )}
         </div>
 
         <div className="ex-add-form__row">

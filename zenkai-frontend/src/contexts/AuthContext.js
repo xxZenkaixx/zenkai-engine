@@ -20,6 +20,7 @@ export function AuthProvider({ children }) {
     setToken(null);
     localStorage.removeItem('zk_user');
     localStorage.removeItem('zk_token');
+    localStorage.setItem('showIntroOnNextLoad', '1');
   };
 
   return (

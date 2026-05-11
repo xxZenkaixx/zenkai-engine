@@ -5,7 +5,7 @@ export default function LandingPage({ onDone }) {
   const [exploding, setExploding] = useState(false);
 
   useEffect(() => {
-    const t = setTimeout(() => setExploding(true), 3800);
+    const t = setTimeout(() => setExploding(true), 2850);
     return () => clearTimeout(t);
   }, []);
 

@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import LandingPage from './components/LandingPage';
 import AdminDashboard from './components/AdminDashboard';
 import SelfServeDashboard from './components/SelfServeDashboard';
 import AdminLayout from './components/AdminLayout';
@@ -10,14 +11,21 @@ import LoginPage from './components/LoginPage';
 
 function AppShell() {
   const { user } = useAuth();
+  const [showLanding, setShowLanding] = useState(() => {
+    if (user) return false;
+    const afterLogout = !!localStorage.getItem('showIntroOnNextLoad');
+    if (afterLogout) localStorage.removeItem('showIntroOnNextLoad');
+    return !localStorage.getItem('hasSeenIntro') || afterLogout;
+  });
   const [view, setView] = useState('main');
   const [activeClientId, setActiveClientId] = useState(null);
   const [activeClientName, setActiveClientName] = useState(null);
   const [activeDayId, setActiveDayId] = useState(null);
   const [clientHomeTab, setClientHomeTab] = useState('dashboard');
 
-  const isAdminEntry = window.location.pathname === '/admin';
-  if (!user) return <LoginPage variant={isAdminEntry ? 'admin' : 'member'} />;
+  useEffect(() => {
+    if (user && showLanding) setShowLanding(false);
+  }, [user]);
 
   const handleStartWorkout = (clientId, dayId = null) => {
     setActiveClientId(clientId);
@@ -30,6 +38,25 @@ function AppShell() {
     setActiveClientName(clientName);
     setView('clientHome');
   };
+
+  // Skip landing for admin login route
+  const isAdminEntry = window.location.pathname === '/admin';
+  if (isAdminEntry) {
+    if (!user) return <LoginPage variant="admin" />;
+  }
+
+  if (showLanding) {
+    return (
+      <LandingPage
+        onDone={() => {
+          localStorage.setItem('hasSeenIntro', '1');
+          setShowLanding(false);
+        }}
+      />
+    );
+  }
+
+  if (!user) return <LoginPage variant="member" />;
 
   if (user.role === 'client') {
     return <ClientDashboard />;

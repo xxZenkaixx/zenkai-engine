@@ -14,7 +14,7 @@
   letter-spacing: 0.14em;
   color: #c8ff00;
   margin: 0;
-  animation: breathe 1.9s ease-in-out infinite;
+  animation: breathe 1.43s ease-in-out infinite;
 }
 
 @keyframes breathe {
@@ -37,7 +37,7 @@
   font-size: clamp(32px, 7vw, 68px);
   color: #c8ff00;
   margin: 0;
-  animation: kanji-harden 3.8s ease-out forwards;
+  animation: kanji-harden 2.85s ease-out forwards;
 }
 
 @keyframes kanji-harden {
