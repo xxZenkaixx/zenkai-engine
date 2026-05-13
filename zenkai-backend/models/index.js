@@ -44,6 +44,19 @@ ClientProgram.belongsTo(Client, { foreignKey: 'client_id' });
 Program.hasMany(ClientProgram, { foreignKey: 'program_id' });
 ClientProgram.belongsTo(Program, { foreignKey: 'program_id' });
 
+Program.belongsToMany(Client, {
+  through: ClientProgram,
+  foreignKey: 'program_id',
+  otherKey: 'client_id',
+  as: 'AssignedClients',
+});
+Client.belongsToMany(Program, {
+  through: ClientProgram,
+  foreignKey: 'client_id',
+  otherKey: 'program_id',
+  as: 'AssignedPrograms',
+});
+
 Program.hasMany(ProgramDay, { foreignKey: 'program_id' });
 ProgramDay.belongsTo(Program, { foreignKey: 'program_id' });
 

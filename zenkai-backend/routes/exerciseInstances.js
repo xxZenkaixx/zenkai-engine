@@ -141,7 +141,7 @@ router.post('/', protect, requireRole('admin', 'self-serve'), async (req, res) =
     // * Optional save-to-library — only on free-text path (no exercise_id link).
     if ((saveToLibrary === true || saveToLibrary === 'true') && !payload.exercise_id) {
       try {
-        await Exercise.upsert({
+        const [libRow] = await Exercise.upsert({
           name:                payload.name,
           type:                payload.type,
           equipment_type:      payload.equipment_type,
@@ -152,6 +152,9 @@ router.post('/', protect, requireRole('admin', 'self-serve'), async (req, res) =
           default_target_reps: payload.target_reps ?? null,
           created_by:          req.user?.id,
         });
+        if (libRow?.id) {
+          await exercise.update({ exercise_id: libRow.id });
+        }
       } catch (libErr) {
         console.error('Save-to-library upsert failed:', libErr.message);
       }
@@ -182,7 +185,7 @@ router.put('/:id', protect, requireRole('admin', 'self-serve'), async (req, res)
     // * Optional save-to-library on edit — same guard as POST
     if ((saveToLibrary === true || saveToLibrary === 'true') && !merged.exercise_id) {
       try {
-        await Exercise.upsert({
+        const [libRow] = await Exercise.upsert({
           name:                merged.name,
           type:                merged.type,
           equipment_type:      merged.equipment_type,
@@ -192,9 +195,10 @@ router.put('/:id', protect, requireRole('admin', 'self-serve'), async (req, res)
           default_target_sets: merged.target_sets ?? null,
           default_target_reps: merged.target_reps ?? null,
           created_by:          req.user?.id,
-        }, {
-          returning: false,
         });
+        if (libRow?.id) {
+          await exercise.update({ exercise_id: libRow.id });
+        }
       } catch (libErr) {
         console.error('Save-to-library upsert failed (edit):', libErr.message);
       }

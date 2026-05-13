@@ -4,21 +4,32 @@ import { API_BASE, getAuthHeaders } from '../api/base';
 const EQUIPMENT_OPTIONS = ['barbell', 'dumbbell', 'machine', 'cable', 'bodyweight'];
 const TYPE_OPTIONS      = ['compound', 'accessory', 'custom'];
 
+const btnDelete = {
+  background: 'transparent',
+  border: '1px solid #ff4444',
+  color: '#ff6666',
+  borderRadius: 6,
+  padding: '4px 10px',
+  fontSize: 12,
+  cursor: 'pointer',
+};
+
 export default function AdminExerciseLibrary() {
-  const [exercises, setExercises] = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [error, setError]         = useState('');
-  const [activeVideo, setActiveVideo] = useState(null);
+  const [exercises, setExercises]         = useState([]);
+  const [loading, setLoading]             = useState(true);
+  const [error, setError]                 = useState('');
+  const [activeVideo, setActiveVideo]     = useState(null);
+  const [deleteTarget, setDeleteTarget]   = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [successMsg, setSuccessMsg]       = useState('');
 
   const [search, setSearch]               = useState('');
   const [equipmentType, setEquipmentType] = useState('');
   const [type, setType]                   = useState('');
   const [bodyPart, setBodyPart]           = useState('');
 
-  useEffect(() => {
-    let cancelled = false;
+  const fetchExercises = (signal) => {
     setLoading(true);
-
     const params = new URLSearchParams();
     if (search)        params.set('search',         search);
     if (equipmentType) params.set('equipment_type', equipmentType);
@@ -27,19 +38,45 @@ export default function AdminExerciseLibrary() {
 
     fetch(`${API_BASE}/api/admin/exercises?${params.toString()}`, {
       headers: getAuthHeaders(),
+      signal,
     })
       .then(r => r.json())
       .then(data => {
-        if (cancelled) return;
         if (!Array.isArray(data)) throw new Error(data.error || 'Failed to load');
         setExercises(data);
         setError('');
       })
-      .catch(err => !cancelled && setError(err.message))
-      .finally(() => !cancelled && setLoading(false));
+      .catch(err => { if (err.name !== 'AbortError') setError(err.message); })
+      .finally(() => setLoading(false));
+  };
 
-    return () => { cancelled = true; };
+  useEffect(() => {
+    const ctrl = new AbortController();
+    fetchExercises(ctrl.signal);
+    return () => ctrl.abort();
   }, [search, equipmentType, type, bodyPart]);
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/exercises/${deleteTarget.id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Delete failed');
+      setDeleteTarget(null);
+      setSuccessMsg(`"${deleteTarget.name}" deleted.`);
+      setTimeout(() => setSuccessMsg(''), 4000);
+      fetchExercises();
+    } catch (err) {
+      setError(err.message);
+      setDeleteTarget(null);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
 
   const bodyPartOptions = useMemo(
     () => [...new Set(exercises.map(e => e.body_part).filter(Boolean))].sort(),
@@ -58,6 +95,10 @@ export default function AdminExerciseLibrary() {
   return (
     <div style={{ padding: 24, color: '#e0e0e0' }}>
       <h2 style={{ color: '#c8ff00', marginBottom: 16 }}>Exercise Library</h2>
+
+      {successMsg && (
+        <p style={{ color: '#c8ff00', marginBottom: 12, fontSize: 13 }}>{successMsg}</p>
+      )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
         <input
@@ -125,15 +166,68 @@ export default function AdminExerciseLibrary() {
                 <span style={{ color: '#333', fontSize: 11 }}>No video</span>
               )}
             </div>
-            <div style={{ padding: '12px 14px' }}>
+            <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
               <p style={{ margin: 0, fontWeight: 700, fontSize: 14, color: '#e0e0e0' }}>{ex.name}</p>
-              <p style={{ margin: '4px 0 0', fontSize: 11, color: '#777' }}>
+              <p style={{ margin: 0, fontSize: 11, color: '#777' }}>
                 {ex.equipment_type} · {ex.type}{ex.body_part ? ` · ${ex.body_part}` : ''}
               </p>
+              <button style={btnDelete} onClick={() => setDeleteTarget(ex)}>Delete</button>
             </div>
           </div>
         ))}
       </div>
+
+      {deleteTarget && (
+        <div onClick={() => !deleteLoading && setDeleteTarget(null)} style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 300, padding: 20,
+        }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background: '#0f0f0f', border: '1px solid #333',
+            borderRadius: 12, padding: 28, maxWidth: 420, width: '100%',
+          }}>
+            <h3 style={{ margin: '0 0 12px', color: '#ff6666' }}>Delete Exercise</h3>
+            <p style={{ margin: '0 0 8px', color: '#e0e0e0', fontSize: 14 }}>
+              Are you sure you want to permanently delete <strong>{deleteTarget.name}</strong>?
+            </p>
+            {Number(deleteTarget.program_count) > 0 ? (
+              <p style={{ margin: '0 0 16px', color: '#ffaa44', fontSize: 13 }}>
+                This exercise is currently used in{' '}
+                <strong>
+                  {deleteTarget.program_count} active client program
+                  {deleteTarget.program_count !== 1 ? 's' : ''}
+                </strong>.
+                Existing assignments keep a snapshot (name, sets, reps, video) — only the library link will be cleared.
+              </p>
+            ) : (
+              <p style={{ margin: '0 0 16px', color: '#666', fontSize: 13 }}>
+                Not currently assigned to any active client programs.
+              </p>
+            )}
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleteLoading}
+                style={{
+                  background: 'transparent', border: '1px solid #444',
+                  color: '#aaa', borderRadius: 6, padding: '7px 16px',
+                  fontSize: 13, cursor: 'pointer',
+                }}
+              >Cancel</button>
+              <button
+                onClick={handleDelete}
+                disabled={deleteLoading}
+                style={{
+                  background: 'transparent', border: '1px solid #ff4444',
+                  color: '#ff6666', borderRadius: 6, padding: '7px 16px',
+                  fontSize: 13, cursor: deleteLoading ? 'not-allowed' : 'pointer',
+                }}
+              >{deleteLoading ? 'Deleting…' : 'Delete'}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {activeVideo && (
         <div onClick={() => setActiveVideo(null)} style={{
