@@ -4,7 +4,9 @@ import { API_BASE, getAuthHeaders } from './base';
 const BASE_URL = `${API_BASE}/api/exercise-instances`;
 
 export const fetchExerciseInstances = async (dayId) => {
-  const res = await fetch(`${BASE_URL}/day/${dayId}`);
+  const res = await fetch(`${BASE_URL}/day/${dayId}`, {
+    headers: getAuthHeaders()
+  });
   if (!res.ok) throw new Error('Failed to fetch exercises');
   return res.json();
 };
