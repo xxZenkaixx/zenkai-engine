@@ -1,5 +1,5 @@
 'use strict';
-const { Program, ProgramDay, ExerciseInstance } = require('../models');
+const { Program, ProgramDay, ExerciseInstance, Client } = require('../models');
 
 // Returns the Program instance if req.user may access it, else null.
 // Admins always pass through (single-operator app — see feedback_admin_bypass_ownership).
@@ -16,10 +16,12 @@ async function getOwnedProgram(req, programId, mode = 'write') {
   if (role === 'admin') return program;
 
   if (role === 'self-serve') {
+    // Templates are read-only for self-serve; own programs are fully writable
+    if (mode === 'read' && program.is_template) return program;
     return program.user_id === uid ? program : null;
   }
   if (role === 'client' && mode === 'read') {
-    return coach_id && program.user_id === coach_id ? program : null;
+    return program.is_template || (coach_id && program.user_id === coach_id) ? program : null;
   }
   return null;
 }
@@ -42,4 +44,21 @@ async function getOwnedProgramViaInstance(req, instanceId, mode = 'write') {
   return chain ? { ...chain, instance: inst } : null;
 }
 
-module.exports = { getOwnedProgram, getOwnedProgramViaDay, getOwnedProgramViaInstance };
+// Returns the Client instance if req.user may access it, else null.
+// Admins bypass all ownership checks.
+// self-serve / client role: client.user_id must match req.user.id.
+async function getOwnedClient(req, clientId) {
+  if (!clientId) return null;
+  const client = await Client.findByPk(clientId);
+  if (!client) return null;
+
+  const { role, id: uid } = req.user;
+
+  if (role === 'admin') return client;
+  if (role === 'self-serve' || role === 'client') {
+    return client.user_id === uid ? client : null;
+  }
+  return null;
+}
+
+module.exports = { getOwnedProgram, getOwnedProgramViaDay, getOwnedProgramViaInstance, getOwnedClient };

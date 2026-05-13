@@ -24,6 +24,11 @@ module.exports = (sequelize) => {
     user_id: {
       type: DataTypes.UUID,
       allowNull: true
+    },
+    is_template: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false
     }
   }, {
     tableName: 'programs',

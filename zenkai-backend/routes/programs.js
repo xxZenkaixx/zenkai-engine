@@ -18,7 +18,7 @@ router.get('/', protect, async (req, res) => {
       where = {
         [Op.or]: [
           { user_id: userId },
-          { user_id: null }
+          { is_template: true }
         ]
       };
     }

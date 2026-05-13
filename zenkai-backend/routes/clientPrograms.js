@@ -1,19 +1,13 @@
 'use strict';
 const express = require('express');
 const router = express.Router();
-const { ClientProgram, Program, ProgramDay, ExerciseInstance, Client, ClientExerciseTarget, ProgressionRule } = require('../models');
+const { ClientProgram, Program, ProgramDay, ExerciseInstance, ClientExerciseTarget, ProgressionRule } = require('../models');
 const protect = require('../middleware/protect');
-
-const ownsClient = async (req, clientId) => {
-  const client = await Client.findByPk(clientId);
-  if (!client) return false;
-  if (req.user.role === 'client' || req.user.role === 'self-serve') return client.user_id === req.user.id;
-  return client.coach_id === req.user.id;
-};
+const { getOwnedClient } = require('../middleware/ownership');
 
 router.get('/:clientId', protect, async (req, res) => {
   try {
-    if (!await ownsClient(req, req.params.clientId)) {
+    if (!await getOwnedClient(req, req.params.clientId)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
     const clientProgram = await ClientProgram.findOne({
@@ -120,7 +114,7 @@ router.delete('/:clientId', protect, async (req, res) => {
       return res.status(403).json({ error: 'Admin only' });
     }
 
-    if (!await ownsClient(req, req.params.clientId)) {
+    if (!await getOwnedClient(req, req.params.clientId)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
@@ -143,28 +137,35 @@ router.post('/', protect, async (req, res) => {
 
     const { client_id, program_id, start_date } = req.body;
 
-    if (!await ownsClient(req, client_id)) {
+    if (!await getOwnedClient(req, client_id)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
     const existing = await ClientProgram.findOne({ where: { client_id, program_id } });
     if (existing && existing.active) return res.status(200).json(existing);
 
-    await ClientProgram.update({ active: false }, { where: { client_id, active: true } });
+    try {
+      await ClientProgram.update({ active: false }, { where: { client_id, active: true } });
 
-    if (existing) {
-      await existing.update({ active: true, start_date });
-      return res.status(200).json(existing);
+      if (existing) {
+        await existing.update({ active: true, start_date });
+        return res.status(200).json(existing);
+      }
+
+      const assignment = await ClientProgram.create({
+        client_id,
+        program_id,
+        start_date,
+        active: true
+      });
+
+      res.status(201).json(assignment);
+    } catch (err) {
+      if (err.name === 'SequelizeUniqueConstraintError') {
+        return res.status(409).json({ error: 'Another program was just activated for this client. Refresh and try again.' });
+      }
+      throw err;
     }
-
-    const assignment = await ClientProgram.create({
-      client_id,
-      program_id,
-      start_date,
-      active: true
-    });
-
-    res.status(201).json(assignment);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -179,17 +180,23 @@ router.patch('/:id/activate', protect, async (req, res) => {
     const target = await ClientProgram.findByPk(req.params.id);
     if (!target) return res.status(404).json({ error: 'Assignment not found' });
 
-    if (!await ownsClient(req, target.client_id)) {
+    if (!await getOwnedClient(req, target.client_id)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    await ClientProgram.update(
-      { active: false },
-      { where: { client_id: target.client_id, active: true } }
-    );
-
-    await target.update({ active: true });
-    res.json(target);
+    try {
+      await ClientProgram.update(
+        { active: false },
+        { where: { client_id: target.client_id, active: true } }
+      );
+      await target.update({ active: true });
+      res.json(target);
+    } catch (err) {
+      if (err.name === 'SequelizeUniqueConstraintError') {
+        return res.status(409).json({ error: 'Another program was just activated for this client. Refresh and try again.' });
+      }
+      throw err;
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -197,7 +204,7 @@ router.patch('/:id/activate', protect, async (req, res) => {
 
 router.get('/:clientId/history', protect, async (req, res) => {
   try {
-    if (!await ownsClient(req, req.params.clientId)) {
+    if (!await getOwnedClient(req, req.params.clientId)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
     const assignments = await ClientProgram.findAll({

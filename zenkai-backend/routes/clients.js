@@ -4,6 +4,7 @@ const router = express.Router();
 const { Client } = require('../models');
 const protect = require('../middleware/protect');
 const requireRole = require('../middleware/requireRole');
+const { getOwnedClient } = require('../middleware/ownership');
 
 router.get('/me', protect, async (req, res) => {
   try {
@@ -54,8 +55,8 @@ router.patch('/:id/claim', protect, requireRole('admin'), async (req, res) => {
 
 router.get('/:id', protect, async (req, res) => {
   try {
-    const client = await Client.findByPk(req.params.id);
-    if (!client) return res.status(404).json({ error: 'Client not found' });
+    const client = await getOwnedClient(req, req.params.id);
+    if (!client) return res.status(403).json({ error: 'Forbidden' });
     res.json(client);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -78,8 +79,8 @@ router.post('/', protect, async (req, res) => {
 
 router.put('/:id', protect, requireRole('admin'), async (req, res) => {
   try {
-    const client = await Client.findByPk(req.params.id);
-    if (!client) return res.status(404).json({ error: 'Client not found' });
+    const client = await getOwnedClient(req, req.params.id);
+    if (!client) return res.status(403).json({ error: 'Forbidden' });
     await client.update(req.body);
     res.json(client);
   } catch (err) {
@@ -89,9 +90,8 @@ router.put('/:id', protect, requireRole('admin'), async (req, res) => {
 
 router.delete('/:id', protect, requireRole('admin'), async (req, res) => {
   try {
-    const client = await Client.findByPk(req.params.id);
-    if (!client) return res.status(404).json({ error: 'Client not found' });
-
+    const client = await getOwnedClient(req, req.params.id);
+    if (!client) return res.status(403).json({ error: 'Forbidden' });
     await client.destroy();
     res.json({ message: 'Client deleted' });
   } catch (err) {
