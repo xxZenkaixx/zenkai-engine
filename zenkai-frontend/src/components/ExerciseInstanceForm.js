@@ -125,7 +125,7 @@ function buildPayload(fields) {
     backoff_enabled: isBodyweight ? false : fields.backoff_enabled,
     backoff_percent: (!isBodyweight && fields.backoff_enabled) ? parseInt(fields.backoff_percent) : null,
     exercise_id: fields.exercise_id || null,
-    saveToLibrary: !fields.exercise_id && fields.save_to_library === true,
+    saveToLibrary: fields.save_to_library === true,
   };
 }
 
