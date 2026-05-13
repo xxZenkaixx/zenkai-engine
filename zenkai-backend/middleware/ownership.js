@@ -2,8 +2,9 @@
 const { Program, ProgramDay, ExerciseInstance } = require('../models');
 
 // Returns the Program instance if req.user may access it, else null.
-// mode 'write' — only the owner (admin/self-serve) may proceed.
-// mode 'read'  — owner may read; clients may read their coach's programs.
+// Admins always pass through (single-operator app — see feedback_admin_bypass_ownership).
+// mode 'write' — self-serve must own.
+// mode 'read'  — self-serve must own; clients may read their coach's programs.
 async function getOwnedProgram(req, programId, mode = 'write') {
   if (!programId) return null;
   const program = await Program.findByPk(programId);
@@ -11,7 +12,10 @@ async function getOwnedProgram(req, programId, mode = 'write') {
 
   const { role, id: uid, coach_id } = req.user;
 
-  if (role === 'admin' || role === 'self-serve') {
+  // Admins bypass all ownership checks
+  if (role === 'admin') return program;
+
+  if (role === 'self-serve') {
     return program.user_id === uid ? program : null;
   }
   if (role === 'client' && mode === 'read') {
