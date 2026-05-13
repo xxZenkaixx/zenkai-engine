@@ -173,8 +173,8 @@ export default function ExerciseInstanceForm({ dayId }) {
     setVideoUploadWarning('');
     const originalMB = (file.size / 1048576).toFixed(1);
     setVideoSizeInfo({ originalMB });
+    let fileToUpload = file;
     try {
-      let fileToUpload = file;
       try {
         const result = await compressVideo(file, {
           signal: ctrl.signal,
@@ -206,12 +206,14 @@ export default function ExerciseInstanceForm({ dayId }) {
       setField('video_url', url);
     } catch (err) {
       if (!ctrl.signal.aborted) {
-        setVideoUploadWarning('Video upload failed. Exercise saved without video. You can edit it later to add a video.');
+        setVideoUploadWarning('Video upload failed. Exercise saved without video. You can add it later.');
       }
     } finally {
       setVideoController(null);
       setBusy(false);
       if (!ctrl.signal.aborted) setVideoStatus('');
+      // Drop the in-memory file reference — important for batch uploads
+      fileToUpload = null;
     }
   };
 

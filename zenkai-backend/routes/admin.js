@@ -10,7 +10,7 @@ const { Exercise, sequelize } = require('../models');
 
 router.use(protect);
 
-router.get('/videos/sign-upload', requireRole('admin'), (req, res) => {
+router.get('/videos/sign-upload', requireRole('admin', 'self-serve'), (req, res) => {
   try {
     const timestamp = Math.round(Date.now() / 1000);
     const folder    = 'zenkai/exercises';

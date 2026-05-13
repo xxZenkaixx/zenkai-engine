@@ -34,7 +34,7 @@ const DEFAULT_MAX_HEIGHT = 1080;       // px; never upscales
 const DEFAULT_QUALITY    = QUALITY_HIGH;
 const DEFAULT_AUDIO_BR   = 128_000;    // 128 kbps AAC
 
-const SKIP_BELOW_BYTES   = 12  * 1024 * 1024;   // <12MB: not worth it
+const SKIP_BELOW_BYTES   = 20  * 1024 * 1024;   // <20MB: not worth it
 const SKIP_ABOVE_BYTES   = 1024 * 1024 * 1024;  // >1GB: hard ceiling
 const MOBILE_SKIP_BYTES  = 600 * 1024 * 1024;   // mobile: 600MB cap
 // --------------------------------------------------------------------
@@ -147,42 +147,58 @@ export async function compressVideo(file, options = {}) {
 
   onPhase('compressing');
 
+  let compressedFile = null;
+  let skipped = false;
+  let reason;
+
   try {
-    await conversion.execute();
-  } catch (err) {
-    if (canceled) throw new Error('Compression canceled');
-    throw err;
+    try {
+      await conversion.execute();
+    } catch (err) {
+      if (canceled) throw new Error('Compression canceled');
+      throw err;
+    } finally {
+      if (signal) signal.removeEventListener('abort', onAbort);
+    }
+
+    const buf = output.target.buffer;
+    if (!buf) throw new Error('Conversion produced no output');
+
+    const blob = new Blob([buf], { type: 'video/mp4' });
+    const baseName = file.name.replace(/\.[^.]+$/, '');
+    compressedFile = new File([blob], `${baseName}.mp4`, { type: 'video/mp4' });
+
+    // Blob copied the buffer — drop our reference so the encoded ArrayBuffer can be GC'd
+    try { output.target.buffer = null; } catch {}
+
+    onPhase('done');
+
+    // If output isn't meaningfully smaller (e.g. source already optimized),
+    // return the original so we don't upload a same-size re-encode.
+    if (compressedFile.size >= file.size * 0.98) {
+      compressedFile = file;
+      skipped = true;
+      reason = 'no-savings';
+    }
   } finally {
-    if (signal) signal.removeEventListener('abort', onAbort);
+    // Always release mediabunny resources (encoder workers, decoded frames, etc.)
+    try { conversion?.cancel?.(); } catch {}
   }
 
-  const buf = output.target.buffer;
-  if (!buf) throw new Error('Conversion produced no output');
-
-  const blob = new Blob([buf], { type: 'video/mp4' });
-  const baseName = file.name.replace(/\.[^.]+$/, '');
-  const compressedFile = new File([blob], `${baseName}.mp4`, { type: 'video/mp4' });
-
-  onPhase('done');
-
-  // If output isn't meaningfully smaller (e.g. source already optimized),
-  // return the original so we don't upload a same-size re-encode.
-  if (compressedFile.size >= file.size * 0.98) {
-    return {
-      compressedFile: file,
-      skipped: true,
-      reason: 'no-savings',
-      originalSize: file.size,
-      compressedSize: file.size,
-    };
-  }
-
-  return {
-    compressedFile,
-    skipped: false,
-    originalSize: file.size,
-    compressedSize: compressedFile.size,
-  };
+  return skipped
+    ? {
+        compressedFile,
+        skipped: true,
+        reason,
+        originalSize: file.size,
+        compressedSize: file.size,
+      }
+    : {
+        compressedFile,
+        skipped: false,
+        originalSize: file.size,
+        compressedSize: compressedFile.size,
+      };
 }
 
 function passthrough(file, reason) {
