@@ -7,9 +7,10 @@ import ProgramList from './ProgramList';
 import ProgramBuilder from './ProgramBuilder';
 import ClientWorkoutView from './ClientWorkoutView';
 import ClientWorkoutHistoryList from './ClientWorkoutHistoryList';
+import AdminExerciseLibrary from './AdminExerciseLibrary';
 import './SelfServeDashboard.css';
 
-const TABS = ['Programs', 'Workouts', 'History', 'Log Book'];
+const TABS = ['Programs', 'Workouts', 'History', 'Library', 'Log Book'];
 
 export default function SelfServeDashboard() {
   const { logout } = useAuth();
@@ -155,6 +156,10 @@ export default function SelfServeDashboard() {
                   <p className="ssd-placeholder__sub">Loading history...</p>
                 </div>
               )
+            )}
+
+            {tab === 'Library' && (
+              <AdminExerciseLibrary />
             )}
 
             {tab === 'Log Book' && (

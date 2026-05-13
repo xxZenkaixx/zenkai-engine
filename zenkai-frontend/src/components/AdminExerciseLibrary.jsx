@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { API_BASE, getAuthHeaders } from '../api/base';
+import { useAuth } from '../contexts/AuthContext';
 
 const EQUIPMENT_OPTIONS = ['barbell', 'dumbbell', 'machine', 'cable', 'bodyweight'];
 const TYPE_OPTIONS      = ['compound', 'accessory', 'custom'];
@@ -22,6 +23,9 @@ export default function AdminExerciseLibrary() {
   const [deleteTarget, setDeleteTarget]   = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [successMsg, setSuccessMsg]       = useState('');
+
+  const { user } = useAuth();
+  const canDelete = (ex) => user?.role === 'admin' || ex.created_by === user?.id;
 
   const [search, setSearch]               = useState('');
   const [equipmentType, setEquipmentType] = useState('');
@@ -171,7 +175,9 @@ export default function AdminExerciseLibrary() {
               <p style={{ margin: 0, fontSize: 11, color: '#777' }}>
                 {ex.equipment_type} · {ex.type}{ex.body_part ? ` · ${ex.body_part}` : ''}
               </p>
-              <button style={btnDelete} onClick={() => setDeleteTarget(ex)}>Delete</button>
+              {canDelete(ex) && (
+                <button style={btnDelete} onClick={() => setDeleteTarget(ex)}>Delete</button>
+              )}
             </div>
           </div>
         ))}

@@ -9,9 +9,8 @@ const cloudinary  = require('../services/cloudinary');
 const { Exercise, sequelize } = require('../models');
 
 router.use(protect);
-router.use(requireRole('admin'));
 
-router.get('/videos/sign-upload', (req, res) => {
+router.get('/videos/sign-upload', requireRole('admin'), (req, res) => {
   try {
     const timestamp = Math.round(Date.now() / 1000);
     const folder    = 'zenkai/exercises';
@@ -34,7 +33,7 @@ router.get('/videos/sign-upload', (req, res) => {
   }
 });
 
-router.get('/exercises', async (req, res) => {
+router.get('/exercises', requireRole('admin', 'self-serve'), async (req, res) => {
   try {
     const { search, equipment_type, type, body_part } = req.query;
 
@@ -72,10 +71,13 @@ router.get('/exercises', async (req, res) => {
   }
 });
 
-router.delete('/exercises/:id', async (req, res) => {
+router.delete('/exercises/:id', requireRole('admin', 'self-serve'), async (req, res) => {
   try {
     const ex = await Exercise.findByPk(req.params.id);
     if (!ex) return res.status(404).json({ error: 'Exercise not found' });
+    if (req.user.role === 'self-serve' && ex.created_by !== req.user.id) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
     await ex.destroy();
     res.json({ deleted: true });
   } catch (err) {

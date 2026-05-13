@@ -34,7 +34,7 @@ const DEFAULT_MAX_HEIGHT = 1080;       // px; never upscales
 const DEFAULT_QUALITY    = QUALITY_HIGH;
 const DEFAULT_AUDIO_BR   = 128_000;    // 128 kbps AAC
 
-const SKIP_BELOW_BYTES   = 8   * 1024 * 1024;   // <8MB: not worth it
+const SKIP_BELOW_BYTES   = 12  * 1024 * 1024;   // <12MB: not worth it
 const SKIP_ABOVE_BYTES   = 1024 * 1024 * 1024;  // >1GB: hard ceiling
 const MOBILE_SKIP_BYTES  = 600 * 1024 * 1024;   // mobile: 600MB cap
 // --------------------------------------------------------------------

@@ -206,7 +206,7 @@ export default function ExerciseInstanceForm({ dayId }) {
       setField('video_url', url);
     } catch (err) {
       if (!ctrl.signal.aborted) {
-        setVideoUploadWarning('Video upload failed. Exercise saved without video. You can edit and add video later.');
+        setVideoUploadWarning('Video upload failed. Exercise saved without video. You can edit it later to add a video.');
       }
     } finally {
       setVideoController(null);
@@ -526,7 +526,7 @@ export default function ExerciseInstanceForm({ dayId }) {
                       ) : null}
                       <button
                         type="button"
-                        onClick={() => { se('video_url', ''); setVideoFileName(''); setVideoSizeInfo(null); }}
+                        onClick={() => { se('video_url', ''); setVideoFileName(''); setVideoSizeInfo(null); setVideoUploadWarning(''); }}
                         style={{ color: '#777', background: 'transparent', border: '1px solid #333', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', fontSize: 12 }}
                       >
                         Remove
@@ -558,7 +558,7 @@ export default function ExerciseInstanceForm({ dayId }) {
                     </label>
                   )}
                 </div>
-                {videoUploadWarning && (
+                {videoUploadWarning && !editFields.video_url && (
                   <p style={{ color: '#ffaa44', fontSize: 13, margin: '4px 0' }}>{videoUploadWarning}</p>
                 )}
 
@@ -789,7 +789,7 @@ export default function ExerciseInstanceForm({ dayId }) {
               ) : null}
               <button
                 type="button"
-                onClick={() => { sf('video_url', ''); setVideoFileName(''); setVideoSizeInfo(null); }}
+                onClick={() => { sf('video_url', ''); setVideoFileName(''); setVideoSizeInfo(null); setVideoUploadWarning(''); }}
                 style={{ color: '#777', background: 'transparent', border: '1px solid #333', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', fontSize: 12 }}
               >
                 Remove
@@ -821,7 +821,7 @@ export default function ExerciseInstanceForm({ dayId }) {
             </label>
           )}
         </div>
-        {videoUploadWarning && (
+        {videoUploadWarning && !form.video_url && (
           <p style={{ color: '#ffaa44', fontSize: 13, margin: '4px 0' }}>{videoUploadWarning}</p>
         )}
 

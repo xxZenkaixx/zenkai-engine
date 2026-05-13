@@ -91,7 +91,10 @@ export default function AdminVideoUpload() {
       setVideoUrl(json.secure_url);
       setStatus('Upload complete.');
     } catch (err) {
-      setStatus(`Error: ${err.message}`);
+      const hint = err.message?.includes('cloud_name')
+        ? ' — verify CLOUDINARY_CLOUD_NAME in backend .env'
+        : '';
+      setStatus(`Error: ${err.message}${hint}`);
     } finally {
       setLoading(false);
     }
