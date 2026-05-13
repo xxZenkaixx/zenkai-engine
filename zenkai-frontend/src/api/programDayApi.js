@@ -4,7 +4,9 @@ import { API_BASE, getAuthHeaders } from './base';
 const BASE_URL = `${API_BASE}/api/program-days`;
 
 export const fetchProgramDays = async (programId) => {
-  const res = await fetch(`${BASE_URL}/program/${programId}`);
+  const res = await fetch(`${BASE_URL}/program/${programId}`, {
+    headers: getAuthHeaders()
+  });
   if (!res.ok) throw new Error('Failed to fetch days');
   return res.json();
 };
