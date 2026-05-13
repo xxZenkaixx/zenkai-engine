@@ -14,7 +14,6 @@ import ProgramBuilder from './ProgramBuilder';
 import ClientProgramAssignment from './ClientProgramAssignment';
 import AdminVideoUpload from './AdminVideoUpload';
 import AdminExerciseLibrary from './AdminExerciseLibrary';
-import { API_BASE, getAuthHeaders } from '../api/base';
 
 export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
   const { user } = useAuth();
@@ -50,29 +49,6 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [unassignedClients, setUnassignedClients] = useState([]);
-
-  const [seedLoading, setSeedLoading] = useState(false);
-  const [seedResult, setSeedResult]   = useState(null);
-
-  const handleSeedCustom = async () => {
-    setSeedLoading(true);
-    setSeedResult(null);
-    try {
-      const res = await fetch(`${API_BASE}/api/admin/exercises/seed-custom`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Seed failed');
-      setSeedResult(data.count);
-      setTimeout(() => setSeedResult(null), 5000);
-    } catch (err) {
-      console.error(err);
-      setSeedResult(-1);
-    } finally {
-      setSeedLoading(false);
-    }
-  };
 
   useEffect(() => {
     if (builderRestoreAttempted.current) return;
@@ -337,40 +313,6 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
               >
                 Clients →
               </button>
-            </div>
-          </div>
-
-          <div style={{ marginTop: 28 }}>
-            <p style={{ color: '#aaa', fontSize: '12px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', margin: '0 0 10px' }}>
-              Library Tools
-            </p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <button
-                onClick={handleSeedCustom}
-                disabled={seedLoading}
-                style={{
-                  background: 'transparent',
-                  border: '1px solid #3a4a00',
-                  color: seedLoading ? '#555' : '#c8ff00',
-                  borderRadius: 8,
-                  padding: '8px 16px',
-                  fontSize: 13,
-                  cursor: seedLoading ? 'not-allowed' : 'pointer',
-                }}
-              >
-                {seedLoading ? 'Seeding…' : 'Seed My Custom Exercises'}
-              </button>
-              {seedResult === 0 && (
-                <span style={{ color: '#666', fontSize: 13 }}>All exercises already linked.</span>
-              )}
-              {seedResult > 0 && (
-                <span style={{ color: '#c8ff00', fontSize: 13 }}>
-                  {seedResult} exercise{seedResult !== 1 ? 's' : ''} seeded.
-                </span>
-              )}
-              {seedResult === -1 && (
-                <span style={{ color: '#ff6666', fontSize: 13 }}>Seed failed — check console.</span>
-              )}
             </div>
           </div>
 
