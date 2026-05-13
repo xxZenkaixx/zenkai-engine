@@ -147,6 +147,7 @@ export default function ExerciseInstanceForm({ dayId }) {
   const [videoController, setVideoController] = useState(null);
   const [videoFileName, setVideoFileName]     = useState('');
   const [videoSizeInfo, setVideoSizeInfo]     = useState(null);
+  const [videoUploadWarning, setVideoUploadWarning] = useState('');
 
   useEffect(() => { if (!dayId) return; loadExercises(); }, [dayId]);
 
@@ -169,6 +170,7 @@ export default function ExerciseInstanceForm({ dayId }) {
     setVideoController(ctrl);
     setBusy(true);
     setVideoStatus('');
+    setVideoUploadWarning('');
     const originalMB = (file.size / 1048576).toFixed(1);
     setVideoSizeInfo({ originalMB });
     try {
@@ -203,7 +205,9 @@ export default function ExerciseInstanceForm({ dayId }) {
       const url = await uploadVideoToCloudinary(fileToUpload, getAuthHeaders());
       setField('video_url', url);
     } catch (err) {
-      if (!ctrl.signal.aborted) setError(err.message);
+      if (!ctrl.signal.aborted) {
+        setVideoUploadWarning('Video upload failed. Exercise saved without video. You can edit and add video later.');
+      }
     } finally {
       setVideoController(null);
       setBusy(false);
@@ -554,6 +558,9 @@ export default function ExerciseInstanceForm({ dayId }) {
                     </label>
                   )}
                 </div>
+                {videoUploadWarning && (
+                  <p style={{ color: '#ffaa44', fontSize: 13, margin: '4px 0' }}>{videoUploadWarning}</p>
+                )}
 
                 <div className="ex-edit-form__row">
                   <input className="prog-input ex-edit-form__notes" placeholder="Notes (optional)" value={editFields.notes} onChange={(e) => se('notes', e.target.value)} />
@@ -814,6 +821,9 @@ export default function ExerciseInstanceForm({ dayId }) {
             </label>
           )}
         </div>
+        {videoUploadWarning && (
+          <p style={{ color: '#ffaa44', fontSize: 13, margin: '4px 0' }}>{videoUploadWarning}</p>
+        )}
 
         <div className="ex-add-form__row">
           <input className="prog-input ex-add-form__notes" placeholder="Notes (optional)" value={form.notes} onChange={(e) => sf('notes', e.target.value)} />

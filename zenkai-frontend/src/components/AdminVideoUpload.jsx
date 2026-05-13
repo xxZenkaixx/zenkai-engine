@@ -58,15 +58,22 @@ export default function AdminVideoUpload() {
     setController(null);
 
     // 2. Sign + upload (using compressed file)
+    let sigData;
     try {
       const token = localStorage.getItem('zk_token');
-
       const sigRes = await fetch(`${API_BASE}/api/admin/videos/sign-upload`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      if (!sigRes.ok) throw new Error('Failed to get upload signature');
-      const { signature, timestamp, folder, api_key, cloud_name } = await sigRes.json();
+      if (!sigRes.ok) throw new Error('Could not get upload signature — check backend config');
+      sigData = await sigRes.json();
+    } catch (sigErr) {
+      setStatus(`Error: ${sigErr.message}`);
+      setLoading(false);
+      return;
+    }
 
+    try {
+      const { signature, timestamp, folder, api_key, cloud_name } = sigData;
       const formData = new FormData();
       formData.append('file', fileToUpload);
       formData.append('api_key', api_key);
@@ -78,7 +85,6 @@ export default function AdminVideoUpload() {
         `https://api.cloudinary.com/v1_1/${cloud_name}/video/upload`,
         { method: 'POST', body: formData }
       );
-
       const json = await uploadRes.json();
       if (!uploadRes.ok) throw new Error(json.error?.message || 'Upload failed');
 
