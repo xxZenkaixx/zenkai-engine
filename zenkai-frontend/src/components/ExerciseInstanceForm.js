@@ -575,7 +575,7 @@ export default function ExerciseInstanceForm({ dayId }) {
                   </p>
                 )}
 
-                {!editFields.exercise_id && (
+                {editFields.exercise_id && (
                   <div className="ex-edit-form__row">
                     <label style={{ color: '#888', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
                       <input

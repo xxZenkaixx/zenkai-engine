@@ -189,25 +189,40 @@ router.put('/:id', protect, requireRole('admin', 'self-serve'), async (req, res)
 
     await exercise.update(rest);
 
-    // * Optional save-to-library on edit — same guard as POST
-    if ((saveToLibrary === true || saveToLibrary === 'true') && !merged.exercise_id) {
+    if (saveToLibrary === true || saveToLibrary === 'true') {
       try {
-        const [libRow] = await Exercise.upsert({
-          name:                merged.name,
-          type:                merged.type,
-          equipment_type:      merged.equipment_type,
-          body_part:           merged.body_part ?? null,
-          video_url:           merged.video_url ?? null,
-          notes:               merged.notes ?? null,
-          default_target_sets: merged.target_sets ?? null,
-          default_target_reps: merged.target_reps ?? null,
-          created_by:          req.user?.id,
-        });
-        if (libRow?.id) {
-          await exercise.update({ exercise_id: libRow.id });
+        if (merged.exercise_id) {
+          // Update existing library entry by ID
+          const lib = await Exercise.findByPk(merged.exercise_id);
+          if (lib) {
+            await lib.update({
+              name:                merged.name,
+              type:                merged.type,
+              equipment_type:      merged.equipment_type,
+              body_part:           merged.body_part ?? null,
+              video_url:           merged.video_url ?? null,
+              notes:               merged.notes ?? null,
+              default_target_sets: merged.target_sets ?? null,
+              default_target_reps: merged.target_reps ?? null,
+            });
+          }
+        } else {
+          // No library link yet — upsert by name and link
+          const [libRow] = await Exercise.upsert({
+            name:                merged.name,
+            type:                merged.type,
+            equipment_type:      merged.equipment_type,
+            body_part:           merged.body_part ?? null,
+            video_url:           merged.video_url ?? null,
+            notes:               merged.notes ?? null,
+            default_target_sets: merged.target_sets ?? null,
+            default_target_reps: merged.target_reps ?? null,
+            created_by:          req.user?.id,
+          });
+          if (libRow?.id) await exercise.update({ exercise_id: libRow.id });
         }
       } catch (libErr) {
-        console.error('Save-to-library upsert failed (edit):', libErr.message);
+        console.error('Save-to-library update failed (edit):', libErr.message);
       }
     }
 
