@@ -9,6 +9,7 @@ const router = express.Router();
 const { ExerciseInstance, Exercise } = require('../models');
 const protect = require('../middleware/protect');
 const requireRole = require('../middleware/requireRole');
+const { getOwnedProgramViaDay, getOwnedProgramViaInstance } = require('../middleware/ownership');
 
 const VALID_TYPES = ['compound', 'accessory', 'custom', 'bodyweight'];
 const VALID_EQUIPMENT_TYPES = ['barbell', 'dumbbell', 'machine', 'cable', 'bodyweight'];
@@ -91,8 +92,10 @@ function validateExercisePayload(body, isUpdate = false) {
 }
 
 // * GET exercises for a specific day
-router.get('/day/:dayId', async (req, res) => {
+router.get('/day/:dayId', protect, async (req, res) => {
   try {
+    const chain = await getOwnedProgramViaDay(req, req.params.dayId, 'read');
+    if (!chain) return res.status(403).json({ error: 'Forbidden' });
     const exercises = await ExerciseInstance.findAll({
       where: { program_day_id: req.params.dayId },
       order: [['order_index', 'ASC']]
@@ -106,6 +109,9 @@ router.get('/day/:dayId', async (req, res) => {
 // * CREATE exercise
 router.post('/', protect, requireRole('admin', 'self-serve'), async (req, res) => {
   try {
+    const chain = await getOwnedProgramViaDay(req, req.body.program_day_id, 'write');
+    if (!chain) return res.status(403).json({ error: 'Forbidden' });
+
     const { saveToLibrary, ...rest } = req.body;
     let payload = { ...rest };
 
@@ -169,9 +175,10 @@ router.post('/', protect, requireRole('admin', 'self-serve'), async (req, res) =
 // * UPDATE exercise
 router.put('/:id', protect, requireRole('admin', 'self-serve'), async (req, res) => {
   try {
+    const chain = await getOwnedProgramViaInstance(req, req.params.id, 'write');
+    if (!chain) return res.status(403).json({ error: 'Forbidden' });
     const { saveToLibrary, ...rest } = req.body;
-    const exercise = await ExerciseInstance.findByPk(req.params.id);
-    if (!exercise) return res.status(404).json({ error: 'Exercise not found' });
+    const exercise = chain.instance;
 
     // * Merge existing values with incoming body for validation context
     const merged = { ...exercise.toJSON(), ...rest };
@@ -213,9 +220,9 @@ router.put('/:id', protect, requireRole('admin', 'self-serve'), async (req, res)
 // * DELETE exercise
 router.delete('/:id', protect, requireRole('admin', 'self-serve'), async (req, res) => {
   try {
-    const exercise = await ExerciseInstance.findByPk(req.params.id);
-    if (!exercise) return res.status(404).json({ error: 'Exercise not found' });
-    await exercise.destroy();
+    const chain = await getOwnedProgramViaInstance(req, req.params.id, 'write');
+    if (!chain) return res.status(403).json({ error: 'Forbidden' });
+    await chain.instance.destroy();
     res.json({ message: 'Deleted' });
   } catch (err) {
     res.status(500).json({ error: err.message });

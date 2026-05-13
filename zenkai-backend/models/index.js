@@ -30,8 +30,8 @@ const Exercise = require('./exercise')(sequelize);
 
 /* Associations */
 
-User.hasMany(Program, { foreignKey: 'user_id' });
-Program.belongsTo(User, { foreignKey: 'user_id' });
+User.hasMany(Program, { foreignKey: 'user_id', as: 'OwnedPrograms' });
+Program.belongsTo(User, { foreignKey: 'user_id', as: 'Owner' });
 
 User.hasMany(Client, { foreignKey: 'coach_id', as: 'Clients' });
 Client.belongsTo(User, { foreignKey: 'coach_id', as: 'Coach' });

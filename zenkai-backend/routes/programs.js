@@ -5,6 +5,7 @@ const { Op } = require('sequelize');
 const { Program, ProgramDay, ExerciseInstance } = require('../models');
 const protect = require('../middleware/protect');
 const requireRole = require('../middleware/requireRole');
+const { getOwnedProgram } = require('../middleware/ownership');
 
 router.get('/', protect, async (req, res) => {
   try {
@@ -29,8 +30,10 @@ router.get('/', protect, async (req, res) => {
   }
 });
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', protect, async (req, res) => {
   try {
+    const owned = await getOwnedProgram(req, req.params.id, 'read');
+    if (!owned) return res.status(403).json({ error: 'Forbidden' });
     const program = await Program.findByPk(req.params.id, {
       include: {
         model: ProgramDay,
@@ -40,7 +43,6 @@ router.get('/:id', async (req, res) => {
         }
       }
     });
-    if (!program) return res.status(404).json({ error: 'Program not found' });
     res.json(program);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -60,8 +62,8 @@ router.post('/', protect, requireRole('admin', 'self-serve'), async (req, res) =
 
 router.put('/:id', protect, requireRole('admin', 'self-serve'), async (req, res) => {
   try {
-    const program = await Program.findByPk(req.params.id);
-    if (!program) return res.status(404).json({ error: 'Program not found' });
+    const program = await getOwnedProgram(req, req.params.id, 'write');
+    if (!program) return res.status(403).json({ error: 'Forbidden' });
 
     await program.update(req.body);
     res.json(program);
@@ -72,8 +74,8 @@ router.put('/:id', protect, requireRole('admin', 'self-serve'), async (req, res)
 
 router.delete('/:id', protect, requireRole('admin', 'self-serve'), async (req, res) => {
   try {
-    const program = await Program.findByPk(req.params.id);
-    if (!program) return res.status(404).json({ error: 'Program not found' });
+    const program = await getOwnedProgram(req, req.params.id, 'write');
+    if (!program) return res.status(403).json({ error: 'Forbidden' });
     await program.destroy();
     res.json({ message: 'Program deleted' });
   } catch (err) {

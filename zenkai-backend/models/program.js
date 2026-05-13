@@ -20,6 +20,10 @@ module.exports = (sequelize) => {
       type: DataTypes.ARRAY(DataTypes.INTEGER),
       allowNull: true,
       defaultValue: []
+    },
+    user_id: {
+      type: DataTypes.UUID,
+      allowNull: true
     }
   }, {
     tableName: 'programs',

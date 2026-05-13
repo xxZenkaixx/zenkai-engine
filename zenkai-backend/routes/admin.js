@@ -9,7 +9,7 @@ const cloudinary  = require('../services/cloudinary');
 const { Exercise, sequelize } = require('../models');
 
 router.use(protect);
-router.use(requireRole('admin', 'trainer'));
+router.use(requireRole('admin'));
 
 router.get('/videos/sign-upload', (req, res) => {
   try {
@@ -50,10 +50,9 @@ router.get('/exercises', async (req, res) => {
     });
 
     const counts = await sequelize.query(
-      `SELECT ei.exercise_id, COUNT(DISTINCT cp.program_id)::int AS program_count
+      `SELECT ei.exercise_id, COUNT(DISTINCT pd.program_id)::int AS program_count
        FROM exercise_instances ei
        JOIN program_days pd ON pd.id = ei.program_day_id
-       JOIN client_programs cp ON cp.program_id = pd.program_id
        WHERE ei.exercise_id IS NOT NULL
        GROUP BY ei.exercise_id`,
       { type: QueryTypes.SELECT }

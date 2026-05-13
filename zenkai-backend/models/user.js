@@ -18,9 +18,9 @@ module.exports = (sequelize) => {
       allowNull: false
     },
     role: {
-      type: DataTypes.ENUM('admin', 'client', 'selfServe'),
+      type: DataTypes.ENUM('admin', 'client', 'self-serve'),
       allowNull: false,
-      defaultValue: 'admin'
+      defaultValue: 'self-serve'
     },
     coach_id: {
       type: DataTypes.UUID,
