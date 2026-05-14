@@ -33,7 +33,7 @@ router.get('/videos/sign-upload', requireRole('admin', 'self-serve'), (req, res)
   }
 });
 
-router.get('/exercises', requireRole('admin', 'self-serve'), async (req, res) => {
+router.get('/exercises', requireRole('admin', 'self-serve', 'client'), async (req, res) => {
   try {
     const { search, equipment_type, type, body_part } = req.query;
 
