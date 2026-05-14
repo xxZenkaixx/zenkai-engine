@@ -13,7 +13,7 @@ import ProgramList from './ProgramList';
 import ProgramBuilder from './ProgramBuilder';
 import ClientProgramAssignment from './ClientProgramAssignment';
 import AdminVideoUpload from './AdminVideoUpload';
-import AdminExerciseLibrary from './AdminExerciseLibrary';
+import ExerciseLibrary from './ExerciseLibrary';
 
 export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
   const { user } = useAuth();
@@ -462,7 +462,7 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
       )}
 
       {adminSection === 'exerciseLibrary' && (
-        <AdminExerciseLibrary />
+        <ExerciseLibrary />
       )}
 
     </AdminLayout>

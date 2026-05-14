@@ -7,7 +7,7 @@ import ProgramList from './ProgramList';
 import ProgramBuilder from './ProgramBuilder';
 import ClientWorkoutView from './ClientWorkoutView';
 import ClientWorkoutHistoryList from './ClientWorkoutHistoryList';
-import AdminExerciseLibrary from './AdminExerciseLibrary';
+import ExerciseLibrary from './ExerciseLibrary';
 import './SelfServeDashboard.css';
 
 const TABS = ['Programs', 'Workouts', 'History', 'Library', 'Log Book'];
@@ -159,7 +159,7 @@ export default function SelfServeDashboard() {
             )}
 
             {tab === 'Library' && (
-              <AdminExerciseLibrary />
+              <ExerciseLibrary />
             )}
 
             {tab === 'Log Book' && (

@@ -5,12 +5,14 @@ import { fetchActiveProgram } from '../api/clientProgramApi';
 import ClientHome from './ClientHome';
 import ClientWorkoutView from './ClientWorkoutView';
 import ClientWorkoutHistoryList from './ClientWorkoutHistoryList';
+import ExerciseLibrary from './ExerciseLibrary';
 import './ClientDashboard.css';
 
 const TABS = [
   { key: 'home',    label: 'Home' },
   { key: 'workout', label: 'Workout' },
   { key: 'history', label: 'History' },
+  { key: 'library', label: 'Library' },
   { key: 'more',    label: 'More' },
 ];
 
@@ -105,6 +107,10 @@ export default function ClientDashboard() {
 
         {tab === 'history' && (
           <ClientWorkoutHistoryList clientId={linkedClientId} />
+        )}
+
+        {tab === 'library' && (
+          <ExerciseLibrary />
         )}
 
         {tab === 'more' && (
