@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { fetchProgramDays } from '../api/programDayApi';
+import { fetchActiveProgram } from '../api/clientProgramApi';
 import { formatWeight as fmtW } from '../utils/weightUtils';
 import { formatCableTarget } from '../utils/cableUtils';
 import './WorkoutPreview.css';
@@ -32,7 +33,7 @@ function formatRepRange(exercise) {
   return '—';
 }
 
-export default function WorkoutPreview({ programId }) {
+export default function WorkoutPreview({ programId, clientId }) {
   const [days, setDays] = useState([]);
   const [selectedDayId, setSelectedDayId] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -51,7 +52,21 @@ export default function WorkoutPreview({ programId }) {
     setDays([]);
     setSelectedDayId(null);
 
-    fetchProgramDays(programId)
+    // FIX: next-instance prescription disconnect.
+    // /api/program-days/program/:programId returns raw template rows and never
+    // merges client_exercise_targets — so "View Program" was showing last
+    // week's numbers (e.g. 240 lb deadlift) even after applyProgression had
+    // written the new target. When we have a clientId (client-facing preview),
+    // route through /api/client-programs/:clientId, which already applies the
+    // target_weight / target_reps / cable_state overrides and matches the
+    // shape we render below (Program.ProgramDays[].ExerciseInstances[]).
+    // Admin program builder calls this component without a clientId and
+    // continues to see raw template values — that's the correct behavior there.
+    const fetchPromise = clientId
+      ? fetchActiveProgram(clientId).then((d) => d?.Program?.ProgramDays || [])
+      : fetchProgramDays(programId);
+
+    fetchPromise
       .then((data) => {
         setDays(Array.isArray(data) ? data : []);
       })
@@ -61,7 +76,7 @@ export default function WorkoutPreview({ programId }) {
       .finally(() => {
         setLoading(false);
       });
-  }, [programId]);
+  }, [programId, clientId]);
 
   const selectedDay = useMemo(
     () => days.find((day) => day.id === selectedDayId) || null,

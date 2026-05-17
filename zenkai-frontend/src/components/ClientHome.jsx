@@ -137,7 +137,10 @@ export default function ClientHome({ clientId, clientName, onStartWorkout, onBac
 
       {!embedded && showPreview && programId && (
         <div className="ch-preview-wrap">
-          <WorkoutPreview programId={programId} />
+          {/* FIX: pass clientId so WorkoutPreview pulls through the
+              client-program endpoint and sees progressed targets, not the
+              raw program template. */}
+          <WorkoutPreview programId={programId} clientId={clientId} />
         </div>
       )}
 
