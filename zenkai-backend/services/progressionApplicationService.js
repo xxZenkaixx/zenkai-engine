@@ -55,14 +55,39 @@ async function fetchLatestSetsForDay(clientId, programDayId) {
   const __dbgSessions = [...new Set(allSets.map((s) => s.session_id))];
   console.log(`[PROG-DBG] fetchLatestSetsForDay clientId=${clientId} programDayId=${programDayId} totalSets=${allSets.length} distinctSessionIds=${JSON.stringify(__dbgSessions)}`);
 
-  const latestWithSession = allSets.find((s) => s.session_id != null);
-  if (latestWithSession) {
-    return allSets.filter((s) => s.session_id === latestWithSession.session_id);
+  // FIX: pick the latest session PER EXERCISE INSTANCE, not globally for the
+  // day. The old code took the first non-null session_id from `allSets`
+  // (sorted DESC by completed_at) and filtered every set to that single
+  // session_id. If today's "redo" only re-logged some Upper C exercises,
+  // every exercise that wasn't in the redo got its session-1 logs discarded
+  // — instanceIds didn't include them, so they were never evaluated and
+  // never had a progression row written. Now each instance keeps the sets
+  // from ITS most-recent session, independently. The pre-session_id
+  // fallback (rows where session_id is null) still applies per-instance via
+  // the calendar-day check.
+  const latestPerInstance = new Map();
+  for (const s of allSets) {
+    const id = s.exercise_instance_id;
+    if (latestPerInstance.has(id)) continue;
+    // allSets is DESC by completed_at, so the first row we see for any
+    // instance is its most-recent. Stash the session_id (or fallback day).
+    latestPerInstance.set(id, {
+      sessionId: s.session_id ?? null,
+      fallbackDay: new Date(s.completed_at).toDateString()
+    });
   }
 
-  // Fallback for rows predating session_id
-  const latestDay = new Date(allSets[0].completed_at).toDateString();
-  return allSets.filter((s) => new Date(s.completed_at).toDateString() === latestDay);
+  return allSets.filter((s) => {
+    const latest = latestPerInstance.get(s.exercise_instance_id);
+    if (!latest) return false;
+    if (latest.sessionId != null) {
+      return s.session_id === latest.sessionId;
+    }
+    // Pre-session_id fallback: same exercise, same calendar day as the
+    // most-recent log we saw for this instance.
+    return s.session_id == null
+      && new Date(s.completed_at).toDateString() === latest.fallbackDay;
+  });
 }
 
 async function applyProgressionForWorkout(clientId, programDayId, options = {}) {
