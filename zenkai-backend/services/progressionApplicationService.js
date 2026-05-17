@@ -325,6 +325,39 @@ async function applyProgressionForWorkout(clientId, programDayId, options = {}) 
       }
     }
 
+    // FIX: ratchet next_weight up to whatever the user actually lifted this
+    // session. Worked example from the live site:
+    //   - Prescription: target_weight = 240, target_reps = "3-5"
+    //   - User edits set 1 to 270, logs 3 reps
+    //   - Eval: 3 reps lands at min of 3-5 → outcome = 'no_change'
+    //   - Before fix: no row written → target_weight stays at 240 forever,
+    //     even though the user just lifted 270 in range. Next session
+    //     prescription is wrong (240 instead of 270).
+    //   - With ratchet: next_weight is null on no_change, so we set it to
+    //     the lifted weight (270). mutateTargets upserts target_weight=270.
+    //
+    // Also covers the decrease scenario where calculateNextWeight returns a
+    // value BELOW the lifted weight (e.g. 270 × 2 reps in a 3-5 range:
+    // engine computes 270 × 0.95 = 256.5 → 257.5). Ratchet pulls that back
+    // up to 270 — the prescription must never regress below what the user
+    // actually performed.
+    //
+    // Backoff eval (set 1 only) is unchanged and correct — this is purely
+    // a write-side floor. Mirrors the same baseWeight selection
+    // calculateNextWeight already uses, so backoff picks the top set and
+    // non-backoff picks instanceSets[0].
+    const liftedWeight = parseFloat(
+      instance.backoff_enabled
+        ? (topSet?.completed_weight ?? instanceSets[0].completed_weight)
+        : instanceSets[0].completed_weight
+    );
+    if (
+      !isNaN(liftedWeight) && liftedWeight > 0 &&
+      (next_weight == null || parseFloat(next_weight) < liftedWeight)
+    ) {
+      next_weight = liftedWeight;
+    }
+
     await ExerciseProgression.destroy({
       where: { client_id: clientId, exercise_instance_id: instanceId }
     });
