@@ -7,6 +7,13 @@ const { getOwnedClient } = require('../middleware/ownership');
 
 router.get('/:clientId', protect, async (req, res) => {
   try {
+    // FIX: prevent browser / CDN / proxy heuristic caching of the active-program
+    // payload. Without this, Safari/iOS especially can return a Week-1 snapshot
+    // on Week-2's first fetch, making it look like progression never persisted.
+    // The endpoint is per-client and small — re-fetching every time is correct.
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.set('Pragma', 'no-cache');
+
     if (!await getOwnedClient(req, req.params.clientId)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
@@ -89,7 +96,11 @@ router.get('/:clientId', protect, async (req, res) => {
 
     for (const day of result.Program?.ProgramDays || []) {
       for (const ex of day.ExerciseInstances || []) {
-        if (repsOverrideMap[ex.id]) ex.target_reps = repsOverrideMap[ex.id];
+        // FIX: use `!= null` to match the weight + cable override checks below.
+        // Previous truthy check silently dropped any falsy-but-defined value
+        // (empty string, "0", etc.). Symmetric checks here remove a class of
+        // "override silently doesn't apply" bugs.
+        if (repsOverrideMap[ex.id] != null) ex.target_reps = repsOverrideMap[ex.id];
         if (weightOverrideMap[ex.id] != null) ex.target_weight = weightOverrideMap[ex.id];
 
         if (cableOverrideMap[ex.id] != null) {
@@ -110,6 +121,19 @@ router.get('/:clientId', protect, async (req, res) => {
           name: ex.name,
           group: ex.superset_group_id ?? null,
           order: ex.superset_order ?? null,
+        }))
+      )
+    );
+
+    // TEMP DEBUG: dump the exact next-session targets being shipped to the client so
+    // we can compare against [PROG]/[PROG-DBG] writes from the prior session.
+    console.log('[CP GET FINAL] next-session targets:',
+      (result.Program?.ProgramDays || []).flatMap(d =>
+        (d.ExerciseInstances || []).map(ex => ({
+          name: ex.name,
+          target_reps: ex.target_reps,
+          target_weight: ex.target_weight,
+          cable: ex.base_stack_weight ? { base: ex.base_stack_weight, micro: ex.current_micro_level } : null
         }))
       )
     );

@@ -30,7 +30,14 @@ export const fetchAssignmentHistory = async (clientId) => {
 };
 
 export const fetchActiveProgram = async (clientId) => {
-  const res = await fetch(`${BASE_URL}/${clientId}`, { headers: getAuthHeaders() });
+  // FIX: cache: 'no-store' guarantees this request never reads from / writes to
+  // the HTTP cache. Pairs with the Cache-Control: no-store header on the server.
+  // Targets must be fresh every fetch — a stale response makes the post-workout
+  // progression look like it never happened.
+  const res = await fetch(`${BASE_URL}/${clientId}`, {
+    headers: getAuthHeaders(),
+    cache: 'no-store'
+  });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error('Failed to fetch active program');
   const data = await res.json();

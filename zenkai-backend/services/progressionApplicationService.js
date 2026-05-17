@@ -49,6 +49,11 @@ async function fetchLatestSetsForDay(clientId, programDayId) {
 
   if (!allSets.length) return [];
 
+  // TEMP DEBUG: surface which sessions are present so we can spot stale/duplicate logs
+  // bleeding into "latest" selection. Remove once progression bug is fixed.
+  const __dbgSessions = [...new Set(allSets.map((s) => s.session_id))];
+  console.log(`[PROG-DBG] fetchLatestSetsForDay clientId=${clientId} programDayId=${programDayId} totalSets=${allSets.length} distinctSessionIds=${JSON.stringify(__dbgSessions)}`);
+
   const latestWithSession = allSets.find((s) => s.session_id != null);
   if (latestWithSession) {
     return allSets.filter((s) => s.session_id === latestWithSession.session_id);
@@ -99,6 +104,17 @@ async function applyProgressionForWorkout(clientId, programDayId, options = {}) 
   }, {});
 
   console.log(`[PROG] applyProgressionForWorkout clientId=${clientId} programDayId=${programDayId} instanceCount=${instanceIds.length} setCount=${sets.length} validSetCount=${validSets.length}`);
+
+  // TEMP DEBUG: for every instance about to be evaluated, dump what target row exists
+  // in client_exercise_targets vs what's on the template. If client target is missing
+  // or stale, the eval will silently fall back to the template — likely cause of
+  // "this week looks like last week". Remove once bug is found.
+  for (const __dbgId of instanceIds) {
+    const __dbgI = instanceMap[__dbgId];
+    const __dbgCt = clientTargetMap[__dbgId];
+    if (!__dbgI) continue;
+    console.log(`[PROG-DBG] target-source instance=${__dbgId} name="${__dbgI.name}" clientTarget=${__dbgCt ? JSON.stringify({ target_weight: __dbgCt.target_weight, target_reps: __dbgCt.target_reps, cable_state: __dbgCt.cable_state }) : 'NONE'} template=${JSON.stringify({ target_weight: __dbgI.target_weight, target_reps: __dbgI.target_reps })}`);
+  }
 
   const results = [];
 
@@ -214,6 +230,10 @@ async function applyProgressionForWorkout(clientId, programDayId, options = {}) 
       const floor = step;
       const currentTargetReps = clientTargetMap[instanceId]?.target_reps ?? instance.target_reps;
       const { min, max } = parseRepRange(currentTargetReps);
+      // TEMP DEBUG: confirm we're evaluating against the client's current target_reps,
+      // not the template default. A missing client row here means the user keeps seeing
+      // the original target every week.
+      console.log(`[PROG-DBG]   ${instance.name} ${instance.type} target_reps source: client="${clientTargetMap[instanceId]?.target_reps ?? 'none'}" template="${instance.target_reps}" effective="${currentTargetReps}"`);
       const allHitTop = instanceSets.every((s) => s.completed_reps >= max);
       const anyBelowMin = instanceSets.some((s) => s.completed_reps < min);
 
@@ -265,6 +285,12 @@ async function applyProgressionForWorkout(clientId, programDayId, options = {}) 
       ? (topSet ? [topSet] : [instanceSets[0]])
       : instanceSets;
     const completedReps = evalSets.map((s) => s.completed_reps);
+
+    // TEMP DEBUG: standard branch reads rep-range from instance template only — log the
+    // effective target weight (client override or template) plus base set chosen for
+    // calculateNextWeight. Helps confirm what number we're stepping off of.
+    const __dbgEffTargetWeight = clientTargetMap[instanceId]?.target_weight ?? instance.target_weight;
+    console.log(`[PROG-DBG]   ${instance.name} std-eval effective_target_weight=${__dbgEffTargetWeight} (client=${clientTargetMap[instanceId]?.target_weight ?? 'none'}, template=${instance.target_weight}) topSet_num=${topSet?.set_number ?? 'none'} topSet_weight=${topSet?.completed_weight ?? 'none'} firstSet_weight=${instanceSets[0]?.completed_weight ?? 'none'}`);
 
     const all_hit_top = completedReps.every((r) => r >= max);
     const any_below_min = completedReps.some((r) => r < min);
@@ -331,6 +357,10 @@ async function applyProgressionForWorkout(clientId, programDayId, options = {}) 
   for (const gid of Object.keys(groupMembers)) {
     const memberIds = groupMembers[gid];
     const memberResults = memberIds.map(id => results.find(r => r.exercise_instance_id === id));
+    // TEMP DEBUG: dump per-member outcomes BEFORE the gate decides. If a back-off or
+    // superset partner is silently no_change/skipped/missing, that explains why the
+    // whole group stalls. Remove once bug is found.
+    console.log(`[PROG-DBG] group-gate gid=${gid} memberIds=${JSON.stringify(memberIds)} memberOutcomes=${JSON.stringify(memberResults.map((r) => (r ? { id: r.exercise_instance_id, outcome: r.outcome } : null)))}`);
     const allIncrease = memberResults.length === memberIds.length
       && memberResults.every(r => r && r.outcome === 'increase');
     if (allIncrease) continue;
@@ -355,6 +385,10 @@ async function applyProgressionForWorkout(clientId, programDayId, options = {}) 
       }
     }
   }
+
+  // TEMP DEBUG: final outcome roll-up so we can correlate written ExerciseProgression
+  // rows with what mutateTargetsFromProgressions will apply next.
+  console.log(`[PROG-DBG] applyProgressionForWorkout RESULTS: ${JSON.stringify(results.map((r) => ({ id: r.exercise_instance_id, outcome: r.outcome, next_weight: r.next_weight, next_target_reps: r.next_target_reps, next_cable_state: r.next_cable_state })))}`);
 
   return results;
 }

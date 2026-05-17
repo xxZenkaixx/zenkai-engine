@@ -36,6 +36,19 @@ router.post('/', async (req, res) => {
       if (existing) return res.json(existing);
     }
 
+    // FIX: secondary dedup by session slot. The client-generated `id` is unique
+    // per *click*, so two tabs / a component re-mount / an offline-queue replay
+    // against a restored session can each generate a distinct id for the same
+    // logical set — producing two rows with the same set_number+session_id. Pull
+    // day showed this pattern. Only enforce when session_id is present so legacy
+    // session-less rows are unaffected.
+    if (session_id && set_number != null) {
+      const slotDup = await LoggedSet.findOne({
+        where: { client_id, exercise_instance_id, session_id, set_number }
+      });
+      if (slotDup) return res.json(slotDup);
+    }
+
     const instance = await ExerciseInstance.findByPk(exercise_instance_id);
     if (!instance) {
       console.error('POST /loggedSets ERROR: instance not found', { exercise_instance_id });

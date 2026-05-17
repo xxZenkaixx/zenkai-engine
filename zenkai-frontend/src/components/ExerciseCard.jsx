@@ -96,6 +96,22 @@ export default function ExerciseCard({
       ? parseFloat(target_weight)
       : null;
 
+  // TEMP DEBUG: every render, dump what arrived as props vs what we computed
+  // for display. If prop_target_weight is the new value but effectiveWeight or
+  // displayReps still shows the old value, the bug is local to this component.
+  // If both show the old value, the bug is upstream (fetch/cache).
+  console.log('[EC-DBG]', name, {
+    prop_target_reps: target_reps,
+    prop_target_weight: target_weight,
+    prop_base_stack_weight: base_stack_weight,
+    prop_current_micro_level: current_micro_level,
+    sessionOverride,
+    effectiveWeight,
+    effectiveCableState: isCable ? effectiveCableState : null,
+    cableDisplayWeight,
+    displayReps: sessionOverride?.reps ?? target_reps
+  });
+
   const [sessionSets, setSessionSets] = useState(() => initialSets || []);
   const [completedReps, setCompletedReps] = useState('');
   const [completedWeight, setCompletedWeight] = useState('');
@@ -206,6 +222,17 @@ export default function ExerciseCard({
       displayWeight = getBackoffWeight(effectiveWeight, backoff_percent, equipment_type);
     }
 
+    // TEMP DEBUG: this is what gets put in the weight input field — the number
+    // the user actually logs against. Should match effectiveWeight (or its
+    // backoff derivative). If it's stale, this effect is reading old state.
+    console.log('[EC-DBG]   input-prefill', name, {
+      computed_displayWeight: displayWeight,
+      effectiveWeight,
+      backoff_enabled,
+      nextSetNumber,
+      isCable,
+      sessionOverride_weight: sessionOverride?.weight ?? null
+    });
     setCompletedWeight(displayWeight != null ? String(displayWeight) : '');
     setCableWeightEditing(false);
   }, [nextSetNumber, effectiveWeight, backoffBaseWeight, backoff_enabled, backoff_percent, equipment_type, isCable, stack_step_value, max_micro_levels, sessionOverride, effectiveCableState.base_stack_weight]);

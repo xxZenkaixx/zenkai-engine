@@ -205,6 +205,19 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
       setError(null);
 
       const data = await fetchActiveProgram(clientId);
+      // TEMP DEBUG: confirm the values that arrived from the API exactly match
+      // what [CP GET FINAL] reported. If they diverge, suspect a cache / SW /
+      // axios interceptor between server and view. Remove once bug is found.
+      console.log('[CWV-DBG] fetched active program — per-exercise targets:',
+        (data?.Program?.ProgramDays || []).flatMap(d =>
+          (d.ExerciseInstances || []).map(ex => ({
+            name: ex.name,
+            target_reps: ex.target_reps,
+            target_weight: ex.target_weight,
+            cable: ex.base_stack_weight ? { base: ex.base_stack_weight, micro: ex.current_micro_level } : null
+          }))
+        )
+      );
       setProgramData(data);
 
       const days = data?.Program?.ProgramDays || [];
