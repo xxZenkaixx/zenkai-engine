@@ -487,6 +487,12 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
       setWorkoutFinished(true);
       clearDraft(clientId, selectedDayId);
       setSessionId(null);
+      // FIX: re-fetch the active program so programData reflects the
+      // just-written client_exercise_targets. The server has already committed
+      // the upsert before returning 200; this call simply forces the new
+      // values into client state and primes the no-store fetch so any
+      // subsequent remount can't render a stale snapshot.
+      await load();
       if (onWorkoutFinished) onWorkoutFinished();
     } catch (err) {
       setFinishError(err.message);

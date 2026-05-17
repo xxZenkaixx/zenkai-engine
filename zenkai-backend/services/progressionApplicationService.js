@@ -10,7 +10,8 @@ const {
   ExerciseInstance,
   ExerciseProgression,
   ClientProgram,
-  ClientExerciseTarget
+  ClientExerciseTarget,
+  sequelize
 } = require('../models');
 const { calculateNextWeight } = require('./progressionService');
 const { Op } = require('sequelize');
@@ -457,43 +458,62 @@ async function mutateTargetsFromProgressions(clientId, programDayId, options = {
         continue;
       }
 
-      // * Write to client_exercise_targets — template untouched
-      const [record, created] = await ClientExerciseTarget.findOrCreate({
-        where: {
-          client_program_id: clientProgramId,
-          exercise_instance_id: prog.exercise_instance_id
-        },
-        defaults: { cable_state: { base_stack_weight, current_micro_level } }
+      // FIX: atomic single-statement upsert. Postgres ON CONFLICT DO UPDATE
+      // collapses what was findOrCreate + record.update into one SQL round-trip.
+      // - No window between SELECT and UPDATE — eliminates any race if the route
+      //   is ever invoked twice (double-click on Finish, retried request, etc.).
+      // - SET only touches cable_state — target_weight and target_reps on any
+      //   existing row are PRESERVED, so a cable progression never wipes a
+      //   previously-progressed weight target and vice versa.
+      // - Caller already validated numeric types above; JSON.stringify + ::json
+      //   cast is the safe way to feed a JSON literal through a parameter.
+      await sequelize.query(`
+        INSERT INTO client_exercise_targets
+          (id, client_program_id, exercise_instance_id, cable_state, created_at, updated_at)
+        VALUES (gen_random_uuid(), :cpId, :eiId, :cs::json, NOW(), NOW())
+        ON CONFLICT (client_program_id, exercise_instance_id)
+        DO UPDATE SET cable_state = EXCLUDED.cable_state, updated_at = NOW()
+      `, {
+        replacements: {
+          cpId: clientProgramId,
+          eiId: prog.exercise_instance_id,
+          cs: JSON.stringify({ base_stack_weight, current_micro_level })
+        }
       });
-      if (!created) {
-        await record.update({ cable_state: { base_stack_weight, current_micro_level } });
-      }
 
     } else if (prog.next_weight != null) {
-      // * Write to client_exercise_targets — template untouched
-      const [record, created] = await ClientExerciseTarget.findOrCreate({
-        where: {
-          client_program_id: clientProgramId,
-          exercise_instance_id: prog.exercise_instance_id
-        },
-        defaults: { target_weight: prog.next_weight }
+      // FIX: atomic upsert — see cable branch comment above. Preserves any
+      // existing cable_state / target_reps on the row.
+      await sequelize.query(`
+        INSERT INTO client_exercise_targets
+          (id, client_program_id, exercise_instance_id, target_weight, created_at, updated_at)
+        VALUES (gen_random_uuid(), :cpId, :eiId, :w, NOW(), NOW())
+        ON CONFLICT (client_program_id, exercise_instance_id)
+        DO UPDATE SET target_weight = EXCLUDED.target_weight, updated_at = NOW()
+      `, {
+        replacements: {
+          cpId: clientProgramId,
+          eiId: prog.exercise_instance_id,
+          w: prog.next_weight
+        }
       });
-      if (!created) {
-        await record.update({ target_weight: prog.next_weight });
-      }
 
     } else if (prog.next_target_reps != null) {
-      // * Write to client_exercise_targets — template untouched
-      const [record, created] = await ClientExerciseTarget.findOrCreate({
-        where: {
-          client_program_id: clientProgramId,
-          exercise_instance_id: prog.exercise_instance_id
-        },
-        defaults: { target_reps: prog.next_target_reps }
+      // FIX: atomic upsert — see cable branch comment above. Preserves any
+      // existing target_weight / cable_state on the row.
+      await sequelize.query(`
+        INSERT INTO client_exercise_targets
+          (id, client_program_id, exercise_instance_id, target_reps, created_at, updated_at)
+        VALUES (gen_random_uuid(), :cpId, :eiId, :tr, NOW(), NOW())
+        ON CONFLICT (client_program_id, exercise_instance_id)
+        DO UPDATE SET target_reps = EXCLUDED.target_reps, updated_at = NOW()
+      `, {
+        replacements: {
+          cpId: clientProgramId,
+          eiId: prog.exercise_instance_id,
+          tr: prog.next_target_reps
+        }
       });
-      if (!created) {
-        await record.update({ target_reps: prog.next_target_reps });
-      }
     }
 
     await prog.update({ applied_at: new Date() });
