@@ -74,8 +74,10 @@ async function applyProgressionForWorkout(clientId, programDayId, options = {}) 
   const grouped = groupByInstance(validSets);
 
   const instanceIds = Object.keys(grouped);
+  // Fetch ALL day instances (not just logged ones) so the superset gate can
+  // detect unlogged group members.
   const instances = await ExerciseInstance.findAll({
-    where: { id: { [Op.in]: instanceIds } }
+    where: { program_day_id: programDayId }
   });
 
   // * Load client-specific targets — cable state read path
@@ -203,7 +205,13 @@ async function applyProgressionForWorkout(clientId, programDayId, options = {}) 
       continue;
     }
 
-    if (instance.type === 'bodyweight') {
+    if (instance.type === 'bodyweight' || instance.type === 'isometric') {
+      // Isometric piggybacks on bodyweight rep-step logic; step is in seconds
+      // and sourced from progression_value (default 5).
+      const step  = instance.type === 'isometric'
+        ? (parseFloat(instance.progression_value) || 5)
+        : 1;
+      const floor = step;
       const currentTargetReps = clientTargetMap[instanceId]?.target_reps ?? instance.target_reps;
       const { min, max } = parseRepRange(currentTargetReps);
       const allHitTop = instanceSets.every((s) => s.completed_reps >= max);
@@ -214,17 +222,17 @@ async function applyProgressionForWorkout(clientId, programDayId, options = {}) 
 
       if (allHitTop) {
         const isRange = currentTargetReps.includes('-');
-        nextReps = isRange ? `${min + 1}-${max + 1}` : `${max + 1}`;
+        nextReps = isRange ? `${min + step}-${max + step}` : `${max + step}`;
         outcome = 'increase';
       } else if (anyBelowMin) {
-        const nextMin = Math.max(1, min - 1);
-        const nextMax = Math.max(1, max - 1);
+        const nextMin = Math.max(floor, min - step);
+        const nextMax = Math.max(floor, max - step);
         const isRange = currentTargetReps.includes('-');
         nextReps = isRange ? `${nextMin}-${nextMax}` : `${nextMax}`;
         outcome = 'decrease';
       }
 
-      console.log(`[PROG]   bodyweight reps=[${instanceSets.map(s => s.completed_reps).join(',')}] range=${min}-${max} allHitTop=${allHitTop} anyBelowMin=${anyBelowMin} outcome=${outcome} nextReps=${nextReps}`);
+      console.log(`[PROG]   ${instance.type} reps=[${instanceSets.map(s => s.completed_reps).join(',')}] range=${min}-${max} step=${step} allHitTop=${allHitTop} anyBelowMin=${anyBelowMin} outcome=${outcome} nextReps=${nextReps}`);
 
       if (outcome !== 'no_change') {
         await ExerciseProgression.destroy({
@@ -307,6 +315,45 @@ async function applyProgressionForWorkout(clientId, programDayId, options = {}) 
       next_weight: next_weight ?? undefined,
       next_cable_state: next_cable_state ?? undefined
     });
+  }
+
+  // SUPERSET GROUP GATE — "Both must hit" rule
+  // Progress the entire superset ONLY if EVERY member in the group hit
+  // the top of their target range this session.
+  // If any member fell short (or wasn't logged), block ALL increases for the group.
+  const groupMembers = {};
+  for (const i of instances) {
+    if (!i.superset_group_id) continue;
+    if (!groupMembers[i.superset_group_id]) groupMembers[i.superset_group_id] = [];
+    groupMembers[i.superset_group_id].push(i.id);
+  }
+
+  for (const gid of Object.keys(groupMembers)) {
+    const memberIds = groupMembers[gid];
+    const memberResults = memberIds.map(id => results.find(r => r.exercise_instance_id === id));
+    const allIncrease = memberResults.length === memberIds.length
+      && memberResults.every(r => r && r.outcome === 'increase');
+    if (allIncrease) continue;
+
+    if (memberIds.length === 0) continue;
+
+    console.log(`[PROG] GROUP GATE: group=${gid} members=${memberIds.length} not all-increase — coercing to no_change`);
+    await ExerciseProgression.destroy({
+      where: {
+        client_id: clientId,
+        exercise_instance_id: { [Op.in]: memberIds },
+        applied_at: null
+      }
+    });
+    for (const id of memberIds) {
+      const r = results.find(x => x.exercise_instance_id === id);
+      if (r) {
+        r.outcome = 'no_change_group_gate';
+        delete r.next_weight;
+        delete r.next_cable_state;
+        delete r.next_target_reps;
+      }
+    }
   }
 
   return results;

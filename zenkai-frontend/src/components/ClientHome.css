@@ -125,12 +125,22 @@
   color: #9ca3af;
 }
 
+/* dot / checkmark container */
 .ch-day-dot {
-  width: 5px;
-  height: 5px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
-  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
+.ch-day--done .ch-day-dot {
+  color: #c8ff00;
+  font-size: 10px;
+  font-weight: 700;
+}
+.ch-day--today.ch-day--done .ch-day-dot { color: #00b4ff; }
 
 /* done: completed workout this week */
 .ch-day--done {
@@ -139,20 +149,19 @@
 }
 .ch-day--done .ch-day-num { color: #ffffff; }
 .ch-day--done .ch-day-label { color: #888888; }
-.ch-day--done .ch-day-dot { background: #c8ff00; }
 
-/* today */
+/* today — SSB blue */
 .ch-day--today {
-  border-color: #c8ff00;
-  background: #161616;
+  border-color: #00b4ff;
+  background: #071a2e;
+  box-shadow: 0 0 10px rgba(0, 180, 255, 0.2);
 }
-.ch-day--today .ch-day-num { color: #c8ff00; }
-.ch-day--today .ch-day-dot { background: #c8ff00; }
+.ch-day--today .ch-day-num { color: #00b4ff; }
 
 /* today + done */
 .ch-day--today.ch-day--done {
-  background: #181f0e;
-  border-color: #c8ff00;
+  background: #071a2e;
+  border-color: #00b4ff;
 }
 
 /* ── CTA BUTTON ── */

@@ -11,7 +11,9 @@ const protect = require('../middleware/protect');
 const requireRole = require('../middleware/requireRole');
 const { getOwnedProgramViaDay, getOwnedProgramViaInstance } = require('../middleware/ownership');
 
-const VALID_TYPES = ['compound', 'accessory', 'custom', 'bodyweight'];
+// Isometric = hold-based work (planks, wall sits). target_reps stores SECONDS.
+// progression_value stores the per-progression step in SECONDS (e.g., +5s).
+const VALID_TYPES = ['compound', 'accessory', 'custom', 'bodyweight', 'isometric'];
 const VALID_EQUIPMENT_TYPES = ['barbell', 'dumbbell', 'machine', 'cable', 'bodyweight'];
 const VALID_PROGRESSION_MODES = ['percent', 'absolute'];
 const VALID_CABLE_UNITS = ['lb', 'kg'];
@@ -54,7 +56,10 @@ function validateExercisePayload(body, isUpdate = false) {
     if (body.progression_mode != null) {
       errors.push({ field: 'progression_mode', error: 'progression_mode is only allowed on custom exercises.' });
     }
-    if (body.progression_value != null) {
+    // Isometric is the one non-custom type that legitimately needs progression_value
+    // (stores the seconds-step for hold-time progression). progression_mode stays blocked
+    // above — only custom uses mode/value as a combo; isometric is implicitly "absolute seconds added".
+    if (body.progression_value != null && effectiveType !== 'isometric') {
       errors.push({ field: 'progression_value', error: 'progression_value is only allowed on custom exercises.' });
     }
   }

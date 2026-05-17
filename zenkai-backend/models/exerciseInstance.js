@@ -1,13 +1,22 @@
-// ExerciseInstance model.
-// * type field: compound | accessory | custom
-// * equipment_type field: barbell | dumbbell | machine | cable
-// * Cable setup fields are nullable for non-cable exercises.
-// * cable_setup_locked prevents client from re-editing after first save.
+// ExerciseInstance model - Core template for exercises inside ProgramDays
+//
+// type field: compound | accessory | custom | bodyweight | isometric
+//   - isometric: target_reps and completed_reps store SECONDS held
+//   - completed_reps repurposed under type-driven logic (see getRepUnit helper)
+//
+// equipment_type field: barbell | dumbbell | machine | cable | bodyweight
+//   - Cable setup fields are nullable for non-cable exercises.
+//   - cable_setup_locked prevents client from re-editing after first save.
+//
+// superset_group_id + superset_order:
+//   - null = standalone exercise
+//   - Shared group_id links exercises into one progression unit (A/B or more)
+//   - Progression applied to entire group only when EVERY member hits top of range
 'use strict';
 
 const { DataTypes } = require('sequelize');
 
-const VALID_TYPES = ['compound', 'accessory', 'custom', 'bodyweight'];
+const VALID_TYPES = ['compound', 'accessory', 'custom', 'bodyweight', 'isometric'];
 const VALID_EQUIPMENT_TYPES = ['barbell', 'dumbbell', 'machine', 'cable', 'bodyweight'];
 const VALID_CABLE_UNITS = ['lb', 'kg'];
 const VALID_PROGRESSION_MODES = ['percent', 'absolute'];
@@ -144,6 +153,15 @@ module.exports = (sequelize) => {
       },
       exercise_id: {
         type: DataTypes.UUID,
+        allowNull: true
+      },
+      // * Supersets — null for standalone exercises. Shared group_id links N members.
+      superset_group_id: {
+        type: DataTypes.UUID,
+        allowNull: true
+      },
+      superset_order: {
+        type: DataTypes.INTEGER,
         allowNull: true
       }
     },

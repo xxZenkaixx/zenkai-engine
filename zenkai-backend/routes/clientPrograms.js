@@ -32,7 +32,8 @@ router.get('/:clientId', protect, async (req, res) => {
                     'notes', 'base_stack_weight', 'stack_step_value',
                     'micro_step_value', 'max_micro_levels', 'current_micro_level',
                     'cable_unit', 'cable_setup_locked', 'backoff_enabled',
-                    'backoff_percent', 'micro_type', 'micro_display_label', 'video_url'
+                    'backoff_percent', 'micro_type', 'micro_display_label', 'video_url',
+                    'superset_group_id', 'superset_order'
                   ]
                 }
               ]
@@ -100,6 +101,18 @@ router.get('/:clientId', protect, async (req, res) => {
         if (increaseMap[ex.type] != null) ex.increase_percent = increaseMap[ex.type];
       }
     }
+
+    // Verify superset fields make it onto the response payload.
+    console.log('[CP GET] superset fields per exercise:',
+      (result.Program?.ProgramDays || []).flatMap(d =>
+        (d.ExerciseInstances || []).map(ex => ({
+          id: ex.id,
+          name: ex.name,
+          group: ex.superset_group_id ?? null,
+          order: ex.superset_order ?? null,
+        }))
+      )
+    );
 
     res.json(result);
   } catch (err) {

@@ -2,7 +2,7 @@
 // * Includes field-level validation and auto order_index assignment on create.
 // * order_index swap uses existing PUT route via swapExerciseOrder.
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   fetchExerciseInstances,
   createExerciseInstance,
@@ -56,7 +56,10 @@ const EMPTY_FORM = {
   backoff_percent: 10,
   exercise_id: '',
   save_to_library: false,
-  video_url: ''
+  video_url: '',
+  // Supersets — null = standalone. Populated by handleCreate when pairing.
+  superset_group_id: null,
+  superset_order: null
 };
 
 const EMPTY_ERRORS = {
@@ -84,6 +87,14 @@ function validateForm(fields) {
     if (!fields.progression_mode) { errors.progression_mode = 'Progression mode is required for custom exercises.'; valid = false; }
     if (fields.progression_value === '' || isNaN(Number(fields.progression_value))) { errors.progression_value = 'Progression value is required for custom exercises.'; valid = false; }
   }
+  // Isometric: progression_value stores hold-time step in seconds (e.g. +5s per progression).
+  // No mode field — always interpreted as absolute seconds added.
+  if (fields.type === 'isometric') {
+    if (fields.progression_value === '' || isNaN(Number(fields.progression_value))) {
+      errors.progression_value = 'Step (seconds) is required for isometric exercises.';
+      valid = false;
+    }
+  }
 
   return { errors, valid };
 }
@@ -102,18 +113,23 @@ function buildPayload(fields) {
   const isCable = fields.equipment_type === 'cable';
   const isCustom = fields.type === 'custom';
   const isBodyweight = fields.type === 'bodyweight';
+  // Isometric is treated like bodyweight for equipment/load/backoff, but uniquely
+  // uses progression_value to store the seconds-step (mode stays null).
+  const isIsometric = fields.type === 'isometric';
   return {
     name: fields.name,
     type: fields.type,
-    equipment_type: isBodyweight ? 'bodyweight' : fields.equipment_type,
+    // Isometric stored as bodyweight equipment so existing bodyweight UI paths just work.
+    equipment_type: (isBodyweight || isIsometric) ? 'bodyweight' : fields.equipment_type,
     video_url: fields.video_url?.trim() || null,
     target_sets: parseInt(fields.target_sets),
     target_reps: fields.target_reps,
-    target_weight: isBodyweight ? null : (fields.target_weight !== '' ? parseFloat(fields.target_weight) : null),
+    target_weight: (isBodyweight || isIsometric) ? null : (fields.target_weight !== '' ? parseFloat(fields.target_weight) : null),
     rest_seconds: parseInt(fields.rest_seconds),
     notes: fields.notes,
     progression_mode: isCustom ? fields.progression_mode : null,
-    progression_value: isCustom && fields.progression_value !== '' ? parseFloat(fields.progression_value) : null,
+    // Custom: numeric step interpreted via progression_mode. Isometric: seconds-step (mode null).
+    progression_value: (isCustom || isIsometric) && fields.progression_value !== '' ? parseFloat(fields.progression_value) : null,
     base_stack_weight: isCable && fields.base_stack_weight !== '' ? parseFloat(fields.base_stack_weight) : null,
     stack_step_value: isCable ? ([5, 10, 15, 20].includes(parseFloat(fields.stack_step_value)) ? parseFloat(fields.stack_step_value) : 10) : null,
     max_micro_levels: isCable ? (fields.micro_type === 'none' ? 0 : (fields.max_micro_levels !== '' ? parseInt(fields.max_micro_levels) : 0)) : null,
@@ -122,10 +138,15 @@ function buildPayload(fields) {
     micro_display_label: isCable && fields.micro_type !== 'none' && fields.micro_display_label !== '' ? fields.micro_display_label : null,
     cable_setup_locked: isCable ? cableSetupComplete(fields) : false,
     ...(isCable ? { current_micro_level: 0 } : {}),
-    backoff_enabled: isBodyweight ? false : fields.backoff_enabled,
-    backoff_percent: (!isBodyweight && fields.backoff_enabled) ? parseInt(fields.backoff_percent) : null,
+    // Backoff = % reduction off working weight; meaningless for holds or pure bodyweight.
+    backoff_enabled: (isBodyweight || isIsometric) ? false : fields.backoff_enabled,
+    backoff_percent: (!isBodyweight && !isIsometric && fields.backoff_enabled) ? parseInt(fields.backoff_percent) : null,
     exercise_id: fields.exercise_id || null,
     saveToLibrary: fields.save_to_library === true,
+    // Superset linkage — handleCreate sets these when pairing; edit passes them through
+    // (including null/null on Unpair) via buildPayload(editFields).
+    superset_group_id: fields.superset_group_id || null,
+    superset_order: (fields.superset_order !== null && fields.superset_order !== undefined) ? parseInt(fields.superset_order) : null,
   };
 }
 
@@ -148,8 +169,30 @@ export default function ExerciseInstanceForm({ dayId }) {
   const [videoFileName, setVideoFileName]     = useState('');
   const [videoSizeInfo, setVideoSizeInfo]     = useState(null);
   const [videoUploadWarning, setVideoUploadWarning] = useState('');
+  // Guided "+ Superset" flow state. null = inactive.
+  // When active: { groupId, step: 'A' | 'B' }. Mode owns the group_id; A saves with
+  // order=0 and advances to B; B saves with order=1 and exits mode.
+  const [supersetMode, setSupersetMode] = useState(null);
+  // Refs used by the supersetMode A→B transition: smooth-scroll the add form
+  // into view and auto-focus the name field so user sees the form is now
+  // collecting Exercise B without having to hunt for it.
+  const addFormRef = useRef(null);
+  const nameInputRef = useRef(null);
 
   useEffect(() => { if (!dayId) return; loadExercises(); }, [dayId]);
+
+  // After saving Exercise A, supersetMode.step advances to 'B' and form clears.
+  // This effect scrolls the (now-empty) add form into view and focuses the name input
+  // so the next-step intent is unambiguous. Skipped when mode is null or on step A
+  // (the user clicked + Superset themselves — they already see where to go).
+  useEffect(() => {
+    if (supersetMode?.step !== 'B') return;
+    addFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // Delay focus until smooth-scroll roughly completes so the input scroll-anchor
+    // doesn't fight the page scroll. 300ms matches the browser default smooth duration.
+    const t = setTimeout(() => nameInputRef.current?.focus(), 300);
+    return () => clearTimeout(t);
+  }, [supersetMode?.step]);
 
   useEffect(() => {
     fetch(`${API_BASE}/api/admin/exercises`, { headers: getAuthHeaders() })
@@ -273,11 +316,39 @@ export default function ExerciseInstanceForm({ dayId }) {
     if (!valid) return;
     setLoading(true); setError(null);
     try {
-      await createExerciseInstance({ ...buildPayload(form), program_day_id: dayId, order_index: resolveOrderIndex(form.order_index) });
-      setForm(EMPTY_FORM); setFormErrors(EMPTY_ERRORS); setLibrarySearch('');
-      setVideoFileName(''); setVideoSizeInfo(null);
+      // Guided supersetMode owns group_id (A → order 0, B → order 1).
+      let pairGroupId = null;
+      let pairOrder = null;
+      if (supersetMode) {
+        pairGroupId = supersetMode.groupId;
+        pairOrder = supersetMode.step === 'A' ? 0 : 1;
+      }
+
+      await createExerciseInstance({
+        ...buildPayload({ ...form, superset_group_id: pairGroupId, superset_order: pairOrder }),
+        program_day_id: dayId,
+        order_index: resolveOrderIndex(form.order_index)
+      });
+
+      // Advance guided mode: A → B (form reopens empty for B), B → exit mode.
+      // If supersetMode is null, this is a no-op.
+      if (supersetMode?.step === 'A') {
+        setSupersetMode({ ...supersetMode, step: 'B' });
+      } else if (supersetMode?.step === 'B') {
+        setSupersetMode(null);
+      }
+
+      setForm(EMPTY_FORM);
+      setFormErrors(EMPTY_ERRORS);
+      setLibrarySearch('');
+      setVideoFileName('');
+      setVideoSizeInfo(null);
       await loadExercises();
-    } catch (err) { setError(err.message); } finally { setLoading(false); }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleEditStart = (ex) => {
@@ -298,6 +369,10 @@ export default function ExerciseInstanceForm({ dayId }) {
       exercise_id: ex.exercise_id ?? '',
       video_url: ex.video_url ?? '',
       save_to_library: false,
+      // Carry superset assignment into edit state so the badge renders and Unpair can clear it.
+      // buildPayload passes these straight through, including null/null on Unpair.
+      superset_group_id: ex.superset_group_id ?? null,
+      superset_order: ex.superset_order ?? null,
     });
   };
 
@@ -313,6 +388,25 @@ export default function ExerciseInstanceForm({ dayId }) {
       if (err.field) { setEditErrors((prev) => ({ ...prev, [err.field]: err.message })); setError(null); return; }
       setError(err.message);
     }
+  };
+
+  // Cancels the guided superset flow.
+  // If user already saved A and cancels at step B, A is now a 1-member group.
+  // We patch A back to standalone so it doesn't render a misleading "A" badge.
+  // Non-blocking — if cleanup fails, user can Unpair from the edit form.
+  const handleCancelSuperset = async () => {
+    if (supersetMode?.step === 'B' && supersetMode?.groupId) {
+      const orphan = exercises.find(e => e.superset_group_id === supersetMode.groupId);
+      if (orphan) {
+        try {
+          await updateExerciseInstance(orphan.id, { superset_group_id: null, superset_order: null });
+          await loadExercises();
+        } catch (cleanupErr) {
+          console.warn('[Superset] Failed to clean up orphan A on cancel. User can Unpair manually.', cleanupErr);
+        }
+      }
+    }
+    setSupersetMode(null);
   };
 
   const handleDelete = async (id) => {
@@ -338,12 +432,49 @@ export default function ExerciseInstanceForm({ dayId }) {
 
   return (
     <div className="ex-form">
+      {/* Top action bar — guided "+ Superset" entry point.
+          When idle: shows the prominent + Superset button (prospective flow).
+          When in mode: shows a live progress banner with Cancel so the user
+          can never lose track of which step they're on. Lives ABOVE the list
+          for top-of-builder visibility. */}
+      <div className="ex-builder-actions">
+        {!supersetMode ? (
+          <button
+            type="button"
+            className="ex-builder-actions__superset"
+            onClick={() => setSupersetMode({ groupId: crypto.randomUUID(), step: 'A' })}
+          >
+            + Superset
+          </button>
+        ) : (
+          <div className="ex-builder-actions__banner">
+            <span className="ex-builder-actions__banner-title">
+              Building Superset · Exercise {supersetMode.step}
+              <span className="ex-builder-actions__banner-step"> ({supersetMode.step === 'A' ? '1' : '2'} of 2)</span>
+            </span>
+            <button
+              type="button"
+              className="prog-btn"
+              onClick={handleCancelSuperset}
+              disabled={loading}
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+      </div>
+
       <div className="ex-list">
         {exercises.length === 0 && (
           <p className="ex-list__empty">No exercises yet — add your first exercise below.</p>
         )}
         {exercises.map((ex, index) => (
-          <div key={ex.id} className="ex-row">
+          <div
+            key={ex.id}
+            /* Apply superset variant when row belongs to a group.
+               Pairs with .ex-row--in-superset in AdminLayout.css. */
+            className={`ex-row${ex.superset_group_id != null ? ' ex-row--in-superset' : ''}`}
+          >
             {editingId === ex.id ? (
               <div className="ex-edit-form">
                 <div className="ex-edit-form__row">
@@ -374,8 +505,11 @@ export default function ExerciseInstanceForm({ dayId }) {
                     <option value="accessory">Accessory</option>
                     <option value="custom">Custom</option>
                     <option value="bodyweight">Bodyweight</option>
+                    {/* Isometric: hold-based; target_reps stores SECONDS. */}
+                    <option value="isometric">Isometric</option>
                   </select>
-                  {editFields.type !== 'bodyweight' && (
+                  {/* Isometric uses bodyweight equipment internally — hide selector. */}
+                  {editFields.type !== 'bodyweight' && editFields.type !== 'isometric' && (
                     <select className="prog-input" value={editFields.equipment_type} onChange={(e) => se('equipment_type', e.target.value)}>
                       <option value="barbell">Barbell</option>
                       <option value="dumbbell">Dumbbell</option>
@@ -385,16 +519,19 @@ export default function ExerciseInstanceForm({ dayId }) {
                   )}
                 </div>
 
-                {editFields.type === 'custom' && (
+                {(editFields.type === 'custom' || editFields.type === 'isometric') && (
                   <div className="ex-edit-form__row">
-                    <select className="prog-input" value={editFields.progression_mode} onChange={(e) => se('progression_mode', e.target.value)}>
-                      <option value="">Progression mode *</option>
-                      <option value="percent">Percent</option>
-                      <option value="absolute">Absolute</option>
-                    </select>
+                    {/* Mode (percent/absolute) is custom-only. Isometric is implicit absolute-seconds. */}
+                    {editFields.type === 'custom' && (
+                      <select className="prog-input" value={editFields.progression_mode} onChange={(e) => se('progression_mode', e.target.value)}>
+                        <option value="">Progression mode *</option>
+                        <option value="percent">Percent</option>
+                        <option value="absolute">Absolute</option>
+                      </select>
+                    )}
                     <input
                       className="prog-input"
-                      placeholder="Progression value *"
+                      placeholder={editFields.type === 'isometric' ? 'Step (sec) * e.g. 5' : 'Progression value *'}
                       value={editFields.progression_value}
                       onChange={(e) => se('progression_value', e.target.value)}
                     />
@@ -466,14 +603,22 @@ export default function ExerciseInstanceForm({ dayId }) {
 
                 <div className="ex-edit-form__row">
                   <input className="prog-input" placeholder="Sets *" value={editFields.target_sets} onChange={(e) => se('target_sets', e.target.value)} />
-                  <input className="prog-input" placeholder="Reps *" value={editFields.target_reps} onChange={(e) => se('target_reps', e.target.value)} />
-                  {editFields.type !== 'bodyweight' && editFields.equipment_type !== 'cable' && (
+                  {/* Isometric: target_reps stores hold duration in seconds. */}
+                  <input
+                    className="prog-input"
+                    placeholder={editFields.type === 'isometric' ? 'Hold Time (sec) *' : 'Reps *'}
+                    value={editFields.target_reps}
+                    onChange={(e) => se('target_reps', e.target.value)}
+                  />
+                  {/* No external load for bodyweight or isometric. */}
+                  {editFields.type !== 'bodyweight' && editFields.type !== 'isometric' && editFields.equipment_type !== 'cable' && (
                     <input className="prog-input" placeholder="Weight (optional)" value={editFields.target_weight} onChange={(e) => se('target_weight', e.target.value)} />
                   )}
                   <input className="prog-input" placeholder="Rest (sec) *" value={editFields.rest_seconds} onChange={(e) => se('rest_seconds', e.target.value)} />
                 </div>
 
-                {editFields.type !== 'bodyweight' && (
+                {/* Backoff = % off working weight; meaningless for holds or pure bodyweight. */}
+                {editFields.type !== 'bodyweight' && editFields.type !== 'isometric' && (
                   <div className="ex-edit-form__row">
                     <label
                       style={{
@@ -588,6 +733,26 @@ export default function ExerciseInstanceForm({ dayId }) {
                   </div>
                 )}
 
+                {/* Superset membership — shows A/B/C/D badge with Unpair button.
+                    Unpair clears local state only; Save propagates null/null to backend
+                    via buildPayload(editFields). Orphan cleanup of remaining group members
+                    is intentionally out of scope here. */}
+                {editFields.superset_group_id && (
+                  <div className="ex-edit-form__row">
+                    <span style={{ fontSize: 12, color: '#9ca3af', alignSelf: 'center' }}>
+                      Superset {['A', 'B', 'C', 'D'][editFields.superset_order ?? 0]}
+                    </span>
+                    <button
+                      type="button"
+                      className="prog-btn"
+                      style={{ fontSize: 11, padding: '2px 8px' }}
+                      onClick={() => setEditFields(prev => ({ ...prev, superset_group_id: null, superset_order: null }))}
+                    >
+                      Unpair
+                    </button>
+                  </div>
+                )}
+
                 <div className="ex-edit-form__actions">
                   <button className="prog-btn prog-btn--save" onClick={() => handleEditSave(ex.id)}>Save</button>
                   <button className="prog-btn" onClick={() => { setEditingId(null); setEditFields(EMPTY_FORM); setEditErrors(EMPTY_ERRORS); setError(null); }}>Cancel</button>
@@ -596,9 +761,29 @@ export default function ExerciseInstanceForm({ dayId }) {
             ) : (
               <div className="ex-row__inner">
                 <div className="ex-row__info">
-                  <span className="ex-row__name">{ex.name}</span>
+                  {/* Badge nested INSIDE the name span so existing ex-row__name CSS still applies.
+                      Inline flex keeps the badge tight against the name. */}
+                  <span className="ex-row__name" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {ex.superset_group_id != null && (
+                      <span style={{
+                        background: 'rgba(200,255,0,0.08)',
+                        color: '#c8ff00',
+                        border: '1px solid rgba(200,255,0,0.2)',
+                        borderRadius: 4,
+                        fontSize: 10,
+                        fontWeight: 700,
+                        padding: '1px 6px',
+                        letterSpacing: '0.05em',
+                        flexShrink: 0
+                      }}>
+                        {['A', 'B', 'C', 'D'][ex.superset_order ?? 0]}
+                      </span>
+                    )}
+                    {ex.name}
+                  </span>
                   <span className="ex-row__meta">
-                    {ex.type} · {ex.equipment_type || 'barbell'} · {ex.target_sets}×{ex.target_reps}
+                    {/* Isometric: target_reps stores seconds — append 's' to disambiguate. */}
+                    {ex.type} · {ex.equipment_type || 'barbell'} · {ex.target_sets}×{ex.type === 'isometric' ? `${ex.target_reps}s` : ex.target_reps}
                     {ex.equipment_type === 'cable' && ex.cable_setup_locked
                       ? ` · ${formatCableTarget({ baseStackWeight: ex.base_stack_weight, stackStepValue: ex.stack_step_value, currentMicroLevel: 0, maxMicroLevels: ex.max_micro_levels, cableUnit: ex.cable_unit, microType: ex.micro_type, microDisplayLabel: ex.micro_display_label }) || 'Cable Setup'}`
                       : ex.target_weight != null ? ` · ${ex.target_weight} lb` : ''}
@@ -619,8 +804,12 @@ export default function ExerciseInstanceForm({ dayId }) {
 
       {error && <p className="ex-error">{error}</p>}
 
-      <div className="ex-add-form">
-        <p className="ex-add-form__label">Add Exercise</p>
+      <div className="ex-add-form" ref={addFormRef}>
+        {/* Mode-aware label — tells the user this form is collecting A or B
+            of the active superset, not a standalone exercise. */}
+        <p className="ex-add-form__label">
+          {supersetMode ? `Add Superset Exercise ${supersetMode.step}` : 'Add Exercise'}
+        </p>
 
         <div className="ex-add-form__row">
           <input
@@ -641,6 +830,7 @@ export default function ExerciseInstanceForm({ dayId }) {
 
         <div className="ex-add-form__row">
           <input
+            ref={nameInputRef}
             className="prog-input ex-add-form__name"
             placeholder="Exercise name *"
             value={form.name}
@@ -651,8 +841,12 @@ export default function ExerciseInstanceForm({ dayId }) {
             <option value="accessory">Accessory</option>
             <option value="custom">Custom</option>
             <option value="bodyweight">Bodyweight</option>
+            {/* Isometric: hold-based (planks, wall sits). target_reps stores SECONDS. */}
+            <option value="isometric">Isometric</option>
           </select>
-          {form.type !== 'bodyweight' && (
+          {/* Isometric uses bodyweight equipment internally — hide selector (same UX as bodyweight).
+              buildPayload coerces equipment_type to 'bodyweight'. */}
+          {form.type !== 'bodyweight' && form.type !== 'isometric' && (
             <select className="prog-input" value={form.equipment_type} onChange={(e) => sf('equipment_type', e.target.value)}>
               <option value="barbell">Barbell</option>
               <option value="dumbbell">Dumbbell</option>
@@ -662,16 +856,19 @@ export default function ExerciseInstanceForm({ dayId }) {
           )}
         </div>
 
-        {form.type === 'custom' && (
+        {(form.type === 'custom' || form.type === 'isometric') && (
           <div className="ex-add-form__row">
-            <select className="prog-input" value={form.progression_mode} onChange={(e) => sf('progression_mode', e.target.value)}>
-              <option value="">Progression mode *</option>
-              <option value="percent">Percent</option>
-              <option value="absolute">Absolute</option>
-            </select>
+            {/* Mode (percent/absolute) is custom-only. Isometric has implicit absolute-seconds semantics. */}
+            {form.type === 'custom' && (
+              <select className="prog-input" value={form.progression_mode} onChange={(e) => sf('progression_mode', e.target.value)}>
+                <option value="">Progression mode *</option>
+                <option value="percent">Percent</option>
+                <option value="absolute">Absolute</option>
+              </select>
+            )}
             <input
               className="prog-input"
-              placeholder="Progression value *"
+              placeholder={form.type === 'isometric' ? 'Step (sec) * e.g. 5' : 'Progression value *'}
               value={form.progression_value}
               onChange={(e) => sf('progression_value', e.target.value)}
             />
@@ -743,14 +940,22 @@ export default function ExerciseInstanceForm({ dayId }) {
 
         <div className="ex-add-form__row">
           <input className="prog-input" placeholder="Sets *" value={form.target_sets} onChange={(e) => sf('target_sets', e.target.value)} />
-          <input className="prog-input" placeholder="Reps *" value={form.target_reps} onChange={(e) => sf('target_reps', e.target.value)} />
-          {form.type !== 'bodyweight' && form.equipment_type !== 'cable' && (
+          {/* Isometric: target_reps stores hold duration in seconds — relabel for clarity. */}
+          <input
+            className="prog-input"
+            placeholder={form.type === 'isometric' ? 'Hold Time (sec) *' : 'Reps *'}
+            value={form.target_reps}
+            onChange={(e) => sf('target_reps', e.target.value)}
+          />
+          {/* No external load for bodyweight or isometric. */}
+          {form.type !== 'bodyweight' && form.type !== 'isometric' && form.equipment_type !== 'cable' && (
             <input className="prog-input" placeholder="Weight (optional)" value={form.target_weight} onChange={(e) => sf('target_weight', e.target.value)} />
           )}
           <input className="prog-input" placeholder="Rest (sec) *" value={form.rest_seconds} onChange={(e) => sf('rest_seconds', e.target.value)} />
         </div>
 
-        {form.type !== 'bodyweight' && (
+        {/* Backoff = % off working weight; meaningless for holds or pure bodyweight. */}
+        {form.type !== 'bodyweight' && form.type !== 'isometric' && (
           <div className="ex-add-form__row">
             <label style={{ color: '#888', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
               <input
@@ -830,7 +1035,11 @@ export default function ExerciseInstanceForm({ dayId }) {
         <div className="ex-add-form__row">
           <input className="prog-input ex-add-form__notes" placeholder="Notes (optional)" value={form.notes} onChange={(e) => sf('notes', e.target.value)} />
           <button className="ex-add-btn" onClick={handleCreate} disabled={loading}>
-            {loading ? 'Saving...' : 'Save'}
+            {/* Save label tells user where they are in the flow.
+                Step A → "Continue to B" makes the next click expectation explicit. */}
+            {loading
+              ? 'Saving...'
+              : supersetMode?.step === 'A' ? 'Save · Continue to B' : 'Save'}
           </button>
         </div>
 

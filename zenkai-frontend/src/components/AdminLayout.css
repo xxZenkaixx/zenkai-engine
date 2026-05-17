@@ -860,6 +860,75 @@
   flex-shrink: 0;
 }
 
+/* ─── Superset Builder ────────────────────────────────────────────────────
+   Top action bar that hosts the "+ Superset" entry button and, while in
+   guided mode, the live progress banner with Cancel. Above .ex-list. */
+.ex-builder-actions {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+  min-height: 36px;
+}
+
+/* + Superset entry button — uses the brand accent (#c8ff00) at low alpha so
+   it reads as "primary action" without overpowering the dark theme. */
+.ex-builder-actions__superset {
+  background: rgba(200, 255, 0, 0.05);
+  color: #c8ff00;
+  border: 1px solid rgba(200, 255, 0, 0.25);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.ex-builder-actions__superset:hover {
+  background: rgba(200, 255, 0, 0.1);
+  border-color: rgba(200, 255, 0, 0.5);
+}
+
+/* Live progress banner — replaces the entry button during the guided flow.
+   High-contrast accent border so it's impossible to overlook. Full width
+   so it visually owns the top of the builder. */
+.ex-builder-actions__banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  background: rgba(200, 255, 0, 0.06);
+  border: 1px solid rgba(200, 255, 0, 0.35);
+  border-radius: 8px;
+  padding: 8px 14px;
+}
+.ex-builder-actions__banner-title {
+  color: #c8ff00;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+/* Subdued step counter so the primary phrase reads first */
+.ex-builder-actions__banner-step {
+  color: rgba(200, 255, 0, 0.55);
+  font-weight: 500;
+}
+
+/* Grouped-exercise variant — applied via `ex-row--in-superset` when
+   ex.superset_group_id is set. Inset left stripe + subtle gradient bg
+   give the "row belongs to a group" signal at a glance; A/B/C/D badge
+   inside the row handles identity within the group. box-shadow inset
+   instead of border-left so we don't fight the existing 1px border. */
+.ex-row--in-superset {
+  background: linear-gradient(90deg, rgba(200, 255, 0, 0.04) 0%, transparent 60%);
+  box-shadow: inset 3px 0 0 rgba(200, 255, 0, 0.4);
+}
+.ex-row--in-superset:hover {
+  box-shadow: inset 3px 0 0 rgba(200, 255, 0, 0.6);
+}
+/* ─── /Superset Builder ────────────────────────────────────────────────── */
+
 /* ex-edit-form */
 .ex-edit-form {
   display: flex;

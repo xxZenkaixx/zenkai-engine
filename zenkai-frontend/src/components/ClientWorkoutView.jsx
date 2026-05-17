@@ -5,6 +5,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { fetchActiveProgram } from '../api/clientProgramApi';
 import ExerciseCard from './ExerciseCard';
+import SupersetCard from './SupersetCard';
 import { applyProgression } from '../api/progressionApi';
 import { logSet } from '../api/loggedSetApi';
 import { syncPendingLogs } from '../utils/localWorkoutLogs';
@@ -73,6 +74,41 @@ function isDraftSessionValid(draft) {
   if (!hasSets) return true;
 
   return Object.keys(filterValidDraftSets(draft)).length > 0;
+}
+
+// Fold a sorted exercise list into "render units":
+//   - { kind: 'single',  exercises: [ex] }
+//   - { kind: 'superset', groupId, exercises: [a, b] }  (sorted by superset_order)
+//
+// Group members share a superset_group_id. We only support 2-member supersets in
+// the unified card. Orphan 1-member groups (after Unpair) fall back to singletons;
+// 3+ groups also fall back to singletons and log a warning so the gap is visible.
+function buildRenderUnits(sortedExercises) {
+  const units = [];
+  const seen = new Set();
+  sortedExercises.forEach(ex => {
+    if (seen.has(ex.id)) return;
+    if (ex.superset_group_id) {
+      const members = sortedExercises
+        .filter(e => e.superset_group_id === ex.superset_group_id)
+        .sort((a, b) => (a.superset_order ?? 0) - (b.superset_order ?? 0));
+      members.forEach(m => seen.add(m.id));
+      if (members.length === 2) {
+        units.push({ kind: 'superset', groupId: ex.superset_group_id, exercises: members });
+      } else if (members.length === 1) {
+        // Orphaned 1-member group (after Unpair) — treat as single
+        units.push({ kind: 'single', exercises: [members[0]] });
+      } else {
+        // 3+ members — not supported by the unified card; render as singletons
+        console.warn('[Superset] Group has 3+ members; rendering as singletons. groupId=', ex.superset_group_id);
+        members.forEach(m => units.push({ kind: 'single', exercises: [m] }));
+      }
+    } else {
+      seen.add(ex.id);
+      units.push({ kind: 'single', exercises: [ex] });
+    }
+  });
+  return units;
 }
 
 export default function ClientWorkoutView({ clientId, onWorkoutFinished, initialDayId, onNavigateHistory }) {
@@ -374,6 +410,40 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
     ? activeOrderOverride
     : sortedExercises.map(ex => ex.id);
 
+  // Fold flat exercise list into render units (singletons + 2-member supersets).
+  // See buildRenderUnits at module top.
+  const renderUnits = buildRenderUnits(sortedExercises);
+  console.log('[SupersetDebug] buildRenderUnits', {
+    inputs: sortedExercises.map(e => ({
+      id: e.id, name: e.name,
+      group: e.superset_group_id ?? null,
+      order: e.superset_order ?? null,
+    })),
+    units: renderUnits.map(u => ({
+      kind: u.kind,
+      groupId: u.groupId ?? null,
+      names: u.exercises.map(e => e.name),
+    })),
+  });
+
+  // A unit is "done" iff every member exercise has hit target_sets.
+  // Drives Current/Next-Up/Done partitioning so supersets stay together.
+  const isUnitDone = (unit) => unit.exercises.every(
+    ex => (exerciseLoggedCounts[ex.id] ?? 0) >= (ex.target_sets ?? 0)
+  );
+
+  // Order units by where their FIRST member appears in effectiveOrder.
+  // Makes activeOrderOverride (handleSkip output) carry through to units
+  // without refactoring handleSkip: skipping a superset's first member moves
+  // the entire pair because they share a unit slot.
+  const orderedUnits = [...renderUnits].sort((a, b) => {
+    const pos = (u) => Math.min(...u.exercises.map(ex => {
+      const idx = effectiveOrder.indexOf(ex.id);
+      return idx === -1 ? Infinity : idx;
+    }));
+    return pos(a) - pos(b);
+  });
+
   useEffect(() => {
     setFinishError(null);
     setConfirmFinishEarly(false);
@@ -579,17 +649,18 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
       })()}
 
       {selectedDayId && (() => {
-        const exercises = sortedExercises;
-        if (exercises.length === 0) return <p className="cwv-empty">No exercises on this day.</p>;
+        // IMPORTANT: This IIFE was rewritten to use renderUnits instead of flat exercises.
+        // When supersetMode === null and no supersets exist, output is bitwise identical to previous version.
+        // All single-exercise paths (renderCard) are untouched.
+        if (sortedExercises.length === 0) return <p className="cwv-empty">No exercises on this day.</p>;
 
-        const incompleteIds = incompleteExerciseIds;
-        const incompleteExs = effectiveOrder
-          .map(id => exercises.find(ex => ex.id === id))
-          .filter(ex => ex && incompleteIds.has(ex.id));
-        const doneExs = exercises.filter(ex => !incompleteIds.has(ex.id));
-        const currentEx     = incompleteExs[0] ?? null;
-        const nextUpExs     = incompleteExs.slice(1);
+        // Unit-keyed partitioning — supersets travel together through Current/Next-Up/Done.
+        const incompleteUnits = orderedUnits.filter(u => !isUnitDone(u));
+        const doneUnits = orderedUnits.filter(isUnitDone);
+        const currentUnit = incompleteUnits[0] ?? null;
+        const nextUpUnits = incompleteUnits.slice(1);
 
+        // Single-exercise card — unchanged from previous render flow.
         const renderCard = (ex, isCurrent = false) => (
           <ExerciseCard
             key={ex.id}
@@ -600,57 +671,129 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
             onExerciseUpdated={load}
             onLoggedSetsChange={handleLoggedSetsChange}
             onSessionSetsChange={handleSessionSetsChange}
-            isLastIncomplete={incompleteIds.size === 1 && incompleteIds.has(ex.id)}
+            isLastIncomplete={incompleteExerciseIds.size === 1 && incompleteExerciseIds.has(ex.id)}
             cardRef={(el)    => { cardRefs.current[ex.id]    = el; }}
             nextSetRef={(el) => { nextSetRefs.current[ex.id] = el; }}
             restTimerActive={timerActive && timerExerciseId === ex.id}
             restTimerRemaining={timerRemaining}
             initialSets={draftSets[selectedDayId]?.[ex.id] || []}
             sessionId={sessionId}
-            onSkip={isCurrent && nextUpExs.length > 0 ? handleSkip : null}
+            onSkip={isCurrent && nextUpUnits.length > 0 ? handleSkip : null}
             sessionOverride={sessionOverrides[ex.id] ?? null}
             onSessionOverrideChange={(override) => handleSessionOverrideChange(ex.id, override)}
           />
         );
 
+        // Render a unit.
+        //   - Singleton: existing single-exercise ExerciseCard.
+        //   - Superset @ Current: <SupersetCard /> — interleaved set logging
+        //     with A/B gating + A→B rest-skip interlock.
+        //   - Superset @ Next-Up / Done: existing flat wrapper. Cheap preview,
+        //     no need for interlock logic until it becomes current.
+        const renderUnit = (unit, isCurrent = false) => {
+          console.log('[SupersetDebug] renderUnit', {
+            kind: unit.kind,
+            isCurrent,
+            groupId: unit.groupId ?? null,
+            names: unit.exercises.map(e => e.name),
+          });
+          if (unit.kind === 'single') return renderCard(unit.exercises[0], isCurrent);
+
+          if (isCurrent) {
+            return (
+              <SupersetCard
+                key={unit.groupId}
+                unit={unit}
+                clientId={clientId}
+                programDayId={selectedDayId}
+                onSetLogged={startTimer}
+                onExerciseUpdated={load}
+                onLoggedSetsChange={handleLoggedSetsChange}
+                onSessionSetsChange={handleSessionSetsChange}
+                loggedCounts={exerciseLoggedCounts}
+                cardRefs={cardRefs}
+                nextSetRefs={nextSetRefs}
+                restTimerActive={timerActive}
+                restTimerExerciseId={timerExerciseId}
+                restTimerRemaining={timerRemaining}
+                draftSetsByExId={draftSets[selectedDayId] || {}}
+                sessionId={sessionId}
+                sessionOverrides={sessionOverrides}
+                onSessionOverrideChange={handleSessionOverrideChange}
+                incompleteExerciseIds={incompleteExerciseIds}
+              />
+            );
+          }
+
+          // Next-Up superset — existing wrapper kept verbatim
+          return (
+            <div
+              key={unit.groupId}
+              className="cwv-superset-group"
+            >
+              <div className="cwv-superset-group__header">
+                <span className="cwv-superset-group__label">SUPER</span>
+                <span className="cwv-superset-group__name">
+                  {unit.exercises.map(e => e.name).join(' + ')}
+                </span>
+              </div>
+              {unit.exercises.map(ex => renderCard(ex, isCurrent))}
+            </div>
+          );
+        };
+
+        // Next-Up preview header — show superset distinctly so the user knows what's coming.
+        const peek = nextUpUnits[0];
+        const peekFirstEx = peek?.exercises?.[0];
+        const peekLabel = peek?.kind === 'superset'
+          ? `Superset · ${peek.exercises.map(e => e.name).join(' + ')}`
+          : peekFirstEx?.name;
+        const peekMeta = peek?.kind === 'superset'
+          ? peek.exercises.map(ex => `${ex.target_sets}×${ex.target_reps}${ex.type === 'isometric' ? 's' : ''}`).join(' + ')
+          : [
+              peekFirstEx?.equipment_type,
+              peekFirstEx ? `${peekFirstEx.target_sets}×${peekFirstEx.target_reps}` : null,
+              peekFirstEx?.target_weight != null ? `${peekFirstEx.target_weight} lb` : null
+            ].filter(Boolean).join(' · ');
+
         return (
           <div className="cwv-exercise-list">
 
-            {currentEx && (
+            {currentUnit && (
               <div className="cwv-section cwv-section--current">
                 <p className="cwv-section-label">Current</p>
-                {renderCard(currentEx, true)}
+                {renderUnit(currentUnit, true)}
               </div>
             )}
 
-            {nextUpExs.length > 0 && (
+            {nextUpUnits.length > 0 && (
               <div className="cwv-section">
                 <p className="cwv-section-label">Next Up</p>
 
                 <div className="cwv-next-up">
                   <div className="cwv-next-up__info">
-                    <p className="cwv-next-up__name">{nextUpExs[0].name}</p>
-                    <p className="cwv-next-up__meta">
-                      {[
-                        nextUpExs[0].equipment_type,
-                        `${nextUpExs[0].target_sets}×${nextUpExs[0].target_reps}`,
-                        nextUpExs[0].target_weight != null ? `${nextUpExs[0].target_weight} lb` : null
-                      ].filter(Boolean).join(' · ')}
-                    </p>
+                    <p className="cwv-next-up__name">{peekLabel}</p>
+                    <p className="cwv-next-up__meta">{peekMeta}</p>
                   </div>
                   <span className="cwv-next-up__arrow">›</span>
                 </div>
 
                 <div className="cwv-next-up-cards">
-                  {nextUpExs.map(renderCard)}
+                  {nextUpUnits.map(unit => (
+                    <div key={unit.kind === 'single' ? unit.exercises[0].id : unit.groupId}>
+                      {renderUnit(unit)}
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
 
-            {doneExs.length > 0 && (
+            {doneUnits.length > 0 && (
               <div className="cwv-section">
                 <p className="cwv-section-label">Done</p>
-                {doneExs.map((ex) => (
+                {/* Flatten supersets in Done section for now — keeps visual consistency with previous design.
+                    Full grouped "Done" cards can be polished later. */}
+                {doneUnits.flatMap(u => u.exercises).map((ex) => (
                   <div key={ex.id}>
                     <div className="cwv-done-card">
                       <div className="cwv-done-card__info">

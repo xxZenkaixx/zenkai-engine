@@ -84,11 +84,17 @@ export default function ClientHome({ clientId, clientName, onStartWorkout, onBac
     const days = activeProgram?.Program?.ProgramDays;
     if (!days || days.length === 0) return null;
     const sorted = [...days].sort((a, b) => a.day_number - b.day_number);
-    if (sessions.length === 0) return sorted[0].id;
-    const lastDayId = sessions[0].program_day_id;
-    const lastIndex = sorted.findIndex((d) => d.id === lastDayId);
-    const nextIndex = lastIndex === -1 ? 0 : (lastIndex + 1) % sorted.length;
-    return sorted[nextIndex].id;
+    // Scope to this program's days only — avoids cross-program session bleed
+    const dayIdSet = new Set(sorted.map(d => d.id));
+    const programSessions = sessions.filter(s => dayIdSet.has(s.program_day_id));
+    if (programSessions.length === 0) return sorted[0].id;
+    // First uncompleted day in sequence
+    const completedIds = new Set(programSessions.map(s => s.program_day_id));
+    const first = sorted.find(d => !completedIds.has(d.id));
+    if (first) return first.id;
+    // Full cycle done — next after most-recently-logged day
+    const lastIndex = sorted.findIndex(d => d.id === programSessions[0].program_day_id);
+    return sorted[(lastIndex + 1) % sorted.length].id;
   }, [activeProgram, sessions]);
 
   const programName = activeProgram?.Program?.name;
@@ -170,7 +176,7 @@ export default function ClientHome({ clientId, clientName, onStartWorkout, onBac
                       <div key={day.key} className={cls}>
                         <div className="ch-day-label">{day.label}</div>
                         <div className="ch-day-num">{day.dayNum}</div>
-                        <div className="ch-day-dot" />
+                        <div className="ch-day-dot">{done ? '✓' : null}</div>
                       </div>
                     );
                   })}
