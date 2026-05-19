@@ -77,3 +77,26 @@
   font-weight: 600;
   letter-spacing: 0.06em;
 }
+
+.lp-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0 4px;
+  color: #444;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.lp-divider::before,
+.lp-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #1e1e1e;
+}
+.lp-google {
+  display: flex;
+  justify-content: center;
+  min-height: 40px;
+}
