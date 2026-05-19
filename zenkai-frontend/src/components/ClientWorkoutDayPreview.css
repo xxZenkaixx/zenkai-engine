@@ -1,0 +1,221 @@
+/* Mobile-first dark theme — #0a0a0a bg, #c8ff00 lime accent, same as LoginPage.
+   Header wraps on narrow widths so the Start CTA drops below the title if
+   there's no room (the ClientDashboard content area is mobile-narrow today). */
+
+.cwdp-wrap {
+  padding: 16px;
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cwdp-loading,
+.cwdp-empty {
+  color: #888;
+  font-size: 13px;
+  padding: 24px 0;
+  text-align: center;
+}
+
+/* HEADER */
+.cwdp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.cwdp-header__left { flex: 1 1 auto; min-width: 0; }
+.cwdp-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: #fff;
+  margin: 0 0 4px;
+  letter-spacing: -0.3px;
+}
+.cwdp-sub {
+  font-size: 13px;
+  color: #888;
+  margin: 0;
+}
+.cwdp-start-btn {
+  background: #c8ff00;
+  color: #0a0a0a;
+  border: none;
+  padding: 12px 18px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.cwdp-start-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* DAY TABS — pill style matching WorkoutPreview's wp-day-tab. */
+.cwdp-day-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.cwdp-day-tab {
+  background: #161616;
+  border: 1px solid #222;
+  color: #888;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.cwdp-day-tab--active {
+  background: #181f0e;
+  border-color: rgba(200, 255, 0, 0.4);
+  color: #c8ff00;
+}
+
+/* CARD */
+.cwdp-card {
+  background: #111;
+  border: 1px solid #222;
+  border-radius: 12px;
+  padding: 20px;
+}
+.cwdp-card-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 16px;
+  letter-spacing: -0.3px;
+}
+
+/* EXERCISE ROW */
+.cwdp-ex-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid #1a1a1a;
+}
+.cwdp-ex-row:last-child { border-bottom: none; }
+
+.cwdp-ex-num {
+  font-size: 12px;
+  color: #888;
+  font-weight: 600;
+  width: 18px;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+/* Thumb: video variant gets faint green tint like the wireframe.
+   Non-video thumb is a disabled <button> so the cursor matches. */
+.cwdp-ex-thumb {
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  background: #1a1a1a;
+  border: 1px solid #222;
+  color: #888;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: not-allowed;
+}
+.cwdp-ex-thumb--video {
+  background: #1a2a1a;
+  color: #c8ff00;
+  cursor: pointer;
+}
+
+.cwdp-ex-info { flex: 1; min-width: 0; }
+.cwdp-ex-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 2px;
+}
+.cwdp-ex-meta {
+  font-size: 11px;
+  color: #888;
+}
+
+.cwdp-cues-btn {
+  background: transparent;
+  border: 1px solid #2a2a2a;
+  color: #ccc;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.cwdp-cues-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.cwdp-cues-btn:not(:disabled):hover { border-color: #c8ff00; color: #c8ff00; }
+
+/* MODAL — shared shell for video + cues. */
+.cwdp-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+.cwdp-modal {
+  background: #111;
+  border: 1px solid #222;
+  border-radius: 12px;
+  padding: 20px;
+  max-width: 480px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+}
+.cwdp-modal__close {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  background: transparent;
+  border: none;
+  color: #888;
+  font-size: 22px;
+  cursor: pointer;
+  line-height: 1;
+}
+.cwdp-modal__title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 12px;
+  padding-right: 24px;
+}
+.cwdp-modal__video {
+  width: 100%;
+  max-height: 60vh;
+  border-radius: 8px;
+  background: #000;
+  display: block;
+}
+.cwdp-modal__label {
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: #888;
+  text-transform: uppercase;
+  margin: 0 0 6px;
+}
+.cwdp-modal__cues {
+  font-size: 13px;
+  color: #ddd;
+  line-height: 1.6;
+  margin: 0;
+  white-space: pre-wrap;
+}

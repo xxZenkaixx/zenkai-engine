@@ -4,6 +4,10 @@ import { fetchLinkedClient } from '../api/clientApi';
 import { fetchActiveProgram } from '../api/clientProgramApi';
 import ClientHome from './ClientHome';
 import ClientWorkoutView from './ClientWorkoutView';
+// Workout-tab landing screen — wireframe screen-workout-day (vaunt-wireframe.html:1056).
+// Sits between day-pick and active workout so the client can review exercises/targets
+// and watch videos before committing.
+import ClientWorkoutDayPreview from './ClientWorkoutDayPreview';
 import ClientWorkoutHistoryList from './ClientWorkoutHistoryList';
 import ExerciseLibrary from './ExerciseLibrary';
 import './ClientDashboard.css';
@@ -22,7 +26,13 @@ export default function ClientDashboard() {
   const [linkedClientId, setLinkedClientId] = useState(null);
   const [linkedClientName, setLinkedClientName] = useState(null);
   const [activeProgram, setActiveProgram] = useState(null);
-  const [workoutDayId, setWorkoutDayId] = useState(null);
+  // Two-stage workout-tab state:
+  //   previewDayId        — which day the preview screen is currently showing.
+  //                          Null is fine; preview defaults to the first day.
+  //   activeWorkoutDayId  — non-null ONLY when the client has tapped "Start Workout"
+  //                          and we should render ClientWorkoutView instead of the preview.
+  const [previewDayId, setPreviewDayId] = useState(null);
+  const [activeWorkoutDayId, setActiveWorkoutDayId] = useState(null);
   const [workoutLoading, setWorkoutLoading] = useState(false);
 
   useEffect(() => {
@@ -48,8 +58,14 @@ export default function ClientDashboard() {
     );
   }
 
+  // Called by ClientHome's "Start Today's Workout" CTA. Per wireframe, the
+  // home CTA lands on the workout PREVIEW (not the active workout) so the
+  // client can review the day's exercises before committing. Setting
+  // activeWorkoutDayId = null keeps us in preview mode; previewDayId tells
+  // the preview which day to pre-select in its day tabs.
   const handleStartWorkout = (clientId, dayId) => {
-    setWorkoutDayId(dayId);
+    setPreviewDayId(dayId);
+    setActiveWorkoutDayId(null);
     setTab('workout');
   };
 
@@ -76,32 +92,30 @@ export default function ClientDashboard() {
         )}
 
         {tab === 'workout' && (
-          workoutDayId ? (
+          activeWorkoutDayId ? (
+            // Client has tapped "Start Workout →" on the preview — render the
+            // existing active-workout flow. Finishing returns to Home tab and
+            // clears both the active and preview day so a fresh visit to the
+            // Workout tab starts from the default (first day) preview.
             <ClientWorkoutView
               clientId={linkedClientId}
-              initialDayId={workoutDayId}
-              onWorkoutFinished={() => { setWorkoutDayId(null); setTab('home'); }}
+              initialDayId={activeWorkoutDayId}
+              onWorkoutFinished={() => {
+                setActiveWorkoutDayId(null);
+                setPreviewDayId(null);
+                setTab('home');
+              }}
             />
           ) : (
-            <div className="cd-day-picker">
-              {workoutLoading && <p className="cd-placeholder-text">Loading...</p>}
-              {!workoutLoading && !activeProgram && (
-                <p className="cd-placeholder-text">No active program assigned.</p>
-              )}
-              {!workoutLoading && activeProgram?.Program?.ProgramDays
-                ?.slice()
-                .sort((a, b) => a.day_number - b.day_number)
-                .map(day => (
-                  <button
-                    key={day.id}
-                    className="cd-day-btn"
-                    onClick={() => setWorkoutDayId(day.id)}
-                  >
-                    {day.name || `Day ${day.day_number}`}
-                  </button>
-                ))
-              }
-            </div>
+            // Default Workout-tab landing — wireframe screen-workout-day.
+            // The preview handles its own loading/empty states internally,
+            // so we just hand it the data we already have.
+            <ClientWorkoutDayPreview
+              activeProgram={activeProgram}
+              initialDayId={previewDayId}
+              onStartWorkout={(dayId) => setActiveWorkoutDayId(dayId)}
+              loading={workoutLoading}
+            />
           )
         )}
 
