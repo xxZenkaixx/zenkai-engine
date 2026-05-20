@@ -48,6 +48,38 @@
   padding: 16px;
 }
 
+.cd-program-toggle {
+  display: flex;
+  justify-content: flex-start;
+  padding: 24px 48px 16px;
+  background: #050505;
+  margin-bottom: -40px;
+  position: relative;
+  z-index: 1;
+}
+
+.cd-program-toggle__btn {
+  background: none;
+  border: 1px solid #444;
+  color: #aaa;
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.cd-program-toggle__btn:hover {
+  border-color: #c8ff00;
+  color: #c8ff00;
+}
+
+@media (max-width: 600px) {
+  .cd-program-toggle {
+    padding: 16px 16px 12px;
+    margin-bottom: -20px;
+  }
+}
+
 .cd-topbar__brand {
   font-size: 12px;
   font-weight: 700;

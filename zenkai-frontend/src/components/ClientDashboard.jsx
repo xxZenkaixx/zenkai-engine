@@ -100,17 +100,20 @@ export default function ClientDashboard({ clientId: propClientId, clientName: pr
           )}
         </div>
         <div className="cd-topbar__actions">
-          {programId && (
-            <button className="cd-topbar__logout" onClick={() => setShowPreview(v => !v)}>
-              {showPreview ? 'Hide Program' : 'View Program'}
-            </button>
-          )}
           {onBack
             ? <button className="cd-topbar__logout" onClick={onBack}>← Back</button>
             : <button className="cd-topbar__logout" onClick={logout}>Logout</button>
           }
         </div>
       </div>
+
+      {tab === 'home' && programId && (
+        <div className="cd-program-toggle">
+          <button className="cd-program-toggle__btn" onClick={() => setShowPreview(v => !v)}>
+            {showPreview ? 'Hide Program' : 'View Program'}
+          </button>
+        </div>
+      )}
 
       {showPreview && programId && (
         <div className="cd-preview-wrap">
