@@ -285,6 +285,9 @@ export default function ExerciseInstanceForm({ dayId }) {
       target_sets: lib.default_target_sets ?? '',
       target_reps: lib.default_target_reps ?? '',
       exercise_id: lib.id,
+      // Snapshot video from library so buildPayload doesn't send null
+      // and clobber the backend's snapshot.video_url (see routes/exerciseInstances.js)
+      video_url: lib.video_url ?? '',
     };
     if (isEdit) {
       setEditFields(prev => ({ ...prev, ...patch }));
