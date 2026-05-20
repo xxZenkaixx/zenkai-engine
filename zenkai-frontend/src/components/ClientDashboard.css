@@ -8,10 +8,23 @@
 
 .cd-topbar {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   padding: 12px 16px;
   border-bottom: 1px solid #1a1a1a;
+  gap: 12px;
+}
+
+.cd-topbar__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.cd-topbar__title {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: #fff;
+  margin: 6px 0 0;
 }
 
 .cd-topbar__brand {

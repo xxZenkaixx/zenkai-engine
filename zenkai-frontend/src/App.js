@@ -68,24 +68,14 @@ function AppShell() {
 
   if (view === 'clientHome' && activeClientId) {
     return (
-      <AdminLayout
-        activeSection="clientPortal"
-        onSectionChange={(section) => {
-          localStorage.setItem('adminSection', section);
+      <ClientDashboard
+        clientId={activeClientId}
+        clientName={activeClientName}
+        onBack={() => {
+          localStorage.setItem('adminSection', 'clientPortal');
           setView('main');
         }}
-      >
-        <ClientHome
-          clientId={activeClientId}
-          clientName={activeClientName}
-          onStartWorkout={handleStartWorkout}
-          initialTab={clientHomeTab}
-          onBack={() => {
-            localStorage.setItem('adminSection', 'clientPortal');
-            setView('main');
-          }}
-        />
-      </AdminLayout>
+      />
     );
   }
 

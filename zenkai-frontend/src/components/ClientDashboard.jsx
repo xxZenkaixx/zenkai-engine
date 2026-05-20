@@ -20,11 +20,11 @@ const TABS = [
   { key: 'more',    label: 'More' },
 ];
 
-export default function ClientDashboard() {
+export default function ClientDashboard({ clientId: propClientId, clientName: propClientName, onBack }) {
   const { logout } = useAuth();
   const [tab, setTab] = useState('home');
-  const [linkedClientId, setLinkedClientId] = useState(null);
-  const [linkedClientName, setLinkedClientName] = useState(null);
+  const [linkedClientId, setLinkedClientId] = useState(propClientId || null);
+  const [linkedClientName, setLinkedClientName] = useState(propClientName || null);
   const [activeProgram, setActiveProgram] = useState(null);
   // Two-stage workout-tab state:
   //   previewDayId        — which day the preview screen is currently showing.
@@ -36,10 +36,11 @@ export default function ClientDashboard() {
   const [workoutLoading, setWorkoutLoading] = useState(false);
 
   useEffect(() => {
+    if (propClientId) return;
     fetchLinkedClient()
       .then(c => { setLinkedClientId(c.id); setLinkedClientName(c.name); })
       .catch(() => {});
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!linkedClientId || tab !== 'workout' || activeProgram) return;
@@ -58,6 +59,10 @@ export default function ClientDashboard() {
     );
   }
 
+  const displayName = linkedClientName?.includes('@')
+    ? linkedClientName.split('@')[0].replace(/^(.)/, (c) => c.toUpperCase())
+    : linkedClientName;
+
   // Called by ClientHome's "Start Today's Workout" CTA. Per wireframe, the
   // home CTA lands on the workout PREVIEW (not the active workout) so the
   // client can review the day's exercises before committing. Setting
@@ -72,11 +77,17 @@ export default function ClientDashboard() {
   return (
     <div className="cd-wrap">
       <div className="cd-topbar">
-        <div>
+        <div className="cd-topbar__info">
           <div className="cd-topbar__brand">ZENKAI</div>
-          <div className="cd-topbar__role">Client</div>
+          <div className="cd-topbar__role">Client Side</div>
+          <h1 className="cd-topbar__title">
+            {displayName ? `${displayName}'s Portal` : 'My Training'}
+          </h1>
         </div>
-        <button className="cd-topbar__logout" onClick={logout}>Logout</button>
+        {onBack
+          ? <button className="cd-topbar__logout" onClick={onBack}>← Back</button>
+          : <button className="cd-topbar__logout" onClick={logout}>Logout</button>
+        }
       </div>
 
       <div className="cd-content">
