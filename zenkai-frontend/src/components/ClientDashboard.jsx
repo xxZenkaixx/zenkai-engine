@@ -10,6 +10,7 @@ import ClientWorkoutView from './ClientWorkoutView';
 import ClientWorkoutDayPreview from './ClientWorkoutDayPreview';
 import ClientWorkoutHistoryList from './ClientWorkoutHistoryList';
 import ExerciseLibrary from './ExerciseLibrary';
+import WorkoutPreview from './WorkoutPreview';
 import './ClientDashboard.css';
 
 const TABS = [
@@ -26,6 +27,7 @@ export default function ClientDashboard({ clientId: propClientId, clientName: pr
   const [linkedClientId, setLinkedClientId] = useState(propClientId || null);
   const [linkedClientName, setLinkedClientName] = useState(propClientName || null);
   const [activeProgram, setActiveProgram] = useState(null);
+  const [showPreview, setShowPreview] = useState(false);
   // Two-stage workout-tab state:
   //   previewDayId        — which day the preview screen is currently showing.
   //                          Null is fine; preview defaults to the first day.
@@ -42,14 +44,15 @@ export default function ClientDashboard({ clientId: propClientId, clientName: pr
       .catch(() => {});
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Eager-load active program so the View Program toggle + subtext render on every tab.
   useEffect(() => {
-    if (!linkedClientId || tab !== 'workout' || activeProgram) return;
+    if (!linkedClientId || activeProgram) return;
     setWorkoutLoading(true);
     fetchActiveProgram(linkedClientId)
       .then(p => setActiveProgram(p || null))
       .catch(() => setActiveProgram(null))
       .finally(() => setWorkoutLoading(false));
-  }, [linkedClientId, tab]);
+  }, [linkedClientId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!linkedClientId) {
     return (
@@ -59,9 +62,16 @@ export default function ClientDashboard({ clientId: propClientId, clientName: pr
     );
   }
 
-  const displayName = linkedClientName?.includes('@')
-    ? linkedClientName.split('@')[0].replace(/^(.)/, (c) => c.toUpperCase())
-    : linkedClientName;
+  const getFirstName = (name) => {
+    if (!name) return 'Athlete';
+    const clean = name.split('@')[0].trim();
+    const parts = clean.split(/[\s._-]+/);
+    return parts[0].replace(/^(.)/, c => c.toUpperCase());
+  };
+  const displayName = getFirstName(linkedClientName || propClientName);
+  const programName = activeProgram?.Program?.name;
+  const programWeeks = activeProgram?.Program?.weeks;
+  const programId = activeProgram?.Program?.id;
 
   // Called by ClientHome's "Start Today's Workout" CTA. Per wireframe, the
   // home CTA lands on the workout PREVIEW (not the active workout) so the
@@ -81,14 +91,32 @@ export default function ClientDashboard({ clientId: propClientId, clientName: pr
           <div className="cd-topbar__brand">ZENKAI</div>
           <div className="cd-topbar__role">Client Side</div>
           <h1 className="cd-topbar__title">
-            {displayName ? `${displayName}'s Portal` : 'My Training'}
+            {`${displayName}'s Portal`}
           </h1>
+          {programName && (
+            <p className="cd-topbar__sub">
+              {programName} · {programWeeks} weeks
+            </p>
+          )}
         </div>
-        {onBack
-          ? <button className="cd-topbar__logout" onClick={onBack}>← Back</button>
-          : <button className="cd-topbar__logout" onClick={logout}>Logout</button>
-        }
+        <div className="cd-topbar__actions">
+          {programId && (
+            <button className="cd-topbar__logout" onClick={() => setShowPreview(v => !v)}>
+              {showPreview ? 'Hide Program' : 'View Program'}
+            </button>
+          )}
+          {onBack
+            ? <button className="cd-topbar__logout" onClick={onBack}>← Back</button>
+            : <button className="cd-topbar__logout" onClick={logout}>Logout</button>
+          }
+        </div>
       </div>
+
+      {showPreview && programId && (
+        <div className="cd-preview-wrap">
+          <WorkoutPreview programId={programId} clientId={linkedClientId} />
+        </div>
+      )}
 
       <div className="cd-content">
         {tab === 'home' && (
