@@ -44,3 +44,12 @@ export const fetchActiveProgram = async (clientId) => {
   if (!data || !data.Program) return null;
   return data;
 };
+
+export const activateProgram = async (assignmentId) => {
+  const res = await fetch(`${BASE_URL}/${assignmentId}/activate`, {
+    method: 'PATCH',
+    headers: getAuthHeaders()
+  });
+  if (!res.ok) throw new Error('Failed to activate program');
+  return res.json();
+};

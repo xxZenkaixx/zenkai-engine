@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { fetchClients, fetchUnassignedClients, claimClient } from '../api/clientApi';
 import { fetchPrograms } from '../api/programApi';
-import { fetchActiveProgram, deactivateProgram, fetchAssignmentHistory } from '../api/clientProgramApi';
+import { fetchActiveProgram, deactivateProgram, fetchAssignmentHistory, activateProgram } from '../api/clientProgramApi';
 import AdminLayout from './AdminLayout';
 import ClientList from './ClientList';
 import ClientWorkoutHistoryList from './ClientWorkoutHistoryList';
@@ -170,14 +170,16 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
 
   const handleActivateProgram = async (assignmentId) => {
     try {
-      await fetch(`http://localhost:3001/api/client-programs/${assignmentId}/activate`, { method: 'PATCH' });
+      await activateProgram(assignmentId);
       const [programData, historyData] = await Promise.all([
         fetchActiveProgram(selectedClientId),
         fetchAssignmentHistory(selectedClientId)
       ]);
       setActiveProgram(programData || null);
       setAssignmentHistory(Array.isArray(historyData) ? historyData : []);
-    } catch {}
+    } catch (err) {
+      console.error('Failed to activate program:', err);
+    }
   };
 
   const handleOpenBuilder = (program) => {
