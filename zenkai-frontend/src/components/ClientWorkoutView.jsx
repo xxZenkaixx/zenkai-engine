@@ -204,7 +204,33 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
       setLoading(true);
       setError(null);
 
-      const data = await fetchActiveProgram(clientId);
+      let data = await fetchActiveProgram(clientId);
+
+      // Ensures week-to-week progression is persisted to client_exercise_targets
+      // BEFORE set 1 renders. Without this, an abandoned prior session (Finish
+      // never tapped) leaves set 1 on the program baseline while set 2+ live-
+      // progress off set 1. Guarded by the draft check so we never recompute
+      // mid-session; applyProgression is a no-op when no logged sets exist.
+      const initialDays = data?.Program?.ProgramDays || [];
+      const sortedInitial = [...initialDays].sort((a, b) => a.day_number - b.day_number);
+      const fallbackFirstDayId = sortedInitial[0]?.id || null;
+      const persistedDayId = readSelectedDayId(clientId);
+      const dayToProgress = initialDayId || persistedDayId || fallbackFirstDayId;
+      const draftForDay = dayToProgress ? readDraft(clientId, dayToProgress) : null;
+      const sessionInProgress = draftForDay && isDraftSessionValid(draftForDay);
+      let progressionApplied = false;
+      if (clientId && dayToProgress && !sessionInProgress) {
+        console.log(`[Progression Preload] Applying for day ${dayToProgress} (no active draft)`);
+        try {
+          await applyProgression(clientId, dayToProgress);
+          progressionApplied = true;
+        } catch (e) {
+          console.warn('[Progression Preload] applyProgression failed, keeping initial fetch:', e?.message);
+        }
+      }
+      if (progressionApplied) {
+        data = await fetchActiveProgram(clientId);
+      }
       // TEMP DEBUG: confirm the values that arrived from the API exactly match
       // what [CP GET FINAL] reported. If they diverge, suspect a cache / SW /
       // axios interceptor between server and view. Remove once bug is found.
