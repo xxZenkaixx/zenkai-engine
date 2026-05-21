@@ -3,6 +3,7 @@
 // * order_index swap uses existing PUT route via swapExerciseOrder.
 
 import { useState, useEffect, useRef } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import {
   fetchExerciseInstances,
   createExerciseInstance,
@@ -151,6 +152,7 @@ function buildPayload(fields) {
 }
 
 export default function ExerciseInstanceForm({ dayId }) {
+  const { user } = useAuth();
   const [exercises, setExercises] = useState([]);
   const [form, setForm] = useState(EMPTY_FORM);
   const [formErrors, setFormErrors] = useState(EMPTY_ERRORS);
@@ -723,7 +725,7 @@ export default function ExerciseInstanceForm({ dayId }) {
                   </p>
                 )}
 
-                {editFields.exercise_id && (
+                {editFields.exercise_id && user?.role !== 'self-serve' && (
                   <div className="ex-edit-form__row">
                     <label style={{ color: '#888', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
                       <input
@@ -1046,7 +1048,7 @@ export default function ExerciseInstanceForm({ dayId }) {
           </button>
         </div>
 
-        {!form.exercise_id && (
+        {!form.exercise_id && user?.role !== 'self-serve' && (
           <div className="ex-add-form__row">
             <label style={{ color: '#888', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
               <input
