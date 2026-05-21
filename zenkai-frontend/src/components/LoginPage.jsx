@@ -28,6 +28,8 @@ export default function LoginPage({ variant = 'member' }) {
   const [password, setPassword] = useState('');
   const [mode, setMode] = useState('login');
   const [signupRole, setSignupRole] = useState(null);
+  const [nameStepRole, setNameStepRole] = useState(null);
+  const [firstName, setFirstName] = useState('');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -91,14 +93,14 @@ export default function LoginPage({ variant = 'member' }) {
   // Phase 2 of Google signup: user has picked a role on the existing
   // role-select screen. Resend the stashed credential plus the chosen role;
   // backend re-verifies the credential and creates the User + Client rows.
-  const completeGoogleSignup = async (role) => {
+  const completeGoogleSignup = async (role, firstName) => {
     setError(null);
     setLoading(true);
     try {
       const res = await fetch(`${process.env.REACT_APP_API_URL}/api/auth/google`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ credential: pendingGoogleCredential, role })
+        body: JSON.stringify({ credential: pendingGoogleCredential, role, firstName })
       });
       const data = await res.json();
       if (!res.ok) {
@@ -143,7 +145,7 @@ export default function LoginPage({ variant = 'member' }) {
     setLoading(true);
     try {
       const body = mode === 'signup'
-        ? { email, password, role: signupRole }
+        ? { email, password, role: signupRole, firstName }
         : { email, password };
       const res = await fetch(`${process.env.REACT_APP_API_URL}/api/auth/${mode}`, {
         method: 'POST',
@@ -174,6 +176,8 @@ export default function LoginPage({ variant = 'member' }) {
   const handleModeToggle = () => {
     setMode(m => m === 'login' ? 'signup' : 'login');
     setSignupRole(null);
+    setNameStepRole(null);
+    setFirstName('');
     // Toggling away from the role picker means the user is backing out of
     // the Google signup they started — drop the stashed credential so the
     // Google button reappears and the next attempt starts a fresh phase 1.
@@ -191,36 +195,53 @@ export default function LoginPage({ variant = 'member' }) {
             : mode === 'login' ? 'Sign in to continue' : 'Create your account'}
         </p>
 
-        {!isAdmin && mode === 'signup' && !signupRole && (
+        {!isAdmin && mode === 'signup' && !nameStepRole && !signupRole && (
           <div className="lp-role-select">
             <p className="lp-role-prompt">Are you working with a coach or training on your own?</p>
-            {/* When pendingGoogleCredential is set we're finishing a Google signup —
-                clicking a role completes account creation server-side.
-                Otherwise this is the existing email/password path: just set the
-                local role so the email/password form renders next. */}
             <button
               className="lp-role-btn"
               disabled={loading}
-              onClick={() =>
-                pendingGoogleCredential
-                  ? completeGoogleSignup('client')
-                  : setSignupRole('client')
-              }
+              onClick={() => setNameStepRole('client')}
             >
               Working with a coach
             </button>
             <button
               className="lp-role-btn"
               disabled={loading}
-              onClick={() =>
-                pendingGoogleCredential
-                  ? completeGoogleSignup('self-serve')
-                  : setSignupRole('self-serve')
-              }
+              onClick={() => setNameStepRole('self-serve')}
             >
               Training on my own
             </button>
             {error && <p className="lp-error">{error}</p>}
+          </div>
+        )}
+
+        {!isAdmin && mode === 'signup' && nameStepRole && !signupRole && (
+          <div className="lp-role-select">
+            <p className="lp-role-prompt">What's your first name?</p>
+            <input
+              className="lp-input"
+              type="text"
+              placeholder="First name"
+              value={firstName}
+              onChange={e => setFirstName(e.target.value)}
+              autoFocus
+            />
+            {error && <p className="lp-error">{error}</p>}
+            <button
+              className="lp-role-btn"
+              disabled={loading || !firstName.trim()}
+              onClick={() => {
+                if (pendingGoogleCredential) {
+                  completeGoogleSignup(nameStepRole, firstName.trim());
+                } else {
+                  setSignupRole(nameStepRole);
+                  setNameStepRole(null);
+                }
+              }}
+            >
+              {loading ? 'Loading...' : 'Continue'}
+            </button>
           </div>
         )}
 

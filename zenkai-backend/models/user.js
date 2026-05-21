@@ -25,6 +25,10 @@ module.exports = (sequelize) => {
     coach_id: {
       type: DataTypes.UUID,
       allowNull: true
+    },
+    first_name: {
+      type: DataTypes.STRING(100),
+      allowNull: true
     }
   }, {
     tableName: 'users',

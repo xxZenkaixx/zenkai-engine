@@ -32,7 +32,7 @@ export default function AdminExerciseLibrary() {
   const [type, setType]                   = useState('');
   const [bodyPart, setBodyPart]           = useState('');
 
-  const fetchExercises = (signal) => {
+  const fetchExercises = (isCancelled = () => false) => {
     setLoading(true);
     const params = new URLSearchParams();
     if (search)        params.set('search',         search);
@@ -42,22 +42,22 @@ export default function AdminExerciseLibrary() {
 
     fetch(`${API_BASE}/api/admin/exercises?${params.toString()}`, {
       headers: getAuthHeaders(),
-      signal,
     })
       .then(r => r.json())
       .then(data => {
+        if (isCancelled()) return;
         if (!Array.isArray(data)) throw new Error(data.error || 'Failed to load');
         setExercises(data);
         setError('');
       })
-      .catch(err => { if (err.name !== 'AbortError') setError(err.message); })
-      .finally(() => setLoading(false));
+      .catch(err => { if (!isCancelled()) setError(err.message); })
+      .finally(() => { if (!isCancelled()) setLoading(false); });
   };
 
   useEffect(() => {
-    const ctrl = new AbortController();
-    fetchExercises(ctrl.signal);
-    return () => ctrl.abort();
+    let cancelled = false;
+    fetchExercises(() => cancelled);
+    return () => { cancelled = true; };
   }, [search, equipmentType, type, bodyPart]);
 
   const handleDelete = async () => {

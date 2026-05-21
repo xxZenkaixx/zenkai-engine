@@ -16,7 +16,7 @@ const sign = (user) =>
 
 exports.signup = async (req, res) => {
   try {
-    const { email, password, role } = req.body;
+    const { email, password, role, firstName } = req.body;
     if (!email || !password) {
       return res.status(400).json({ error: 'email and password required' });
     }
@@ -24,13 +24,13 @@ exports.signup = async (req, res) => {
       return res.status(400).json({ error: 'role must be client or self-serve' });
     }
     const hash = await bcrypt.hash(password, 10);
-    const user = await User.create({ email, password: hash, role, coach_id: null });
+    const user = await User.create({ email, password: hash, role, coach_id: null, first_name: firstName || null });
     if (role === 'client' || role === 'self-serve') {
-      await Client.create({ name: email, user_id: user.id });
+      await Client.create({ name: firstName ? firstName.trim() : email, user_id: user.id });
     }
     res.status(201).json({
       token: sign(user),
-      user: { id: user.id, email: user.email, role: user.role }
+      user: { id: user.id, email: user.email, role: user.role, firstName: user.first_name || null }
     });
   } catch (err) {
     if (err.name === 'SequelizeUniqueConstraintError') {
@@ -56,7 +56,7 @@ exports.login = async (req, res) => {
 
     res.json({
       token: sign(user),
-      user: { id: user.id, email: user.email, role: user.role }
+      user: { id: user.id, email: user.email, role: user.role, firstName: user.first_name || null }
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -73,7 +73,7 @@ exports.googleAuth = async (req, res) => {
     //     We re-verify Google (tokens are valid ~1h, plenty of time for the pick)
     //     and create the User + Client row, mirroring exports.signup.
     //   Existing user: { credential } alone is enough — we just log them in.
-    const { credential, role } = req.body;
+    const { credential, role, firstName } = req.body;
     if (!credential) return res.status(400).json({ error: 'credential required' });
 
     // Verify signature, expiry, and audience against our OAuth client ID.
@@ -96,7 +96,7 @@ exports.googleAuth = async (req, res) => {
     if (user) {
       return res.json({
         token: sign(user),
-        user: { id: user.id, email: user.email, role: user.role }
+        user: { id: user.id, email: user.email, role: user.role, firstName: user.first_name || null }
       });
     }
 
@@ -118,12 +118,12 @@ exports.googleAuth = async (req, res) => {
     // NOT NULL. Store an unguessable random bcrypt hash to satisfy the schema
     // without giving anyone a usable password for this account.
     const randomHash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10);
-    user = await User.create({ email, password: randomHash, role, coach_id: null });
-    await Client.create({ name: email, user_id: user.id });
+    user = await User.create({ email, password: randomHash, role, coach_id: null, first_name: firstName || null });
+    await Client.create({ name: firstName ? firstName.trim() : email, user_id: user.id });
 
     res.json({
       token: sign(user),
-      user: { id: user.id, email: user.email, role: user.role }
+      user: { id: user.id, email: user.email, role: user.role, firstName: user.first_name || null }
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

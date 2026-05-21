@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { fetchLinkedClient } from '../api/clientApi';
 import { fetchActiveProgram } from '../api/clientProgramApi';
+import { fetchPrograms } from '../api/programApi';
 import ClientHome from './ClientHome';
 import ClientWorkoutView from './ClientWorkoutView';
 // Workout-tab landing screen — wireframe screen-workout-day (vaunt-wireframe.html:1056).
@@ -11,21 +12,25 @@ import ClientWorkoutDayPreview from './ClientWorkoutDayPreview';
 import ClientWorkoutHistoryList from './ClientWorkoutHistoryList';
 import ExerciseLibrary from './ExerciseLibrary';
 import WorkoutPreview from './WorkoutPreview';
+import ProgramList from './ProgramList';
+import ProgramBuilder from './ProgramBuilder';
 import './ClientDashboard.css';
 
-const TABS = [
-  { key: 'home',    label: 'Home' },
-  { key: 'workout', label: 'Workout' },
-  { key: 'history', label: 'History' },
-  { key: 'library', label: 'Library' },
-  { key: 'more',    label: 'More' },
-];
-
 export default function ClientDashboard({ clientId: propClientId, clientName: propClientName, onBack }) {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
+  const isSelfServe = user?.role === 'self-serve';
+  const TABS = [
+    { key: 'home',     label: 'Home' },
+    { key: 'workout',  label: 'Workout' },
+    { key: 'history',  label: 'History' },
+    { key: 'library',  label: 'Library' },
+    ...(isSelfServe ? [{ key: 'programs', label: 'Programs' }] : []),
+    { key: 'more',     label: 'More' },
+  ];
   const [tab, setTab] = useState('home');
   const [linkedClientId, setLinkedClientId] = useState(propClientId || null);
   const [linkedClientName, setLinkedClientName] = useState(propClientName || null);
+  const [clientLoading, setClientLoading] = useState(!propClientId);
   const [activeProgram, setActiveProgram] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
   // Two-stage workout-tab state:
@@ -36,12 +41,15 @@ export default function ClientDashboard({ clientId: propClientId, clientName: pr
   const [previewDayId, setPreviewDayId] = useState(null);
   const [activeWorkoutDayId, setActiveWorkoutDayId] = useState(null);
   const [workoutLoading, setWorkoutLoading] = useState(false);
+  const [programs, setPrograms] = useState([]);
+  const [builderProgram, setBuilderProgram] = useState(null);
 
   useEffect(() => {
     if (propClientId) return;
     fetchLinkedClient()
       .then(c => { setLinkedClientId(c.id); setLinkedClientName(c.name); })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setClientLoading(false));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Eager-load active program so the View Program toggle + subtext render on every tab.
@@ -54,7 +62,12 @@ export default function ClientDashboard({ clientId: propClientId, clientName: pr
       .finally(() => setWorkoutLoading(false));
   }, [linkedClientId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!linkedClientId) {
+  useEffect(() => {
+    if (!isSelfServe) return;
+    fetchPrograms().then(setPrograms).catch(() => setPrograms([]));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (clientLoading) {
     return (
       <div style={{ color: '#888', background: '#0a0a0a', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         Loading...
@@ -68,7 +81,7 @@ export default function ClientDashboard({ clientId: propClientId, clientName: pr
     const parts = clean.split(/[\s._-]+/);
     return parts[0].replace(/^(.)/, c => c.toUpperCase());
   };
-  const displayName = getFirstName(linkedClientName || propClientName);
+  const displayName = user?.firstName || getFirstName(linkedClientName || propClientName || user?.email);
   const programName = activeProgram?.Program?.name;
   const programWeeks = activeProgram?.Program?.weeks;
   const programId = activeProgram?.Program?.id;
@@ -89,7 +102,7 @@ export default function ClientDashboard({ clientId: propClientId, clientName: pr
       <div className="cd-topbar">
         <div className="cd-topbar__info">
           <div className="cd-topbar__brand">ZENKAI</div>
-          <div className="cd-topbar__role">Client Side</div>
+          <div className="cd-topbar__role">{isSelfServe ? 'Self-Serve' : 'Client Side'}</div>
           <h1 className="cd-topbar__title">
             {`${displayName}'s Portal`}
           </h1>
@@ -167,6 +180,25 @@ export default function ClientDashboard({ clientId: propClientId, clientName: pr
 
         {tab === 'library' && (
           <ExerciseLibrary />
+        )}
+
+        {tab === 'programs' && (
+          builderProgram ? (
+            <ProgramBuilder
+              program={builderProgram}
+              onBack={() => setBuilderProgram(null)}
+            />
+          ) : (
+            <ProgramList
+              programs={programs}
+              clients={[]}
+              onProgramsChanged={async () => {
+                const d = await fetchPrograms();
+                setPrograms(d);
+              }}
+              onOpenBuilder={(p) => setBuilderProgram(p)}
+            />
+          )
         )}
 
         {tab === 'more' && (
