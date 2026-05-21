@@ -190,3 +190,64 @@
   padding: 16px;
   text-align: center;
 }
+
+/* ── Desktop layout — sidebar nav like admin (≥1025px) ── */
+@media (min-width: 1025px) {
+  .cd-wrap {
+    padding-left: 220px;
+  }
+
+  .cd-bottom-nav {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 220px;
+    height: 100vh;
+    flex-direction: column;
+    align-items: stretch;
+    background: #111;
+    border-top: none;
+    border-right: 1px solid #1c1c1c;
+    padding-top: 32px;
+    z-index: 10;
+  }
+
+  .cd-nav-btn {
+    flex: 0 0 auto;
+    text-align: left;
+    padding: 12px 24px;
+    font-size: 14px;
+    border-left: 3px solid transparent;
+    transition: color 0.15s, background 0.15s;
+  }
+
+  .cd-nav-btn:hover {
+    color: #e0e0e0;
+    background: #181818;
+  }
+
+  .cd-nav-btn--active {
+    border-left-color: #c8ff00;
+    background: #141a00;
+  }
+
+  .cd-topbar {
+    padding: 20px 40px;
+  }
+
+  .cd-content {
+    padding: 36px 40px;
+    padding-bottom: 36px;
+  }
+
+  .cd-program-toggle {
+    background: transparent;
+    margin-bottom: 0;
+    padding: 24px 40px 0;
+  }
+
+  .cd-preview-wrap {
+    padding: 16px 40px;
+  }
+}
