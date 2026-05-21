@@ -96,6 +96,16 @@ export default function ClientWorkoutDayPreview({
   const selectedDay = days.find(d => d.id === selectedDayId) || days[0];
   const exercises = [...(selectedDay?.ExerciseInstances || [])]
     .sort((a, b) => a.order_index - b.order_index);
+  console.log(`UI displaying targets for day ${selectedDay?.id} (Day ${selectedDay?.day_number}):`,
+    exercises.map(ex => ({
+      id: ex.id,
+      name: ex.name,
+      target_sets: ex.target_sets,
+      target_reps: ex.target_reps,
+      target_weight: ex.target_weight,
+      updatedAt: ex.updatedAt
+    }))
+  );
 
   return (
     <div className="cwdp-wrap">

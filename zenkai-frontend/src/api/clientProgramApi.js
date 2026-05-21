@@ -41,6 +41,7 @@ export const fetchActiveProgram = async (clientId) => {
   if (res.status === 404) return null;
   if (!res.ok) throw new Error('Failed to fetch active program');
   const data = await res.json();
+  console.log(`Loading workout targets for client ${clientId} - raw data:`, data);
   if (!data || !data.Program) return null;
   return data;
 };
