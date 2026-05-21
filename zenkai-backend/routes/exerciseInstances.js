@@ -140,6 +140,11 @@ router.post('/', protect, requireRole('admin', 'self-serve'), async (req, res) =
       };
 
       payload = { ...snapshot, ...rest };
+
+      // Library video_url defense
+      if ((!payload.video_url || payload.video_url === '') && snapshot?.video_url) {
+        payload.video_url = snapshot.video_url;
+      }
     }
 
     const validationErrors = validateExercisePayload(payload, false);

@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import LandingPage from './components/LandingPage';
 import AdminDashboard from './components/AdminDashboard';
-import SelfServeDashboard from './components/SelfServeDashboard';
 import AdminLayout from './components/AdminLayout';
 import ClientWorkoutView from './components/ClientWorkoutView';
 import ClientHome from './components/ClientHome';
@@ -58,34 +57,20 @@ function AppShell() {
 
   if (!user) return <LoginPage variant="member" />;
 
-  if (user.role === 'client') {
+  if (user.role === 'client' || user.role === 'self-serve') {
     return <ClientDashboard />;
-  }
-
-  if (user.role === 'self-serve') {
-    return <SelfServeDashboard />;
   }
 
   if (view === 'clientHome' && activeClientId) {
     return (
-      <AdminLayout
-        activeSection="clientPortal"
-        onSectionChange={(section) => {
-          localStorage.setItem('adminSection', section);
+      <ClientDashboard
+        clientId={activeClientId}
+        clientName={activeClientName}
+        onBack={() => {
+          localStorage.setItem('adminSection', 'clientPortal');
           setView('main');
         }}
-      >
-        <ClientHome
-          clientId={activeClientId}
-          clientName={activeClientName}
-          onStartWorkout={handleStartWorkout}
-          initialTab={clientHomeTab}
-          onBack={() => {
-            localStorage.setItem('adminSection', 'clientPortal');
-            setView('main');
-          }}
-        />
-      </AdminLayout>
+      />
     );
   }
 
