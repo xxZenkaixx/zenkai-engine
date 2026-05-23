@@ -155,10 +155,22 @@ export default function ClientDashboard({ clientId: propClientId, clientName: pr
             <ClientWorkoutView
               clientId={linkedClientId}
               initialDayId={activeWorkoutDayId}
-              onWorkoutFinished={() => {
+              onWorkoutFinished={async () => {
                 setActiveWorkoutDayId(null);
                 setPreviewDayId(null);
                 setTab('home');
+                // Refresh active program so progressed targets (ISO hold time,
+                // weight bumps, cable steps) appear on the next preview /
+                // workout open. The dashboard's activeProgram is only fetched
+                // on mount (guarded by `if (... || activeProgram) return`) —
+                // without this refresh, the preview keeps showing pre-finish
+                // targets even though client_exercise_targets is updated.
+                try {
+                  const fresh = await fetchActiveProgram(linkedClientId);
+                  setActiveProgram(fresh || null);
+                } catch {
+                  // best effort — manual reload recovers stale state
+                }
               }}
             />
           ) : (
