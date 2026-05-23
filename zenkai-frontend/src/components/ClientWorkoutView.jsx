@@ -705,6 +705,23 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
         const currentUnit = incompleteUnits[0] ?? null;
         const nextUpUnits = incompleteUnits.slice(1);
 
+        // Skips the entire superset unit — moves both A and B exercises to
+        // after the last incomplete exercise, matching single-exercise handleSkip.
+        const handleSupersetSkip = (groupExerciseIds) => {
+          const incompleteInOrder = effectiveOrder.filter(id => incompleteExerciseIds.has(id));
+          const others = incompleteInOrder.filter(id => !groupExerciseIds.includes(id));
+          if (others.length === 0) return;
+          const last = others[others.length - 1];
+          let next = [...effectiveOrder];
+          groupExerciseIds.forEach(id => {
+            const idx = next.indexOf(id);
+            if (idx !== -1) next.splice(idx, 1);
+          });
+          next.splice(next.indexOf(last) + 1, 0, ...groupExerciseIds);
+          setActiveOrderOverride(next);
+          writeDraft(clientId, selectedDayId, { activeOrderOverride: next });
+        };
+
         // Single-exercise card — unchanged from previous render flow.
         const renderCard = (ex, isCurrent = false) => (
           <ExerciseCard
@@ -766,6 +783,7 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
                 sessionOverrides={sessionOverrides}
                 onSessionOverrideChange={handleSessionOverrideChange}
                 incompleteExerciseIds={incompleteExerciseIds}
+                onSkip={nextUpUnits.length > 0 ? () => handleSupersetSkip(unit.exercises.map(e => e.id)) : null}
               />
             );
           }

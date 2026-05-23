@@ -1,29 +1,33 @@
 /* =================================================================
    SupersetCard.css
    -----------------------------------------------------------------
-   Visual identity for the unified A+B superset card.
-
-   Palette (parallels ClientWorkoutView lime, swapped to blue):
-     accent           #00BFFF   ← Super Saiyan Blue
+   Full blue identity — Saiyan Blue palette throughout.
+     accent           #00BFFF
      accent strong    #33d4ff
-     accent tint bg   #001a26
-     accent tint brdr #0a3a4a
-     accent muted     #0a6a90
-     card bg          #141414   (matches .ec-card)
-     side bg          #0f0f0f   (matches set-rows)
-     border subtle    #1e1e1e
+     bg tint          #0a1620   (blue-tinted dark — parallels #141a0a green)
+     border           #1e2a33
    ================================================================= */
 
-/* ---------- Outer card ---------- */
+/* DBZ-style display font for the SUPER label.
+   Russo One is a free Google Font with the heavy slabbed feel of
+   classic Super Saiyan title cards. */
+@import url('https://fonts.googleapis.com/css2?family=Russo+One&display=swap');
+
+/* ---------- Outer card — blue-tinted bg + glow (parallels the
+              active green card's green tint in ClientWorkoutView.css).
+              max-width + auto-margin match the single .ec-card centering
+              rule in ClientWorkoutView.css so tablet/laptop breakpoints
+              don't stretch the card edge-to-edge. ---------- */
 .sc-card {
-  background: #141414;
-  border: 1px solid #1e1e1e;
+  background: #0a1620;
+  border: 1px solid rgba(0, 191, 255, 0.22);
   border-radius: 16px;
-  /* Glow ring — calls out the active superset like .ec-card--current */
   box-shadow:
-    0 0 0 1px rgba(0, 191, 255, 0.18),
-    0 0 24px rgba(0, 191, 255, 0.08);
-  margin-bottom: 16px;
+    0 0 0 1px rgba(0, 191, 255, 0.14),
+    0 0 22px rgba(0, 191, 255, 0.12),
+    0 6px 28px rgba(0, 0, 0, 0.55);
+  max-width: 520px;
+  margin: 0 auto 16px;
   overflow: hidden;
 }
 
@@ -34,21 +38,26 @@
   align-items: center;
   gap: 10px;
   padding: 14px 16px;
-  background: linear-gradient(90deg, #001a26 0%, #0a0a0a 100%);
+  background: linear-gradient(90deg, #001a26 0%, #0a0a12 60%, #0a0a0a 100%);
   border-bottom: 1px solid #0a3a4a;
 }
 
+/* DBZ "Super Saiyan" lettering — Russo One heavy, italic skew, wide tracking */
 .sc-card__label {
-  /* SUPER pill — short, loud, blue */
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
+  font-family: 'Russo One', Impact, 'Arial Black', sans-serif;
+  font-style: italic;
+  font-size: 13px;
+  font-weight: 400; /* Russo One ships with a single heavy weight */
+  letter-spacing: 0.18em;
   color: #00BFFF;
   background: #001a26;
   border: 1px solid #0a3a4a;
-  padding: 4px 10px;
+  padding: 4px 12px;
   border-radius: 999px;
   text-transform: uppercase;
+  text-shadow:
+    0 0 8px rgba(0, 191, 255, 0.55),
+    0 1px 0 rgba(0, 0, 0, 0.6);
 }
 
 .sc-card__title {
@@ -57,9 +66,10 @@
   font-weight: 600;
   color: #e6f5ff;
   line-height: 1.3;
-  min-width: 0; /* allow ellipsis-style wrap on narrow screens */
+  min-width: 0;
 }
 
+/* Round counter — blue, matches the unified superset identity */
 .sc-card__rounds {
   font-size: 12px;
   font-weight: 600;
@@ -70,19 +80,17 @@
   white-space: nowrap;
 }
 
-/* ---------- Side (A or B) wrapper ---------- */
-.sc-side {
+/* ---------- Body — single active face + A/B badge ---------- */
+.sc-body {
   position: relative;
-  padding: 14px 14px 14px 14px;
-  border-bottom: 1px solid #161616;
-  transition: background 0.2s ease, opacity 0.2s ease;
+  padding: 16px 16px 16px 50px;
+  will-change: transform, opacity;
 }
-.sc-side:last-child { border-bottom: none; }
 
-/* ---------- A/B badge (top-left of each side) ---------- */
-.sc-side__badge {
+/* ---------- A/B badge (absolute left rail) ---------- */
+.sc-badge {
   position: absolute;
-  top: 18px;
+  top: 20px;
   left: 14px;
   width: 26px;
   height: 26px;
@@ -92,78 +100,64 @@
   border-radius: 999px;
   font-size: 12px;
   font-weight: 800;
-  letter-spacing: 0.02em;
-  background: #001a26;
-  color: #00BFFF;
-  border: 1px solid #0a3a4a;
   z-index: 2;
   pointer-events: none;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 
-/* Subtle differentiation between A and B (kept minimal — same hue family) */
-.sc-side__badge--a { box-shadow: 0 0 0 1px rgba(0, 191, 255, 0.12); }
-.sc-side__badge--b { box-shadow: 0 0 0 1px rgba(0, 191, 255, 0.12); }
-
-/* Reserve room for the absolute badge so it never overlaps card content */
-.sc-side > :not(.sc-side__badge):not(.sc-side__hint) {
-  margin-left: 34px;
-}
-
-/* ---------- Hint text under the badge when waiting ---------- */
-.sc-side__hint {
-  position: absolute;
-  top: 22px;
-  left: 50px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  color: #0a6a90;
-  text-transform: uppercase;
-  z-index: 2;
-}
-
-/* ---------- Active state — strong blue glow ---------- */
-.sc-side--active {
-  background:
-    radial-gradient(120% 80% at 0% 0%, rgba(0, 191, 255, 0.08) 0%, transparent 70%),
-    #141414;
-}
-.sc-side--active .sc-side__badge {
+/* Both A and B → blue (one unified superset identity).
+   Only one is ever visible thanks to the flip — no risk of confusion. */
+.sc-badge--a,
+.sc-badge--b {
   background: #00BFFF;
   color: #001a26;
-  border-color: #33d4ff;
-  box-shadow: 0 0 14px rgba(0, 191, 255, 0.45);
+  border: 1px solid #33d4ff;
+  box-shadow: 0 0 12px rgba(0, 191, 255, 0.45);
 }
 
-/* ---------- Waiting state — dimmed, non-interactive ---------- */
-/* (Inline style fallback in JSX also applies pointer-events:none + opacity.
-   This rule wins specificity once CSS loads.) */
-.sc-side--waiting {
-  background: #101010;
-  opacity: 0.5;
-  pointer-events: none;
-  filter: grayscale(0.3);
+/* ---------- 3D flip animation (half-flip technique) ----------
+   Phase OUT: current face rotates edge-on to the right (−90°), fades.
+   displaySide swaps at the halfway point.
+   Phase IN:  new face sweeps in from the left (+90° → 0°), fades up.
+   perspective() in the keyframe gives the depth illusion without
+   requiring both faces to be simultaneously in the 3D context. */
+
+.sc-body--phase-idle { /* no transform */ }
+
+.sc-body--phase-out {
+  animation: sc-flip-out 220ms ease-in forwards;
 }
 
-/* ---------- Done state — muted, success tick implied by ec-complete ---------- */
-.sc-side--done {
-  background: #0d1418;
-  opacity: 0.82;
-}
-.sc-side--done .sc-side__badge {
-  background: #001a26;
-  color: #0a6a90;
-  border-color: #0a3a4a;
-  box-shadow: none;
+.sc-body--phase-in {
+  animation: sc-flip-in 220ms ease-out forwards;
 }
 
-/* ---------- ExerciseCard nested inside .sc-side ----------
-   The inner .ec-card already has its own bg+border. Inside the
-   superset shell we flatten it so the grouped card reads as ONE
-   surface, not "card inside a card". Surgical override — does NOT
-   touch single-exercise .ec-card rendering elsewhere.
-*/
-.sc-side .ec-card {
+@keyframes sc-flip-out {
+  from {
+    transform: perspective(900px) rotateY(0deg);
+    opacity: 1;
+  }
+  to {
+    transform: perspective(900px) rotateY(-90deg);
+    opacity: 0;
+  }
+}
+
+@keyframes sc-flip-in {
+  from {
+    transform: perspective(900px) rotateY(90deg);
+    opacity: 0;
+  }
+  to {
+    transform: perspective(900px) rotateY(0deg);
+    opacity: 1;
+  }
+}
+
+/* ---------- Flatten nested ExerciseCard surface ----------
+   The inner ec-card has its own bg+border. Inside the superset
+   shell we collapse it so A and B read as one card, not nested. */
+.sc-body .ec-card {
   background: transparent;
   border: none;
   border-radius: 0;
@@ -171,10 +165,88 @@
   padding: 0;
 }
 
-/* Small-screen tightening */
+/* ---------- Small-screen tightening ---------- */
 @media (max-width: 380px) {
-  .sc-card__header { padding: 12px 12px; gap: 8px; }
-  .sc-card__title { font-size: 14px; }
-  .sc-side { padding: 12px; }
-  .sc-side > :not(.sc-side__badge):not(.sc-side__hint) { margin-left: 30px; }
+  .sc-card__header { padding: 12px; gap: 8px; }
+  .sc-card__title  { font-size: 14px; }
+  .sc-body         { padding: 14px 12px 14px 44px; }
+}
+
+/* ================================================================
+   Superset theme overrides — force blue identity for all inner
+   ExerciseCard elements. Higher specificity (and !important where
+   needed) to beat the .cwv-section--current .ec-card lime rule
+   defined in ClientWorkoutView.css.
+   ================================================================ */
+
+/* Neutralise the green active-card tint */
+.sc-card .ec-card {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Lime divider → blue */
+.sc-card .ec-divider {
+  background: rgba(0, 191, 255, 0.45);
+}
+
+/* Weight / reps hero numbers: lime → blue */
+.sc-card .ec-weight-hero__num { color: #00BFFF; }
+.sc-card .ec-weight-hero__bw  { color: #00BFFF; }
+
+/* Log Set button: lime → blue */
+.sc-card .ec-log-btn {
+  background: #00BFFF;
+  color: #001a26;
+}
+.sc-card .ec-log-btn:hover { background: #33d4ff; }
+
+/* "✓ All sets complete" text: lime → blue */
+.sc-card .ec-complete { color: #00BFFF; }
+
+/* Rest badge inside ExerciseCard — lime → blue inside superset */
+.sc-card .cwv-rest-badge {
+  background: #001a26;
+  border-color: rgba(0, 191, 255, 0.3);
+  color: #00BFFF;
+}
+
+/* Target line (e.g. "Pin at 47.5 lb · 10-12 reps") */
+.sc-card .ec-target-line { color: #00BFFF; }
+
+/* Weight input text + focus ring */
+.sc-card .ec-weight-input { color: #00BFFF; }
+.sc-card .ec-weight-input:focus { border-color: #00BFFF; }
+
+/* Reps input focus ring */
+.sc-card .ec-reps-input:focus { border-color: #00BFFF; }
+
+/* Inline set-row edit input focus ring */
+.sc-card .ec-set-row__edit-input:focus { border-color: #00BFFF; }
+.sc-card .ec-set-row__done-btn:hover {
+  color: #00BFFF;
+  border-color: #0a3a4a;
+}
+
+/* Inline timer (rarely used in card, but keep on-palette) */
+.sc-card .ec-timer-inline { color: #00BFFF; }
+.sc-card .ec-timer-inline__label { color: #0a5a7a; }
+
+/* Cable setup form */
+.sc-card .ec-cable-input:focus { border-color: #00BFFF; }
+.sc-card .ec-cable-save-btn {
+  background: #00BFFF;
+  color: #001a26;
+}
+
+/* Cable adjuster ("Edit Weight", stepper, Done) */
+.sc-card .ec-cable-edit-btn,
+.sc-card .ec-cable-step-btn,
+.sc-card .ec-cable-done-btn {
+  color: #00BFFF;
+  border-color: rgba(0, 191, 255, 0.4);
 }

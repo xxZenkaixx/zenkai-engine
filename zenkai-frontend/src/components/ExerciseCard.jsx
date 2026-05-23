@@ -45,7 +45,8 @@ export default function ExerciseCard({
   onSkip,
   sessionId,
   sessionOverride,
-  onSessionOverrideChange
+  onSessionOverrideChange,
+  suppressProgression = false,
 }) {
   const {
     id,
@@ -310,7 +311,7 @@ export default function ExerciseCard({
     const minReps = parseInt(String(currentTargetReps).split('-')[0], 10);
     const maxReps = parseInt(String(currentTargetReps).split('-').at(-1), 10);
 
-    if (!backoff_enabled && !isNaN(minReps) && parsedReps < minReps) {
+    if (!suppressProgression && !backoff_enabled && !isNaN(minReps) && parsedReps < minReps) {
       if (isCable) {
         const currentCableState = sessionOverrideRef.current?.cableState ?? {
           base_stack_weight,
@@ -366,7 +367,7 @@ export default function ExerciseCard({
           reps: null
         });
       }
-    } else if (!backoff_enabled && !isNaN(maxReps) && parsedReps >= maxReps && nextSetNumber < target_sets) {
+    } else if (!suppressProgression && !backoff_enabled && !isNaN(maxReps) && parsedReps >= maxReps && nextSetNumber < target_sets) {
       if (isCable) {
         const currentCableState = sessionOverrideRef.current?.cableState ?? effectiveCableState;
         const nextState = computeNextCableStateOnProgression(currentCableState, {
@@ -425,7 +426,7 @@ export default function ExerciseCard({
       const restToUse = backoff_enabled && nextSetNumber > 1
         ? getBackoffRest(rest_seconds)
         : rest_seconds;
-      onSetLogged(restToUse, id);
+      onSetLogged(restToUse, id, parsedReps);
     }
 
     setLoading(false);
@@ -457,7 +458,7 @@ export default function ExerciseCard({
 
     const isLastSet = nextSetNumber === target_sets;
     if (!(isLastIncomplete && isLastSet)) {
-      onSetLogged(rest_seconds, id);
+      onSetLogged(rest_seconds, id, 0);
     }
   };
 
@@ -571,7 +572,7 @@ export default function ExerciseCard({
       <div className="ec-header">
         <div className="ec-header__left">
           <p className="ec-name">{name}</p>
-          <p className="ec-meta">{equipment_type} · {target_sets} sets · {target_reps} reps</p>
+          <p className="ec-meta">{equipment_type} · {target_sets} sets · {target_reps} {type === 'isometric' ? 'seconds' : 'reps'}</p>
         </div>
         {video_url && (
           <button className="ec-video-btn" onClick={() => setIsVideoOpen(true)}>↗ Video</button>
@@ -623,7 +624,7 @@ export default function ExerciseCard({
             </div>
           )}
           {!isCable && isBodyweight && <p className="ec-weight-hero__bw">Bodyweight</p>}
-          {!isCable && <p className="ec-reps-hero">{displayReps} reps</p>}
+          {!isCable && <p className="ec-reps-hero">{displayReps} {type === 'isometric' ? 'seconds' : 'reps'}</p>}
 
           {/* Coaching cues */}
           {notes && (
@@ -646,7 +647,7 @@ export default function ExerciseCard({
                       stack_step_value,
                       max_micro_levels,
                       cable_unit
-                    )} · {displayReps} reps
+                    )} · {displayReps} {type === 'isometric' ? 'seconds' : 'reps'}
                   </p>
                   <button className="ec-cable-edit-btn" onClick={() => setCableWeightEditing(true)}>
                     Edit Weight
