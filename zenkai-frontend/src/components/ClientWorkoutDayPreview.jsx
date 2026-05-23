@@ -173,7 +173,7 @@ export default function ClientWorkoutDayPreview({
                       (e.g. rest_seconds === null on a brand-new exercise). */}
                   {[
                     `${ex.target_sets ?? '—'} sets`,
-                    `${formatRepRange(ex)} reps`,
+                    `${formatRepRange(ex)} ${ex.type === 'isometric' ? 'seconds' : 'reps'}`,
                     formatWeight(ex),
                     formatRest(ex.rest_seconds)
                   ].filter(Boolean).join(' · ')}

@@ -815,7 +815,7 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
           ? peek.exercises.map(ex => `${ex.target_sets}×${ex.target_reps}${ex.type === 'isometric' ? 's' : ''}`).join(' + ')
           : [
               peekFirstEx?.equipment_type,
-              peekFirstEx ? `${peekFirstEx.target_sets}×${peekFirstEx.target_reps}` : null,
+              peekFirstEx ? `${peekFirstEx.target_sets}×${peekFirstEx.target_reps}${peekFirstEx.type === 'isometric' ? 's' : ''}` : null,
               peekFirstEx?.target_weight != null ? `${peekFirstEx.target_weight} lb` : null
             ].filter(Boolean).join(' · ');
 
@@ -862,7 +862,7 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
                       <div className="cwv-done-card__info">
                         <p className="cwv-done-card__name">{ex.name}</p>
                         <p className="cwv-done-card__meta">
-                          {[ex.equipment_type, `${ex.target_sets}×${ex.target_reps}`]
+                          {[ex.equipment_type, `${ex.target_sets}×${ex.target_reps}${ex.type === 'isometric' ? 's' : ''}`]
                             .filter(Boolean).join(' · ')}
                         </p>
                       </div>

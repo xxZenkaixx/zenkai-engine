@@ -346,6 +346,28 @@ export default function ExerciseCard({
           cableState: null,
           reps: nextReps
         });
+      } else if (type === 'isometric' && progression_value != null) {
+        // ISO step = progression_value seconds; floor at one step so we
+        // never prescribe sub-step holds (e.g. 0s or 2s when step is 5).
+        const repsStr = String(currentTargetReps);
+        const isRange = repsStr.includes('-');
+        const step = parseFloat(progression_value) || 5;
+        const floor = step;
+        let nextReps;
+
+        if (isRange) {
+          const [lo, hi] = repsStr.split('-').map(Number);
+          nextReps = `${Math.max(floor, lo - step)}-${Math.max(floor, hi - step)}`;
+        } else {
+          const v = parseInt(repsStr, 10);
+          nextReps = String(Math.max(floor, v - step));
+        }
+
+        onSessionOverrideChange({
+          weight: null,
+          cableState: null,
+          reps: nextReps
+        });
       } else if (type === 'custom' && progression_mode && progression_value != null) {
         const base = sessionOverrideRef.current?.weight ?? effectiveWeight;
         const next = progression_mode === 'absolute'
@@ -390,6 +412,26 @@ export default function ExerciseCard({
           nextReps = `${parseInt(lo, 10) + 1}-${parseInt(hi, 10) + 1}`;
         } else {
           nextReps = String(parseInt(repsStr, 10) + 1);
+        }
+
+        onSessionOverrideChange({
+          weight: null,
+          cableState: null,
+          reps: nextReps
+        });
+      } else if (type === 'isometric' && progression_value != null) {
+        // ISO progression = bump every endpoint by progression_value seconds.
+        const repsStr = String(currentTargetReps);
+        const isRange = repsStr.includes('-');
+        const step = parseFloat(progression_value) || 5;
+        let nextReps;
+
+        if (isRange) {
+          const [lo, hi] = repsStr.split('-').map(Number);
+          nextReps = `${lo + step}-${hi + step}`;
+        } else {
+          const v = parseInt(repsStr, 10);
+          nextReps = String(v + step);
         }
 
         onSessionOverrideChange({
@@ -681,7 +723,7 @@ export default function ExerciseCard({
               className="ec-reps-input"
               type="text"
               inputMode="numeric"
-              placeholder="reps"
+              placeholder={type === 'isometric' ? 'seconds' : 'reps'}
               value={completedReps}
               onChange={(e) => setCompletedReps(e.target.value)}
             />

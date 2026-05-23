@@ -60,6 +60,25 @@ function computeOverride(exercise, currentOverride, direction) {
     return { weight: null, cableState: null, reps: nextReps };
   }
 
+  if (type === 'isometric' && progression_value != null) {
+    // Hold-time progression: ±progression_value seconds, floored at one step.
+    const repsStr = String(currentOverride?.reps ?? exercise.target_reps ?? '');
+    const isRange = repsStr.includes('-');
+    const step = parseFloat(progression_value) || 5;
+    const floor = step;
+    let nextReps;
+    if (isRange) {
+      const [lo, hi] = repsStr.split('-').map(Number);
+      nextReps = direction === 1
+        ? `${lo + step}-${hi + step}`
+        : `${Math.max(floor, lo - step)}-${Math.max(floor, hi - step)}`;
+    } else {
+      const v = parseInt(repsStr, 10);
+      nextReps = String(direction === 1 ? v + step : Math.max(floor, v - step));
+    }
+    return { weight: null, cableState: null, reps: nextReps };
+  }
+
   const base = currentOverride?.weight ?? parseFloat(target_weight);
   if (base == null || isNaN(base)) return null;
 

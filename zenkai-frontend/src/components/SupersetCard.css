@@ -243,10 +243,30 @@
   color: #001a26;
 }
 
-/* Cable adjuster ("Edit Weight", stepper, Done) */
+/* Cable adjuster ("Edit Weight", stepper, Done) — base, hover, active */
 .sc-card .ec-cable-edit-btn,
 .sc-card .ec-cable-step-btn,
 .sc-card .ec-cable-done-btn {
   color: #00BFFF;
   border-color: rgba(0, 191, 255, 0.4);
 }
+
+.sc-card .ec-cable-edit-btn:hover {
+  color: #33d4ff;
+  border-color: #00BFFF;
+  background: rgba(0, 191, 255, 0.06);
+}
+.sc-card .ec-cable-edit-btn:active {
+  background: rgba(0, 191, 255, 0.14);
+}
+
+.sc-card .ec-cable-step-btn:hover,
+.sc-card .ec-cable-step-btn:active,
+.sc-card .ec-cable-done-btn:hover,
+.sc-card .ec-cable-done-btn:active {
+  color: #33d4ff;
+  border-color: #00BFFF;
+}
+
+/* The big weight label between − and + buttons */
+.sc-card .ec-cable-step-label { color: #00BFFF; }
