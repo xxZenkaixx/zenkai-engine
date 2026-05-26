@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { fetchLinkedClient } from '../api/clientApi';
-import { fetchActiveProgram } from '../api/clientProgramApi';
+import { fetchActiveProgram, assignProgram } from '../api/clientProgramApi';
 import { fetchPrograms, cloneProgram } from '../api/programApi';
 import ClientHome from './ClientHome';
 import ClientWorkoutView from './ClientWorkoutView';
@@ -74,6 +74,19 @@ export default function ClientDashboard({ clientId: propClientId, clientName: pr
     setCloneError(null);
     try {
       const fresh = await cloneProgram(templateId);
+      // Activate the clone for this user. assignProgram (POST) creates the
+      // ClientProgram assignment with active=true and deactivates any prior
+      // active one. activateProgram (PATCH) can't be used here — it's
+      // admin-only and operates on an existing assignment ID.
+      if (linkedClientId) {
+        await assignProgram({
+          client_id: linkedClientId,
+          program_id: fresh.id,
+          start_date: new Date().toISOString().slice(0, 10)
+        });
+        const updatedActive = await fetchActiveProgram(linkedClientId);
+        setActiveProgram(updatedActive || null);
+      }
       const list = await fetchPrograms();
       setPrograms(list);
       // Drop the user straight into the builder for their new copy.
