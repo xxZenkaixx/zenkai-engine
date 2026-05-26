@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { fetchLinkedClient } from '../api/clientApi';
 import { fetchActiveProgram } from '../api/clientProgramApi';
-import { fetchPrograms } from '../api/programApi';
+import { fetchPrograms, cloneProgram } from '../api/programApi';
 import ClientHome from './ClientHome';
 import ClientWorkoutView from './ClientWorkoutView';
 // Workout-tab landing screen — wireframe screen-workout-day (vaunt-wireframe.html:1056).
@@ -43,6 +43,8 @@ export default function ClientDashboard({ clientId: propClientId, clientName: pr
   const [workoutLoading, setWorkoutLoading] = useState(false);
   const [programs, setPrograms] = useState([]);
   const [builderProgram, setBuilderProgram] = useState(null);
+  const [cloningId, setCloningId] = useState(null);
+  const [cloneError, setCloneError] = useState(null);
 
   useEffect(() => {
     if (propClientId) return;
@@ -66,6 +68,22 @@ export default function ClientDashboard({ clientId: propClientId, clientName: pr
     if (!isSelfServe) return;
     fetchPrograms().then(setPrograms).catch(() => setPrograms([]));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleCloneTemplate = async (templateId) => {
+    setCloningId(templateId);
+    setCloneError(null);
+    try {
+      const fresh = await cloneProgram(templateId);
+      const list = await fetchPrograms();
+      setPrograms(list);
+      // Drop the user straight into the builder for their new copy.
+      setBuilderProgram(fresh);
+    } catch (err) {
+      setCloneError(err.message || 'Failed to copy template');
+    } finally {
+      setCloningId(null);
+    }
+  };
 
   if (clientLoading) {
     return (
@@ -201,15 +219,59 @@ export default function ClientDashboard({ clientId: propClientId, clientName: pr
               onBack={() => setBuilderProgram(null)}
             />
           ) : (
-            <ProgramList
-              programs={programs}
-              clients={[]}
-              onProgramsChanged={async () => {
-                const d = await fetchPrograms();
-                setPrograms(d);
-              }}
-              onOpenBuilder={(p) => setBuilderProgram(p)}
-            />
+            <>
+              {/* Browse Templates — only meaningful for self-serve. Admins
+                  already see templates inline in their full program list. */}
+              {isSelfServe && programs.some(p => p.is_template) && (
+                <div style={{ marginBottom: 24 }}>
+                  <h3 style={{ color: '#aaa', fontSize: 13, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 12px' }}>
+                    Browse Templates
+                  </h3>
+                  <p style={{ color: '#666', fontSize: 12, margin: '0 0 12px' }}>
+                    Tap "Use This Program" to make your own editable copy.
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {programs.filter(p => p.is_template).map(t => (
+                      <div
+                        key={t.id}
+                        style={{ background: '#111', border: '1px solid #2a2a2a', borderRadius: 10, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12 }}
+                      >
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ color: '#e0e0e0', fontWeight: 600, fontSize: 14 }}>
+                            {t.name}
+                            <span style={{ marginLeft: 8, fontSize: 10, color: '#c8ff00', border: '1px solid #2a3a00', padding: '1px 6px', borderRadius: 6, letterSpacing: '0.08em', verticalAlign: 'middle' }}>TEMPLATE</span>
+                          </div>
+                          <div style={{ color: '#666', fontSize: 12, marginTop: 2 }}>
+                            {t.weeks} weeks{t.deload_weeks?.length ? ` · deload: ${t.deload_weeks.join(', ')}` : ''}
+                          </div>
+                        </div>
+                        <button
+                          className="btn-primary"
+                          style={{ fontSize: 12, padding: '6px 12px', whiteSpace: 'nowrap' }}
+                          disabled={cloningId === t.id}
+                          onClick={() => handleCloneTemplate(t.id)}
+                        >
+                          {cloningId === t.id ? 'Copying...' : 'Use This Program'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  {cloneError && (
+                    <p style={{ color: '#ff6666', fontSize: 12, marginTop: 8 }}>{cloneError}</p>
+                  )}
+                </div>
+              )}
+
+              <ProgramList
+                programs={programs}
+                clients={[]}
+                onProgramsChanged={async () => {
+                  const d = await fetchPrograms();
+                  setPrograms(d);
+                }}
+                onOpenBuilder={(p) => setBuilderProgram(p)}
+              />
+            </>
           )
         )}
 
