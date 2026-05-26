@@ -190,16 +190,40 @@ export default function ExerciseCard({
     return pin + microCount * microStep;
   })() : null;
 
+  // Pre-fill the weight input. This is the ONLY place that programmatically
+  // writes to `completedWeight` outside of the input's own onChange handler.
+  //
+  // Trigger model:
+  //   - Fires when the active set advances (nextSetNumber)
+  //   - Fires when the parent pushes a new sessionOverride.weight (either
+  //     from this card's manual-edit persistence in handleLogSet below, or
+  //     from an auto-progression bump)
+  //   - Fires when the prescribed weight prop changes (rare, e.g. on
+  //     reload after week-to-week progression)
+  //
+  // `completedWeight` is intentionally NOT a dep — typing in the input must
+  // never re-trigger this effect. The input's onChange is the sole owner of
+  // the typed value until either the user logs a set (which persists it as
+  // a sessionOverride via handleLogSet) or one of the triggers above fires.
   useEffect(() => {
+    // (1) Override wins. Whether the value came from the user's last
+    //     log or from auto-progression, it represents the current
+    //     working weight and should carry into the next set.
     if (!isCable && sessionOverride?.weight != null) {
       setCompletedWeight(String(sessionOverride.weight));
       return;
     }
 
-    if (effectiveWeight == null) return;
+    // (2) No numeric weight to track (bodyweight / isometric / cable
+    //     not yet set up). Clear any stale value.
+    if (effectiveWeight == null) {
+      if (!isCable) setCompletedWeight('');
+      return;
+    }
 
+    // (3) Fresh fill from the prescribed weight, with backoff applied
+    //     to sets 2+ when enabled.
     let displayWeight;
-
     if (!backoff_enabled || nextSetNumber === 1) {
       displayWeight = isCable
         ? effectiveWeight
@@ -211,32 +235,29 @@ export default function ExerciseCard({
       const stepsDown = Math.ceil((effectiveCableState.base_stack_weight - backoffTarget) / stack_step_value);
       const pin = effectiveCableState.base_stack_weight - stepsDown * stack_step_value;
       const rawMicro = (backoffTarget - pin) / microStep;
-      let microCount = Math.round(rawMicro);
-      if (microCount > levels) {
-        displayWeight = pin + stack_step_value;
-      } else if (microCount === 0) {
-        displayWeight = pin;
-      } else {
-        displayWeight = pin + microCount * microStep;
-      }
+      const microCount = Math.round(rawMicro);
+      if (microCount > levels)      displayWeight = pin + stack_step_value;
+      else if (microCount === 0)    displayWeight = pin;
+      else                          displayWeight = pin + microCount * microStep;
     } else {
       displayWeight = getBackoffWeight(effectiveWeight, backoff_percent, equipment_type);
     }
 
-    // TEMP DEBUG: this is what gets put in the weight input field — the number
-    // the user actually logs against. Should match effectiveWeight (or its
-    // backoff derivative). If it's stale, this effect is reading old state.
-    console.log('[EC-DBG]   input-prefill', name, {
-      computed_displayWeight: displayWeight,
-      effectiveWeight,
-      backoff_enabled,
-      nextSetNumber,
-      isCable,
-      sessionOverride_weight: sessionOverride?.weight ?? null
-    });
     setCompletedWeight(displayWeight != null ? String(displayWeight) : '');
     setCableWeightEditing(false);
-  }, [nextSetNumber, effectiveWeight, backoffBaseWeight, backoff_enabled, backoff_percent, equipment_type, isCable, stack_step_value, max_micro_levels, sessionOverride, effectiveCableState.base_stack_weight]);
+  }, [
+    nextSetNumber,
+    effectiveWeight,
+    sessionOverride,
+    backoff_enabled,
+    backoff_percent,
+    equipment_type,
+    isCable,
+    stack_step_value,
+    max_micro_levels,
+    backoffBaseWeight,
+    effectiveCableState.base_stack_weight,
+  ]);
 
   const allSetsComplete = sessionSets.length >= target_sets;
   const cableMicroStep = isCable && stack_step_value > 0
@@ -307,29 +328,32 @@ export default function ExerciseCard({
     setSessionSets((prev) => [...prev, payload].sort((a, b) => a.set_number - b.set_number));
     setCompletedReps('');
 
-    // Persist a manually-edited weight as a session override BEFORE the
-    // progression block runs. Two reasons this isn't gated by
-    // suppressProgression:
-    //   1. suppressProgression's contract is "block intra-set auto progression
-    //      based on reps performance" — it must not erase what the user typed.
-    //   2. Subsequent sets need to see the user's value (pre-fill effect reads
-    //      sessionOverride.weight). Without this, the input resets to the
-    //      original target_weight every set.
-    // For cable / bodyweight / isometric: skipped — cable has its own override
-    // path; bodyweight/iso don't render a weight input.
+    // Persist the user's typed weight as the new base for subsequent sets.
+    // This MUST run for any exercise that renders a weight input — i.e. not
+    // cable (which has its own cableState/stepper path) and not bodyweight
+    // (no weight input). For isometric: equipment_type is 'bodyweight' so
+    // effectiveWeight is null and the input never renders; the
+    // `completedWeight !== ''` check below short-circuits there anyway.
+    //
+    // Unconditional with respect to any progression flag: manual weight
+    // editing is the user's explicit intent and must never be discarded.
+    // Placed BEFORE the progression block so that when auto-progression
+    // fires, its `base = sessionOverrideRef.current?.weight ?? effectiveWeight`
+    // lookup uses the user's typed value as the bump baseline.
     if (!isCable && !isBodyweight && completedWeight !== '') {
       const enteredWeight = parseFloat(completedWeight);
-      const baseWeight = sessionOverrideRef.current?.weight ?? effectiveWeight;
-      if (!isNaN(enteredWeight) && enteredWeight !== baseWeight) {
-        const merged = {
+      const currentBase = sessionOverrideRef.current?.weight ?? effectiveWeight;
+      if (Number.isFinite(enteredWeight) && enteredWeight !== currentBase) {
+        const next = {
           weight: enteredWeight,
           cableState: null,
-          reps: sessionOverrideRef.current?.reps ?? null
+          reps: sessionOverrideRef.current?.reps ?? null,
         };
-        onSessionOverrideChange(merged);
-        // Sync the ref so the progression block below sees the new base
-        // within this same event handler (state hasn't re-rendered yet).
-        sessionOverrideRef.current = merged;
+        onSessionOverrideChange(next);
+        // Sync the ref synchronously so the progression block (which reads
+        // sessionOverrideRef.current within this same event handler) sees
+        // the new base before computing its bump.
+        sessionOverrideRef.current = next;
       }
     }
 
