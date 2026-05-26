@@ -307,6 +307,32 @@ export default function ExerciseCard({
     setSessionSets((prev) => [...prev, payload].sort((a, b) => a.set_number - b.set_number));
     setCompletedReps('');
 
+    // Persist a manually-edited weight as a session override BEFORE the
+    // progression block runs. Two reasons this isn't gated by
+    // suppressProgression:
+    //   1. suppressProgression's contract is "block intra-set auto progression
+    //      based on reps performance" — it must not erase what the user typed.
+    //   2. Subsequent sets need to see the user's value (pre-fill effect reads
+    //      sessionOverride.weight). Without this, the input resets to the
+    //      original target_weight every set.
+    // For cable / bodyweight / isometric: skipped — cable has its own override
+    // path; bodyweight/iso don't render a weight input.
+    if (!isCable && !isBodyweight && completedWeight !== '') {
+      const enteredWeight = parseFloat(completedWeight);
+      const baseWeight = sessionOverrideRef.current?.weight ?? effectiveWeight;
+      if (!isNaN(enteredWeight) && enteredWeight !== baseWeight) {
+        const merged = {
+          weight: enteredWeight,
+          cableState: null,
+          reps: sessionOverrideRef.current?.reps ?? null
+        };
+        onSessionOverrideChange(merged);
+        // Sync the ref so the progression block below sees the new base
+        // within this same event handler (state hasn't re-rendered yet).
+        sessionOverrideRef.current = merged;
+      }
+    }
+
     const currentTargetReps = sessionOverrideRef.current?.reps ?? target_reps;
     const minReps = parseInt(String(currentTargetReps).split('-')[0], 10);
     const maxReps = parseInt(String(currentTargetReps).split('-').at(-1), 10);
