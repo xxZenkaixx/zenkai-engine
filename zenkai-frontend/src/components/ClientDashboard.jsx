@@ -259,12 +259,21 @@ export default function ClientDashboard({ clientId: propClientId, clientName: pr
                           </div>
                         </div>
                         <button
-                          className="btn-primary"
-                          style={{ fontSize: 12, padding: '6px 12px', whiteSpace: 'nowrap' }}
-                          disabled={cloningId === t.id}
+                          className="prog-btn"
+                          style={{
+                            background: activeProgram?.Program?.id === t.id ? '#c8ff00' : '#2a2a2a',
+                            color: activeProgram?.Program?.id === t.id ? '#0a0a0a' : '#888',
+                            borderColor: activeProgram?.Program?.id === t.id ? '#c8ff00' : '#2a2a2a',
+                            fontWeight: 600,
+                            fontSize: 12,
+                            padding: '6px 12px',
+                            whiteSpace: 'nowrap',
+                            cursor: activeProgram?.Program?.id === t.id ? 'default' : 'pointer'
+                          }}
+                          disabled={cloningId === t.id || activeProgram?.Program?.id === t.id}
                           onClick={() => handleCloneTemplate(t.id)}
                         >
-                          {cloningId === t.id ? 'Copying...' : 'Use This Program'}
+                          {cloningId === t.id ? '...' : activeProgram?.Program?.id === t.id ? 'Active' : 'Activate'}
                         </button>
                       </div>
                     ))}
@@ -278,6 +287,12 @@ export default function ClientDashboard({ clientId: propClientId, clientName: pr
               <ProgramList
                 programs={programs}
                 clients={[]}
+                activeProgramId={activeProgram?.Program?.id}
+                clientId={linkedClientId}
+                onActivated={async () => {
+                  const fresh = await fetchActiveProgram(linkedClientId);
+                  setActiveProgram(fresh || null);
+                }}
                 onProgramsChanged={async () => {
                   const d = await fetchPrograms();
                   setPrograms(d);

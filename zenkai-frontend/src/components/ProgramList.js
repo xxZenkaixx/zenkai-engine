@@ -9,7 +9,7 @@ import ProgramDayList from './ProgramDayList';
 import WorkoutPreview from './WorkoutPreview';
 import ClientTargetEditor from './ClientTargetEditor';
 
-export default function ProgramList({ programs, clients = [], onProgramsChanged, onAssigned, onOpenBuilder }) {
+export default function ProgramList({ programs, clients = [], onProgramsChanged, onAssigned, onOpenBuilder, activeProgramId, clientId, onActivated }) {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
   const [name, setName] = useState('');
@@ -21,6 +21,8 @@ export default function ProgramList({ programs, clients = [], onProgramsChanged,
   const [editFields, setEditFields] = useState({ name: '', weeks: '', deload_weeks: '', is_template: false });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [activatingId, setActivatingId] = useState(null);
+  const [activateError, setActivateError] = useState(null);
 
   // Self-serve only sees programs they own here. Templates surface in the
   // dedicated Templates section (ClientDashboard). Admins see everything.
@@ -88,6 +90,24 @@ export default function ProgramList({ programs, clients = [], onProgramsChanged,
       deload_weeks: (program.deload_weeks || []).join(','),
       is_template: !!program.is_template
     });
+  };
+
+  const handleActivate = async (programId) => {
+    if (!clientId) return;
+    setActivatingId(programId);
+    setActivateError(null);
+    try {
+      await assignProgram({
+        client_id: clientId,
+        program_id: programId,
+        start_date: new Date().toISOString().split('T')[0]
+      });
+      if (onActivated) await onActivated();
+    } catch (err) {
+      setActivateError(err.message);
+    } finally {
+      setActivatingId(null);
+    }
   };
 
   const handleLaunch = async () => {
@@ -242,6 +262,20 @@ export default function ProgramList({ programs, clients = [], onProgramsChanged,
                     </span>
                   </div>
                   <div className="prog-list__item-actions" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      className="prog-btn"
+                      style={{
+                        background: activeProgramId === p.id ? '#c8ff00' : '#2a2a2a',
+                        color: activeProgramId === p.id ? '#0a0a0a' : '#888',
+                        borderColor: activeProgramId === p.id ? '#c8ff00' : '#2a2a2a',
+                        fontWeight: 600,
+                        cursor: activeProgramId === p.id ? 'default' : 'pointer'
+                      }}
+                      disabled={activatingId === p.id || !clientId || activeProgramId === p.id}
+                      onClick={() => handleActivate(p.id)}
+                    >
+                      {activatingId === p.id ? '...' : activeProgramId === p.id ? 'Active' : 'Activate'}
+                    </button>
                     <button className="prog-btn" onClick={() => handleEditStart(p)}>Edit</button>
                     <button className="prog-btn prog-btn--danger" onClick={() => handleDelete(p.id)}>Delete</button>
                   </div>
@@ -253,6 +287,7 @@ export default function ProgramList({ programs, clients = [], onProgramsChanged,
             <li className="prog-list__empty">No programs yet.</li>
           )}
         </ul>
+        {activateError && <p className="prog-error">{activateError}</p>}
       </div>
 
       {/* ── Right: detail panel ── */}
