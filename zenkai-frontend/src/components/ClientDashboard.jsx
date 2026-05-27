@@ -117,14 +117,9 @@ export default function ClientDashboard({ clientId: propClientId, clientName: pr
   const programWeeks = activeProgram?.Program?.weeks;
   const programId = activeProgram?.Program?.id;
 
-  // Called by ClientHome's "Start Today's Workout" CTA. Per wireframe, the
-  // home CTA lands on the workout PREVIEW (not the active workout) so the
-  // client can review the day's exercises before committing. Setting
-  // activeWorkoutDayId = null keeps us in preview mode; previewDayId tells
-  // the preview which day to pre-select in its day tabs.
   const handleStartWorkout = (clientId, dayId) => {
     setPreviewDayId(dayId);
-    setActiveWorkoutDayId(null);
+    setActiveWorkoutDayId(dayId);
     setTab('workout');
   };
 

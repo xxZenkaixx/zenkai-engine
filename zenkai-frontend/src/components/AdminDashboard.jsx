@@ -14,6 +14,7 @@ import ProgramBuilder from './ProgramBuilder';
 import ClientProgramAssignment from './ClientProgramAssignment';
 import AdminVideoUpload from './AdminVideoUpload';
 import ExerciseLibrary from './ExerciseLibrary';
+import ClientManager from './ClientManager';
 
 export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
   const { user } = useAuth();
@@ -353,6 +354,11 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
       {adminSection === 'clients' && (
         <div>
           <h2 className="admin-section-title">Clients</h2>
+
+          {/* Minimal client-management view: list → detail modal → Delete User.
+              Sits above the legacy list/detail layout, which stays intact. */}
+          <ClientManager />
+
           <div className="cl-layout">
             <div className="cl-sidebar">
               <ClientList
