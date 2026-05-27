@@ -4,7 +4,6 @@ import './AdminLayout.css';
 
 const NAV_ITEMS = [
   { id: 'dashboard',       label: 'Dashboard' },
-  { id: 'clients',         label: 'Clients' },
   { id: 'programs',        label: 'Programs' },
   { id: 'clientPortal',    label: 'Client Portal' },
   { id: 'exerciseLibrary', label: 'Library' },
@@ -13,7 +12,6 @@ const NAV_ITEMS = [
 
 const MOBILE_NAV_ITEMS = [
   { id: 'dashboard',       label: 'Dashboard' },
-  { id: 'clients',         label: 'Clients' },
   { id: 'programs',        label: 'Programs' },
   { id: 'clientPortal',    label: 'Assign' },
   { id: 'exerciseLibrary', label: 'Library' },

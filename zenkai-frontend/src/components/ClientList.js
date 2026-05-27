@@ -1,7 +1,7 @@
 // * Renders client list with create, inline edit, delete, and selection.
 
 import { useState } from 'react';
-import { createClient, updateClient, deleteClient } from '../api/clientApi';
+import { updateClient, deleteClient } from '../api/clientApi';
 
 export default function ClientList({
   clients,
@@ -11,26 +11,9 @@ export default function ClientList({
   onClientDeleted,
   selectionOnly = false
 }) {
-  const [name, setName] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState('');
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-
-  const handleCreate = async () => {
-    if (!name.trim()) return;
-    setLoading(true);
-    setError(null);
-    try {
-      await createClient({ name: name.trim() });
-      setName('');
-      if (onClientCreated) onClientCreated();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleEditStart = (client) => {
     setEditingId(client.id);
@@ -69,26 +52,6 @@ export default function ClientList({
 
   return (
     <div className="cl-panel">
-      {!selectionOnly && (
-        <div className="cl-create-row">
-          <input
-            className="cl-create-input"
-            type="text"
-            placeholder="New client name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
-          />
-          <button
-            className="cl-create-btn"
-            onClick={handleCreate}
-            disabled={loading || !name.trim()}
-          >
-            {loading ? '...' : '+ Add'}
-          </button>
-        </div>
-      )}
-
       {error && <p className="cl-error">{error}</p>}
 
       <ul className="cl-list">
