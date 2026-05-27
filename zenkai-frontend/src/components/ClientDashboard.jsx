@@ -21,7 +21,7 @@ export default function ClientDashboard({ clientId: propClientId, clientName: pr
   const isSelfServe = user?.role === 'self-serve';
   const TABS = [
     { key: 'home',     label: 'Home' },
-    { key: 'workout',  label: 'Workout' },
+    { key: 'workouts', label: 'Workouts' },
     { key: 'history',  label: 'History' },
     { key: 'library',  label: 'Library' },
     ...(isSelfServe ? [{ key: 'programs', label: 'Programs' }] : []),
@@ -120,7 +120,7 @@ export default function ClientDashboard({ clientId: propClientId, clientName: pr
   const handleStartWorkout = (clientId, dayId) => {
     setPreviewDayId(dayId);
     setActiveWorkoutDayId(dayId);
-    setTab('workout');
+    setTab('workouts');
   };
 
   return (
@@ -154,7 +154,7 @@ export default function ClientDashboard({ clientId: propClientId, clientName: pr
         </div>
       )}
 
-      {showPreview && programId && (
+      {tab === 'home' && showPreview && programId && (
         <div className="cd-preview-wrap">
           <WorkoutPreview programId={programId} clientId={linkedClientId} />
         </div>
@@ -172,7 +172,7 @@ export default function ClientDashboard({ clientId: propClientId, clientName: pr
           />
         )}
 
-        {tab === 'workout' && (
+        {tab === 'workouts' && (
           activeWorkoutDayId ? (
             // Client has tapped "Start Workout →" on the preview — render the
             // existing active-workout flow. Finishing returns to Home tab and
@@ -206,7 +206,7 @@ export default function ClientDashboard({ clientId: propClientId, clientName: pr
             <ClientWorkoutDayPreview
               activeProgram={activeProgram}
               initialDayId={previewDayId}
-              onStartWorkout={(dayId) => setActiveWorkoutDayId(dayId)}
+              onStartWorkout={null}
               loading={workoutLoading}
             />
           )

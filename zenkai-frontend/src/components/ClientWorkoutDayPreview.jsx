@@ -112,19 +112,17 @@ export default function ClientWorkoutDayPreview({
       {/* HEADER — title + subtitle on left, Start CTA on right (wraps on narrow). */}
       <div className="cwdp-header">
         <div className="cwdp-header__left">
-          <h1 className="cwdp-title">Today's Workout</h1>
-          <p className="cwdp-sub">
-            {activeProgram.Program.name}
-            {selectedDay?.name ? ` · ${selectedDay.name}` : ''}
-          </p>
+          <h1 className="cwdp-title">{activeProgram.Program.name}</h1>
         </div>
-        <button
-          className="cwdp-start-btn"
-          onClick={() => onStartWorkout(selectedDay.id)}
-          disabled={!selectedDay}
-        >
-          Start Workout →
-        </button>
+        {onStartWorkout && (
+          <button
+            className="cwdp-start-btn"
+            onClick={() => onStartWorkout(selectedDay.id)}
+            disabled={!selectedDay}
+          >
+            Start Workout →
+          </button>
+        )}
       </div>
 
       {/* DAY TABS — only render when there's more than one day to switch between. */}
