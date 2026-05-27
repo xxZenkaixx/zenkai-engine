@@ -221,10 +221,10 @@ export default function ExerciseCard({
       }
     }
 
-    // (1) Override wins. Whether the value came from the user's last
-    //     log or from auto-progression, it represents the current
-    //     working weight and should carry into the next set.
-    if (!isCable && sessionOverride?.weight != null) {
+    // (1) Override wins — but skip on backoff sets 2+ so branch (3)
+    //     applies backoff to backoffBaseWeight (sessionSets[0].completed_weight),
+    //     which already reflects any manual edit made on Set 1.
+    if (!isCable && sessionOverride?.weight != null && !(backoff_enabled && nextSetNumber > 1)) {
       setCompletedWeight(String(sessionOverride.weight));
       return;
     }
@@ -255,7 +255,7 @@ export default function ExerciseCard({
       else if (microCount === 0)    displayWeight = pin;
       else                          displayWeight = pin + microCount * microStep;
     } else {
-      displayWeight = getBackoffWeight(effectiveWeight, backoff_percent, equipment_type);
+      displayWeight = getBackoffWeight(backoffBaseWeight, backoff_percent, equipment_type);
     }
 
     setCompletedWeight(displayWeight != null ? String(displayWeight) : '');
@@ -670,8 +670,8 @@ export default function ExerciseCard({
 
   const displayReps = sessionOverride?.reps ?? target_reps;
   const targetLineWeight = !isBodyweight && !isCable && effectiveWeight != null
-    ? (!sessionOverride && backoff_enabled && nextSetNumber > 1
-        ? getBackoffWeight(effectiveWeight, backoff_percent, equipment_type)
+    ? (backoff_enabled && nextSetNumber > 1
+        ? getBackoffWeight(backoffBaseWeight, backoff_percent, equipment_type)
         : roundWeight(sessionOverride?.weight ?? effectiveWeight, equipment_type))
     : null;
 
