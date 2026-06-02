@@ -3,7 +3,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { fetchClients, fetchUnassignedClients, claimClient } from '../api/clientApi';
+import { fetchClients, fetchUnassignedClients, claimClient, updateClient } from '../api/clientApi';
+import { deleteUserFull } from '../api/clientManageApi';
 import { fetchPrograms } from '../api/programApi';
 import { fetchActiveProgram, deactivateProgram, fetchAssignmentHistory, activateProgram } from '../api/clientProgramApi';
 import AdminLayout from './AdminLayout';
@@ -85,6 +86,10 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
   const [activeProgramLoading, setActiveProgramLoading] = useState(false);
   const [assignmentHistory, setAssignmentHistory] = useState([]);
 
+  const [renameEditing, setRenameEditing] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
+  const [renameError, setRenameError] = useState('');
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [unassignedClients, setUnassignedClients] = useState([]);
@@ -158,6 +163,11 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
       }
     };
     load();
+  }, [selectedClientId]);
+
+  useEffect(() => {
+    setRenameEditing(false);
+    setRenameError('');
   }, [selectedClientId]);
 
   const handleClientCreated = async () => {
@@ -254,9 +264,61 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
   // * Derived from loaded clients array — safe, no extra fetch
   const selectedClient = clients.find(c => c.id === selectedClientId) || null;
 
+  const handleRenameStart = () => {
+    setRenameValue(selectedClient?.name || '');
+    setRenameEditing(true);
+    setRenameError('');
+  };
+
+  const handleRenameSave = async () => {
+    const v = renameValue.trim();
+    if (!v || !selectedClientId) return;
+    try {
+      await updateClient(selectedClientId, { name: v });
+      const data = await fetchClients();
+      setClients(data);
+      setRenameEditing(false);
+      setRenameError('');
+    } catch (err) {
+      setRenameError(err.message || 'Failed to rename');
+    }
+  };
+
+  const handleDeleteUserFull = async () => {
+    if (!selectedClientId) return;
+    if (!window.confirm(`Permanently delete ${selectedClient?.name} and all their data? This cannot be undone.`)) return;
+    try {
+      await deleteUserFull(selectedClientId);
+      await handleClientDeleted();
+    } catch (err) {
+      alert(err.message || 'Delete failed');
+    }
+  };
+
   // * Client detail block — shared between Dashboard and Clients sections
   const clientDetail = selectedClientId && (
     <div className="cl-client-detail">
+      <div className="rename-header">
+        {renameEditing ? (
+          <div className="rename-controls">
+            <input
+              autoFocus
+              value={renameValue}
+              onChange={e => setRenameValue(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleRenameSave(); if (e.key === 'Escape') setRenameEditing(false); }}
+            />
+            <button className="btn-primary" onClick={handleRenameSave}>Save</button>
+            <button className="btn-ghost" onClick={() => setRenameEditing(false)}>Cancel</button>
+            {renameError && <span className="rename-error">{renameError}</span>}
+          </div>
+        ) : (
+          <div className="rename-display">
+            <h3>{selectedClient?.name}</h3>
+            <button className="btn-ghost" onClick={handleRenameStart}>Edit</button>
+          </div>
+        )}
+      </div>
+
       <h3 style={{ color: '#aaa', fontSize: '13px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', margin: '24px 0 12px' }}>
         Active Program
       </h3>
@@ -311,6 +373,7 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
         <button className="btn-ghost" onClick={() => onStartWorkout(selectedClientId)}>
           Start Workout (Direct)
         </button>
+        <button className="btn-danger" onClick={handleDeleteUserFull}>Delete Client</button>
       </div>
 
       <ClientWorkoutHistoryList clientId={selectedClientId} />
@@ -352,22 +415,16 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
             </div>
           </div>
 
-          <ClientManager />
-
-          <div className="cl-layout">
-            <div className="cl-sidebar">
-              <ClientList
-                clients={clients}
-                selectedClientId={selectedClientId}
-                onSelectClient={setSelectedClientId}
-                onClientCreated={handleClientCreated}
-                onClientDeleted={handleClientDeleted}
-              />
-            </div>
-            <div className="cl-detail">
+          <div className="admin-dashboard-grid">
+            <ClientManager
+              selectedClientId={selectedClientId}
+              onSelectClient={setSelectedClientId}
+              onClientDeleted={handleClientDeleted}
+            />
+            <div>
               {clientDetail || (
                 <div className="cl-detail__empty">
-                  <p className="cl-detail__empty-text">Select a client to view details</p>
+                  <p>Select a client to view details</p>
                 </div>
               )}
             </div>

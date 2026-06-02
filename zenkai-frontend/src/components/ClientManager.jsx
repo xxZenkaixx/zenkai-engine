@@ -17,7 +17,17 @@ function initials(name = '') {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-export default function ClientManager() {
+// Selection-aware: when `onSelectClient` is provided, clicking a row delegates
+// selection to the parent (used by AdminDashboard's right-detail panel) and
+// the modal flow is skipped. When omitted, falls back to the original modal
+// behavior so the component still works standalone.
+export default function ClientManager(props) {
+  const {
+    selectedClientId = null,
+    onSelectClient = null,
+    onClientDeleted = null,
+  } = props;
+
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -52,6 +62,7 @@ export default function ClientManager() {
       setSelected(null);
       setConfirming(false);
       await load();
+      onClientDeleted?.(selected.id);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -75,7 +86,14 @@ export default function ClientManager() {
           {clients.map((c) => {
             const tag = ROLE_TAG[c.role];
             return (
-              <button key={c.id} className="cm-row" onClick={() => openDetail(c)}>
+              <button
+                key={c.id}
+                className={`cm-row ${c.id === selectedClientId ? 'cm-row--active' : ''}`}
+                onClick={() => {
+                  if (onSelectClient) onSelectClient(c.id);
+                  else openDetail(c);
+                }}
+              >
                 <span className="cm-avatar">{initials(c.name)}</span>
                 <span className="cm-row__info">
                   <span className="cm-row__name">{c.name}</span>
