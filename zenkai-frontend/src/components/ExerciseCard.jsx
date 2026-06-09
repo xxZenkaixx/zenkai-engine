@@ -7,7 +7,7 @@ import { logSet, editSet, saveExerciseNote, fetchNote, fetchLastNote } from '../
 import { generateId, saveLog, removeLog } from '../utils/localWorkoutLogs';
 import { updateExerciseInstance } from '../api/exerciseInstanceApi';
 import { roundWeight, getBackoffWeight, formatWeight, getBackoffRest, floorWeight, ceilWeight } from '../utils/weightUtils';
-import { getCableDisplayWeight, formatCableTarget, computeNextCableStateOnRegression, computeNextCableStateOnProgression } from '../utils/cableUtils';
+import { getCableDisplayWeight, computeNextCableStateOnRegression, computeNextCableStateOnProgression } from '../utils/cableUtils';
 import LastPerformanceSnapshot from './LastPerformanceSnapshot';
 
 const EMPTY_CABLE_FORM = {
@@ -62,11 +62,8 @@ export default function ExerciseCard({
     cable_setup_locked,
     base_stack_weight,
     stack_step_value,
-    micro_step_value,
     max_micro_levels,
     current_micro_level,
-    micro_type,
-    micro_display_label,
     cable_unit,
     backoff_enabled,
     backoff_percent,
@@ -120,7 +117,7 @@ export default function ExerciseCard({
   const [error, setError] = useState(null);
   const [exerciseNote, setExerciseNote] = useState('');
   const [noteSaving, setNoteSaving] = useState(false);
-  const [noteSaved, setNoteSaved] = useState(false);
+  const [, setNoteSaved] = useState(false);
   const [noteModalOpen, setNoteModalOpen] = useState(false);
   const [isVideoOpen, setIsVideoOpen] = useState(false);
   const [isVideoBuffering, setIsVideoBuffering] = useState(false);
@@ -278,18 +275,6 @@ export default function ExerciseCard({
   const allSetsComplete = sessionSets.length >= target_sets;
   const cableMicroStep = isCable && stack_step_value > 0
     ? stack_step_value / ((max_micro_levels || 0) + 1)
-    : null;
-
-  const cableTargetLines = isCable && cable_setup_locked
-    ? formatCableTarget({
-        baseStackWeight: effectiveCableState.base_stack_weight,
-        stackStepValue: stack_step_value,
-        currentMicroLevel: effectiveCableState.current_micro_level,
-        maxMicroLevels: max_micro_levels,
-        cableUnit: cable_unit,
-        microType: micro_type,
-        microDisplayLabel: micro_display_label
-      }).split(' + ')
     : null;
 
   const handleCableSetupSave = async () => {

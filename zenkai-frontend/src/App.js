@@ -4,7 +4,6 @@ import LandingPage from './components/LandingPage';
 import AdminDashboard from './components/AdminDashboard';
 import AdminLayout from './components/AdminLayout';
 import ClientWorkoutView from './components/ClientWorkoutView';
-import ClientHome from './components/ClientHome';
 import ClientDashboard from './components/ClientDashboard';
 import LoginPage from './components/LoginPage';
 
@@ -20,7 +19,7 @@ function AppShell() {
   const [activeClientId, setActiveClientId] = useState(null);
   const [activeClientName, setActiveClientName] = useState(null);
   const [activeDayId, setActiveDayId] = useState(null);
-  const [clientHomeTab, setClientHomeTab] = useState('dashboard');
+  const [, setClientHomeTab] = useState('dashboard');
 
   useEffect(() => {
     if (user && showLanding) setShowLanding(false);
