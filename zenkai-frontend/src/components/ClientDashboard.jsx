@@ -17,7 +17,7 @@ import ProgramBuilder from './ProgramBuilder';
 import './ClientDashboard.css';
 
 export default function ClientDashboard({ clientId: propClientId, clientName: propClientName, onBack }) {
-  const { logout, user } = useAuth();
+  const { logout, user, login, token } = useAuth();
   const isSelfServe = user?.role === 'self-serve';
   const TABS = [
     { key: 'home',     label: 'Home' },
@@ -45,6 +45,9 @@ export default function ClientDashboard({ clientId: propClientId, clientName: pr
   const [builderProgram, setBuilderProgram] = useState(null);
   const [cloningId, setCloningId] = useState(null);
   const [cloneError, setCloneError] = useState(null);
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState('');
+  const [nameSaving, setNameSaving] = useState(false);
 
   useEffect(() => {
     if (propClientId) return;
@@ -117,6 +120,24 @@ export default function ClientDashboard({ clientId: propClientId, clientName: pr
   const programWeeks = activeProgram?.Program?.weeks;
   const programId = activeProgram?.Program?.id;
 
+  const saveName = async () => {
+    if (!nameInput.trim()) return;
+    setNameSaving(true);
+    try {
+      const res = await fetch(`${process.env.REACT_APP_API_URL}/api/auth/me`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ firstName: nameInput.trim() }),
+      });
+      if (res.ok) {
+        login({ ...user, firstName: nameInput.trim() }, token);
+        setEditingName(false);
+      }
+    } finally {
+      setNameSaving(false);
+    }
+  };
+
   const handleStartWorkout = (clientId, dayId) => {
     setPreviewDayId(dayId);
     setActiveWorkoutDayId(dayId);
@@ -130,7 +151,31 @@ export default function ClientDashboard({ clientId: propClientId, clientName: pr
           <div className="cd-topbar__brand">ZENKAI</div>
           <div className="cd-topbar__role">{isSelfServe ? 'Self-Serve' : 'Client Side'}</div>
           <h1 className="cd-topbar__title">
-            {`${displayName}'s Portal`}
+            {editingName ? (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input
+                  autoFocus
+                  value={nameInput}
+                  onChange={e => setNameInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') saveName(); if (e.key === 'Escape') setEditingName(false); }}
+                  style={{ background: '#0a0a0a', border: '1px solid #c8ff00', borderRadius: 6, padding: '2px 8px', color: '#e0e0e0', fontSize: 'inherit', fontWeight: 'inherit', width: 160 }}
+                />
+                <button onClick={saveName} disabled={nameSaving} style={{ background: 'none', border: 'none', color: '#c8ff00', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
+                  {nameSaving ? '...' : 'Save'}
+                </button>
+                <button onClick={() => setEditingName(false)} style={{ background: 'none', border: 'none', color: '#555', cursor: 'pointer', fontSize: 12 }}>
+                  Cancel
+                </button>
+              </span>
+            ) : (
+              <span
+                onClick={() => { setNameInput(displayName); setEditingName(true); }}
+                title="Click to edit name"
+                className="cd-topbar__title-editable"
+              >
+                {`${displayName}'s Portal`}
+              </span>
+            )}
           </h1>
           {programName && (
             <p className="cd-topbar__sub">

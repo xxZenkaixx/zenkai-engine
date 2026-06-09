@@ -188,7 +188,11 @@ export default function SignUpWizard({ onBackToLogin }) {
               Preferred Name
             </p>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-              <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#e0e0e0' }}>
+              <p
+                style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#e0e0e0', cursor: 'pointer' }}
+                onClick={() => setStep('name')}
+                title="Click to edit name"
+              >
                 {preferredName}
               </p>
               <button

@@ -27,6 +27,15 @@
   margin: 6px 0 0;
 }
 
+.cd-topbar__title-editable {
+  cursor: pointer;
+  transition: color 0.15s ease, text-shadow 0.15s ease;
+}
+.cd-topbar__title-editable:hover {
+  color: #c8ff00;
+  text-shadow: 0 0 12px rgba(200, 255, 0, 0.5);
+}
+
 .cd-topbar__sub {
   font-size: 12px;
   color: #9ca3af;
