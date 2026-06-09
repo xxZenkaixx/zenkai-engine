@@ -153,11 +153,6 @@ async function applyProgressionForWorkout(clientId, programDayId, options = {}) 
       continue;
     }
 
-    if (instance.type === 'custom' && instance.equipment_type !== 'cable') {
-      results.push({ exercise_instance_id: instanceId, outcome: 'skipped', reason: 'custom exercise' });
-      continue;
-    }
-
     const instanceSets = grouped[instanceId];
 
     console.log(`[PROG] -- ${instance.name} | type=${instance.type} | equipment=${instance.equipment_type} | backoff=${instance.backoff_enabled} | template_target_weight=${instance.target_weight} | template_target_reps=${instance.target_reps}`);
@@ -340,7 +335,9 @@ async function applyProgressionForWorkout(clientId, programDayId, options = {}) 
           target_weight: parseFloat(baseWeight),
           rep_range_min: min,
           rep_range_max: max,
-          completed_reps_array: completedReps
+          completed_reps_array: completedReps,
+          progression_mode: instance.progression_mode,
+          progression_value: instance.progression_value
         });
         console.log(`[PROG]   next_weight=${next_weight} (baseWeight=${baseWeight})`);
       } catch (err) {

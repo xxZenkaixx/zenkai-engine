@@ -80,7 +80,9 @@ async function calculateNextWeight({
   rep_range_min,
   rep_range_max,
   completed_reps_array,
-  cable_state
+  cable_state,
+  progression_mode,
+  progression_value
 }) {
   // * Cable uses its own branch — progression_rules not consulted
   if (equipment_type === 'cable') {
@@ -93,13 +95,27 @@ async function calculateNextWeight({
     });
   }
 
-  // * custom exercises are never adjusted
-  if (type === 'custom') {
-    return target_weight;
-  }
-
   const all_sets_hit_top = completed_reps_array.every((r) => r >= rep_range_max);
   const any_set_below_min = completed_reps_array.some((r) => r < rep_range_min);
+
+  // * custom exercises progress by their own rule: a fixed amount (absolute)
+  // * or a percentage of the working weight, applied when the top set clears
+  // * the rep range (increase) or falls below it (decrease).
+  if (type === 'custom') {
+    if (!progression_mode || progression_value == null) return target_weight;
+    const val = Number(progression_value);
+    if (all_sets_hit_top) {
+      return progression_mode === 'absolute'
+        ? target_weight + val
+        : roundToNearest2_5(target_weight * (1 + val / 100));
+    }
+    if (any_set_below_min) {
+      return progression_mode === 'absolute'
+        ? Math.max(0, target_weight - val)
+        : roundToNearest2_5(target_weight * (1 - val / 100));
+    }
+    return target_weight;
+  }
 
   // ! rule must exist for the given type
   const rule = await ProgressionRule.findOne({ where: { type } });
