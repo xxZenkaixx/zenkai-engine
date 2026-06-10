@@ -204,7 +204,33 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
       setLoading(true);
       setError(null);
 
-      const data = await fetchActiveProgram(clientId);
+      let data = await fetchActiveProgram(clientId);
+
+      // Ensures week-to-week progression is persisted to client_exercise_targets
+      // BEFORE set 1 renders. Without this, an abandoned prior session (Finish
+      // never tapped) leaves set 1 on the program baseline while set 2+ live-
+      // progress off set 1. Guarded by the draft check so we never recompute
+      // mid-session; applyProgression is a no-op when no logged sets exist.
+      const initialDays = data?.Program?.ProgramDays || [];
+      const sortedInitial = [...initialDays].sort((a, b) => a.day_number - b.day_number);
+      const fallbackFirstDayId = sortedInitial[0]?.id || null;
+      const persistedDayId = readSelectedDayId(clientId);
+      const dayToProgress = initialDayId || persistedDayId || fallbackFirstDayId;
+      const draftForDay = dayToProgress ? readDraft(clientId, dayToProgress) : null;
+      const sessionInProgress = draftForDay && isDraftSessionValid(draftForDay);
+      let progressionApplied = false;
+      if (clientId && dayToProgress && !sessionInProgress) {
+        console.log(`[Progression Preload] Applying for day ${dayToProgress} (no active draft)`);
+        try {
+          await applyProgression(clientId, dayToProgress);
+          progressionApplied = true;
+        } catch (e) {
+          console.warn('[Progression Preload] applyProgression failed, keeping initial fetch:', e?.message);
+        }
+      }
+      if (progressionApplied) {
+        data = await fetchActiveProgram(clientId);
+      }
       // TEMP DEBUG: confirm the values that arrived from the API exactly match
       // what [CP GET FINAL] reported. If they diverge, suspect a cache / SW /
       // axios interceptor between server and view. Remove once bug is found.
@@ -679,6 +705,23 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
         const currentUnit = incompleteUnits[0] ?? null;
         const nextUpUnits = incompleteUnits.slice(1);
 
+        // Skips the entire superset unit — moves both A and B exercises to
+        // after the last incomplete exercise, matching single-exercise handleSkip.
+        const handleSupersetSkip = (groupExerciseIds) => {
+          const incompleteInOrder = effectiveOrder.filter(id => incompleteExerciseIds.has(id));
+          const others = incompleteInOrder.filter(id => !groupExerciseIds.includes(id));
+          if (others.length === 0) return;
+          const last = others[others.length - 1];
+          let next = [...effectiveOrder];
+          groupExerciseIds.forEach(id => {
+            const idx = next.indexOf(id);
+            if (idx !== -1) next.splice(idx, 1);
+          });
+          next.splice(next.indexOf(last) + 1, 0, ...groupExerciseIds);
+          setActiveOrderOverride(next);
+          writeDraft(clientId, selectedDayId, { activeOrderOverride: next });
+        };
+
         // Single-exercise card — unchanged from previous render flow.
         const renderCard = (ex, isCurrent = false) => (
           <ExerciseCard
@@ -740,6 +783,7 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
                 sessionOverrides={sessionOverrides}
                 onSessionOverrideChange={handleSessionOverrideChange}
                 incompleteExerciseIds={incompleteExerciseIds}
+                onSkip={nextUpUnits.length > 0 ? () => handleSupersetSkip(unit.exercises.map(e => e.id)) : null}
               />
             );
           }
@@ -771,7 +815,7 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
           ? peek.exercises.map(ex => `${ex.target_sets}×${ex.target_reps}${ex.type === 'isometric' ? 's' : ''}`).join(' + ')
           : [
               peekFirstEx?.equipment_type,
-              peekFirstEx ? `${peekFirstEx.target_sets}×${peekFirstEx.target_reps}` : null,
+              peekFirstEx ? `${peekFirstEx.target_sets}×${peekFirstEx.target_reps}${peekFirstEx.type === 'isometric' ? 's' : ''}` : null,
               peekFirstEx?.target_weight != null ? `${peekFirstEx.target_weight} lb` : null
             ].filter(Boolean).join(' · ');
 
@@ -818,7 +862,7 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
                       <div className="cwv-done-card__info">
                         <p className="cwv-done-card__name">{ex.name}</p>
                         <p className="cwv-done-card__meta">
-                          {[ex.equipment_type, `${ex.target_sets}×${ex.target_reps}`]
+                          {[ex.equipment_type, `${ex.target_sets}×${ex.target_reps}${ex.type === 'isometric' ? 's' : ''}`]
                             .filter(Boolean).join(' · ')}
                         </p>
                       </div>

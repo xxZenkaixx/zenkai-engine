@@ -132,7 +132,7 @@ function buildPayload(fields) {
     // Custom: numeric step interpreted via progression_mode. Isometric: seconds-step (mode null).
     progression_value: (isCustom || isIsometric) && fields.progression_value !== '' ? parseFloat(fields.progression_value) : null,
     base_stack_weight: isCable && fields.base_stack_weight !== '' ? parseFloat(fields.base_stack_weight) : null,
-    stack_step_value: isCable ? ([5, 10, 15, 20].includes(parseFloat(fields.stack_step_value)) ? parseFloat(fields.stack_step_value) : 10) : null,
+    stack_step_value: isCable ? ([5, 7.5, 10, 15, 20].includes(parseFloat(fields.stack_step_value)) ? parseFloat(fields.stack_step_value) : 10) : null,
     max_micro_levels: isCable ? (fields.micro_type === 'none' ? 0 : (fields.max_micro_levels !== '' ? parseInt(fields.max_micro_levels) : 0)) : null,
     cable_unit: isCable ? fields.cable_unit : null,
     micro_type: isCable ? (fields.micro_type || 'none') : null,
@@ -364,7 +364,7 @@ export default function ExerciseInstanceForm({ dayId }) {
       target_sets: ex.target_sets, target_reps: ex.target_reps, target_weight: ex.target_weight ?? '',
       rest_seconds: ex.rest_seconds, order_index: ex.order_index, notes: ex.notes ?? '',
       progression_mode: ex.progression_mode ?? '', progression_value: ex.progression_value ?? '',
-      base_stack_weight: ex.base_stack_weight ?? '', stack_step_value: [5, 10, 15, 20].includes(parseFloat(ex.stack_step_value)) ? String(parseFloat(ex.stack_step_value)) : '10',
+      base_stack_weight: ex.base_stack_weight ?? '', stack_step_value: [5, 7.5, 10, 15, 20].includes(parseFloat(ex.stack_step_value)) ? String(parseFloat(ex.stack_step_value)) : '10',
       max_micro_levels: (ex.micro_type === 'none' || ex.micro_type == null) ? 0 : (ex.max_micro_levels ?? 0),
       cable_unit: ex.cable_unit ?? 'lb',
       micro_type: ex.micro_type ?? 'none',

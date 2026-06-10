@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import SignUpWizard from './auth/SignUpWizard';
 import './LoginPage.css';
 
 const GSI_SRC = 'https://accounts.google.com/gsi/client';
@@ -41,6 +42,7 @@ export default function LoginPage({ variant = 'member' }) {
   // SAME credential back so the backend can re-verify and create the account).
   // null means we are NOT mid-Google-signup; the existing flows are unchanged.
   const [pendingGoogleCredential, setPendingGoogleCredential] = useState(null);
+  const [showWizard, setShowWizard] = useState(false);
 
   const handleGoogleCredential = async (response) => {
     setError(null);
@@ -185,6 +187,14 @@ export default function LoginPage({ variant = 'member' }) {
     setError(null);
   };
 
+  if (!isAdmin && showWizard) {
+    return (
+      <div className="lp-wrap">
+        <SignUpWizard onBackToLogin={() => setShowWizard(false)} />
+      </div>
+    );
+  }
+
   return (
     <div className="lp-wrap">
       <div className="lp-card">
@@ -279,8 +289,13 @@ export default function LoginPage({ variant = 'member' }) {
         )}
 
         {!isAdmin && (
-          <button className="lp-toggle" onClick={handleModeToggle}>
-            {mode === 'login' ? 'No account? Sign up' : 'Have an account? Sign in'}
+          <button
+            className="lp-toggle"
+            onClick={mode === 'login' ? () => setShowWizard(true) : handleModeToggle}
+          >
+            {mode === 'login'
+              ? "Don't have a Google email? Sign up here"
+              : 'Have an account? Sign in'}
           </button>
         )}
       </div>

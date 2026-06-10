@@ -96,25 +96,33 @@ export default function ClientWorkoutDayPreview({
   const selectedDay = days.find(d => d.id === selectedDayId) || days[0];
   const exercises = [...(selectedDay?.ExerciseInstances || [])]
     .sort((a, b) => a.order_index - b.order_index);
+  console.log(`UI displaying targets for day ${selectedDay?.id} (Day ${selectedDay?.day_number}):`,
+    exercises.map(ex => ({
+      id: ex.id,
+      name: ex.name,
+      target_sets: ex.target_sets,
+      target_reps: ex.target_reps,
+      target_weight: ex.target_weight,
+      updatedAt: ex.updatedAt
+    }))
+  );
 
   return (
     <div className="cwdp-wrap">
       {/* HEADER — title + subtitle on left, Start CTA on right (wraps on narrow). */}
       <div className="cwdp-header">
         <div className="cwdp-header__left">
-          <h1 className="cwdp-title">Today's Workout</h1>
-          <p className="cwdp-sub">
-            {activeProgram.Program.name}
-            {selectedDay?.name ? ` · ${selectedDay.name}` : ''}
-          </p>
+          <h1 className="cwdp-title">{activeProgram.Program.name}</h1>
         </div>
-        <button
-          className="cwdp-start-btn"
-          onClick={() => onStartWorkout(selectedDay.id)}
-          disabled={!selectedDay}
-        >
-          Start Workout →
-        </button>
+        {onStartWorkout && (
+          <button
+            className="cwdp-start-btn"
+            onClick={() => onStartWorkout(selectedDay.id)}
+            disabled={!selectedDay}
+          >
+            Start Workout →
+          </button>
+        )}
       </div>
 
       {/* DAY TABS — only render when there's more than one day to switch between. */}
@@ -163,7 +171,7 @@ export default function ClientWorkoutDayPreview({
                       (e.g. rest_seconds === null on a brand-new exercise). */}
                   {[
                     `${ex.target_sets ?? '—'} sets`,
-                    `${formatRepRange(ex)} reps`,
+                    `${formatRepRange(ex)} ${ex.type === 'isometric' ? 'seconds' : 'reps'}`,
                     formatWeight(ex),
                     formatRest(ex.rest_seconds)
                   ].filter(Boolean).join(' · ')}

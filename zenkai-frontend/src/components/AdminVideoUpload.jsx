@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { API_BASE, getAuthHeaders } from '../api/base';
+import { API_BASE } from '../api/base';
 import { compressVideo } from '../utils/videoCompressor';
 
 export default function AdminVideoUpload() {
@@ -7,7 +7,7 @@ export default function AdminVideoUpload() {
   const [status, setStatus]     = useState('');
   const [videoUrl, setVideoUrl] = useState('');
   const [loading, setLoading]   = useState(false);
-  const [compressPct, setCompressPct] = useState(0);
+  const [, setCompressPct] = useState(0);
   const [controller, setController] = useState(null);
 
   const handleFile = (e) => {

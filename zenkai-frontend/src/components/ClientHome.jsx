@@ -4,7 +4,6 @@ import { fetchActiveProgram } from '../api/clientProgramApi';
 import { fetchWorkoutSessions } from '../api/historyApi';
 import { formatWeight } from '../utils/weightUtils';
 import WorkoutPreview from './WorkoutPreview';
-import ClientWorkoutSessionDetail from './ClientWorkoutSessionDetail';
 import PerformanceSummary from './PerformanceSummary';
 import ExercisePerformanceHistory from './ExercisePerformanceHistory';
 import ClientWorkoutHistoryList from './ClientWorkoutHistoryList';

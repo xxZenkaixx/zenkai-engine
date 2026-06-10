@@ -40,3 +40,16 @@ export const deleteProgram = async (id) => {
   if (res.status === 204) return null;
   return res.json();
 };
+
+// Deep-copies a program into one owned by the current user (is_template=false).
+// Source must be readable: admin → anything; self-serve → templates or own.
+// Optional { name } in body to override the default "<Source> (Copy)" name.
+export const cloneProgram = async (id, body = {}) => {
+  const res = await fetch(`${BASE_URL}/${id}/clone`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) throw new Error('Failed to clone program');
+  return res.json();
+};

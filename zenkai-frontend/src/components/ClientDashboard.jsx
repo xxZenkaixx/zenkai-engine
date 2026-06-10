@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { fetchLinkedClient } from '../api/clientApi';
-import { fetchActiveProgram } from '../api/clientProgramApi';
-import { fetchPrograms } from '../api/programApi';
+import { fetchActiveProgram, assignProgram } from '../api/clientProgramApi';
+import { fetchPrograms, cloneProgram } from '../api/programApi';
 import ClientHome from './ClientHome';
 import ClientWorkoutView from './ClientWorkoutView';
 // Workout-tab landing screen — wireframe screen-workout-day (vaunt-wireframe.html:1056).
@@ -17,11 +17,11 @@ import ProgramBuilder from './ProgramBuilder';
 import './ClientDashboard.css';
 
 export default function ClientDashboard({ clientId: propClientId, clientName: propClientName, onBack }) {
-  const { logout, user } = useAuth();
+  const { logout, user, login, token } = useAuth();
   const isSelfServe = user?.role === 'self-serve';
   const TABS = [
     { key: 'home',     label: 'Home' },
-    { key: 'workout',  label: 'Workout' },
+    { key: 'workouts', label: 'Workouts' },
     { key: 'history',  label: 'History' },
     { key: 'library',  label: 'Library' },
     ...(isSelfServe ? [{ key: 'programs', label: 'Programs' }] : []),
@@ -43,6 +43,11 @@ export default function ClientDashboard({ clientId: propClientId, clientName: pr
   const [workoutLoading, setWorkoutLoading] = useState(false);
   const [programs, setPrograms] = useState([]);
   const [builderProgram, setBuilderProgram] = useState(null);
+  const [cloningId, setCloningId] = useState(null);
+  const [cloneError, setCloneError] = useState(null);
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState('');
+  const [nameSaving, setNameSaving] = useState(false);
 
   useEffect(() => {
     if (propClientId) return;
@@ -67,6 +72,35 @@ export default function ClientDashboard({ clientId: propClientId, clientName: pr
     fetchPrograms().then(setPrograms).catch(() => setPrograms([]));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const handleCloneTemplate = async (templateId) => {
+    setCloningId(templateId);
+    setCloneError(null);
+    try {
+      const fresh = await cloneProgram(templateId);
+      // Activate the clone for this user. assignProgram (POST) creates the
+      // ClientProgram assignment with active=true and deactivates any prior
+      // active one. activateProgram (PATCH) can't be used here — it's
+      // admin-only and operates on an existing assignment ID.
+      if (linkedClientId) {
+        await assignProgram({
+          client_id: linkedClientId,
+          program_id: fresh.id,
+          start_date: new Date().toISOString().slice(0, 10)
+        });
+        const updatedActive = await fetchActiveProgram(linkedClientId);
+        setActiveProgram(updatedActive || null);
+      }
+      const list = await fetchPrograms();
+      setPrograms(list);
+      // Drop the user straight into the builder for their new copy.
+      setBuilderProgram(fresh);
+    } catch (err) {
+      setCloneError(err.message || 'Failed to copy template');
+    } finally {
+      setCloningId(null);
+    }
+  };
+
   if (clientLoading) {
     return (
       <div style={{ color: '#888', background: '#0a0a0a', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -86,15 +120,28 @@ export default function ClientDashboard({ clientId: propClientId, clientName: pr
   const programWeeks = activeProgram?.Program?.weeks;
   const programId = activeProgram?.Program?.id;
 
-  // Called by ClientHome's "Start Today's Workout" CTA. Per wireframe, the
-  // home CTA lands on the workout PREVIEW (not the active workout) so the
-  // client can review the day's exercises before committing. Setting
-  // activeWorkoutDayId = null keeps us in preview mode; previewDayId tells
-  // the preview which day to pre-select in its day tabs.
+  const saveName = async () => {
+    if (!nameInput.trim()) return;
+    setNameSaving(true);
+    try {
+      const res = await fetch(`${process.env.REACT_APP_API_URL}/api/auth/me`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ firstName: nameInput.trim() }),
+      });
+      if (res.ok) {
+        login({ ...user, firstName: nameInput.trim() }, token);
+        setEditingName(false);
+      }
+    } finally {
+      setNameSaving(false);
+    }
+  };
+
   const handleStartWorkout = (clientId, dayId) => {
     setPreviewDayId(dayId);
-    setActiveWorkoutDayId(null);
-    setTab('workout');
+    setActiveWorkoutDayId(dayId);
+    setTab('workouts');
   };
 
   return (
@@ -104,7 +151,31 @@ export default function ClientDashboard({ clientId: propClientId, clientName: pr
           <div className="cd-topbar__brand">ZENKAI</div>
           <div className="cd-topbar__role">{isSelfServe ? 'Self-Serve' : 'Client Side'}</div>
           <h1 className="cd-topbar__title">
-            {`${displayName}'s Portal`}
+            {editingName ? (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input
+                  autoFocus
+                  value={nameInput}
+                  onChange={e => setNameInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') saveName(); if (e.key === 'Escape') setEditingName(false); }}
+                  style={{ background: '#0a0a0a', border: '1px solid #c8ff00', borderRadius: 6, padding: '2px 8px', color: '#e0e0e0', fontSize: 'inherit', fontWeight: 'inherit', width: 160 }}
+                />
+                <button onClick={saveName} disabled={nameSaving} style={{ background: 'none', border: 'none', color: '#c8ff00', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
+                  {nameSaving ? '...' : 'Save'}
+                </button>
+                <button onClick={() => setEditingName(false)} style={{ background: 'none', border: 'none', color: '#555', cursor: 'pointer', fontSize: 12 }}>
+                  Cancel
+                </button>
+              </span>
+            ) : (
+              <span
+                onClick={() => { setNameInput(displayName); setEditingName(true); }}
+                title="Click to edit name"
+                className="cd-topbar__title-editable"
+              >
+                {`${displayName}'s Portal`}
+              </span>
+            )}
           </h1>
           {programName && (
             <p className="cd-topbar__sub">
@@ -128,7 +199,7 @@ export default function ClientDashboard({ clientId: propClientId, clientName: pr
         </div>
       )}
 
-      {showPreview && programId && (
+      {tab === 'home' && showPreview && programId && (
         <div className="cd-preview-wrap">
           <WorkoutPreview programId={programId} clientId={linkedClientId} />
         </div>
@@ -146,7 +217,7 @@ export default function ClientDashboard({ clientId: propClientId, clientName: pr
           />
         )}
 
-        {tab === 'workout' && (
+        {tab === 'workouts' && (
           activeWorkoutDayId ? (
             // Client has tapped "Start Workout →" on the preview — render the
             // existing active-workout flow. Finishing returns to Home tab and
@@ -155,10 +226,22 @@ export default function ClientDashboard({ clientId: propClientId, clientName: pr
             <ClientWorkoutView
               clientId={linkedClientId}
               initialDayId={activeWorkoutDayId}
-              onWorkoutFinished={() => {
+              onWorkoutFinished={async () => {
                 setActiveWorkoutDayId(null);
                 setPreviewDayId(null);
                 setTab('home');
+                // Refresh active program so progressed targets (ISO hold time,
+                // weight bumps, cable steps) appear on the next preview /
+                // workout open. The dashboard's activeProgram is only fetched
+                // on mount (guarded by `if (... || activeProgram) return`) —
+                // without this refresh, the preview keeps showing pre-finish
+                // targets even though client_exercise_targets is updated.
+                try {
+                  const fresh = await fetchActiveProgram(linkedClientId);
+                  setActiveProgram(fresh || null);
+                } catch {
+                  // best effort — manual reload recovers stale state
+                }
               }}
             />
           ) : (
@@ -168,7 +251,7 @@ export default function ClientDashboard({ clientId: propClientId, clientName: pr
             <ClientWorkoutDayPreview
               activeProgram={activeProgram}
               initialDayId={previewDayId}
-              onStartWorkout={(dayId) => setActiveWorkoutDayId(dayId)}
+              onStartWorkout={null}
               loading={workoutLoading}
             />
           )
@@ -189,15 +272,74 @@ export default function ClientDashboard({ clientId: propClientId, clientName: pr
               onBack={() => setBuilderProgram(null)}
             />
           ) : (
-            <ProgramList
-              programs={programs}
-              clients={[]}
-              onProgramsChanged={async () => {
-                const d = await fetchPrograms();
-                setPrograms(d);
-              }}
-              onOpenBuilder={(p) => setBuilderProgram(p)}
-            />
+            <>
+              {/* Browse Templates — only meaningful for self-serve. Admins
+                  already see templates inline in their full program list. */}
+              {isSelfServe && programs.some(p => p.is_template) && (
+                <div style={{ marginBottom: 24 }}>
+                  <h3 style={{ color: '#aaa', fontSize: 13, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 12px' }}>
+                    Browse Templates
+                  </h3>
+                  <p style={{ color: '#666', fontSize: 12, margin: '0 0 12px' }}>
+                    Tap "Use This Program" to make your own editable copy.
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {programs.filter(p => p.is_template).map(t => (
+                      <div
+                        key={t.id}
+                        style={{ background: '#111', border: '1px solid #2a2a2a', borderRadius: 10, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12 }}
+                      >
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ color: '#e0e0e0', fontWeight: 600, fontSize: 14 }}>
+                            {t.name}
+                            <span style={{ marginLeft: 8, fontSize: 10, color: '#c8ff00', border: '1px solid #2a3a00', padding: '1px 6px', borderRadius: 6, letterSpacing: '0.08em', verticalAlign: 'middle' }}>TEMPLATE</span>
+                          </div>
+                          <div style={{ color: '#666', fontSize: 12, marginTop: 2 }}>
+                            {t.weeks} weeks{t.deload_weeks?.length ? ` · deload: ${t.deload_weeks.join(', ')}` : ''}
+                          </div>
+                        </div>
+                        <button
+                          className="prog-btn"
+                          style={{
+                            background: activeProgram?.Program?.id === t.id ? '#c8ff00' : '#2a2a2a',
+                            color: activeProgram?.Program?.id === t.id ? '#0a0a0a' : '#888',
+                            borderColor: activeProgram?.Program?.id === t.id ? '#c8ff00' : '#2a2a2a',
+                            fontWeight: 600,
+                            fontSize: 12,
+                            padding: '6px 12px',
+                            whiteSpace: 'nowrap',
+                            cursor: activeProgram?.Program?.id === t.id ? 'default' : 'pointer'
+                          }}
+                          disabled={cloningId === t.id || activeProgram?.Program?.id === t.id}
+                          onClick={() => handleCloneTemplate(t.id)}
+                        >
+                          {cloningId === t.id ? '...' : activeProgram?.Program?.id === t.id ? 'Active' : 'Activate'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  {cloneError && (
+                    <p style={{ color: '#ff6666', fontSize: 12, marginTop: 8 }}>{cloneError}</p>
+                  )}
+                </div>
+              )}
+
+              <ProgramList
+                programs={programs}
+                clients={[]}
+                activeProgramId={activeProgram?.Program?.id}
+                clientId={linkedClientId}
+                onActivated={async () => {
+                  const fresh = await fetchActiveProgram(linkedClientId);
+                  setActiveProgram(fresh || null);
+                }}
+                onProgramsChanged={async () => {
+                  const d = await fetchPrograms();
+                  setPrograms(d);
+                }}
+                onOpenBuilder={(p) => setBuilderProgram(p)}
+              />
+            </>
           )
         )}
 

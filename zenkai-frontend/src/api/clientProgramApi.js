@@ -41,6 +41,16 @@ export const fetchActiveProgram = async (clientId) => {
   if (res.status === 404) return null;
   if (!res.ok) throw new Error('Failed to fetch active program');
   const data = await res.json();
+  console.log(`Loading workout targets for client ${clientId} - raw data:`, data);
   if (!data || !data.Program) return null;
   return data;
+};
+
+export const activateProgram = async (assignmentId) => {
+  const res = await fetch(`${BASE_URL}/${assignmentId}/activate`, {
+    method: 'PATCH',
+    headers: getAuthHeaders()
+  });
+  if (!res.ok) throw new Error('Failed to activate program');
+  return res.json();
 };

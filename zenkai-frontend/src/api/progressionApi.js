@@ -16,5 +16,7 @@ export const applyProgression = async (clientId, programDayId) => {
     throw new Error(err.error || 'Failed to apply progression');
   }
 
-  return res.json();
+  const data = await res.json();
+  console.log(`Calculated next week targets for client ${clientId}, day ${programDayId}:`, data);
+  return data;
 };

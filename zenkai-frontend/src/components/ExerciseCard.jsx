@@ -7,7 +7,7 @@ import { logSet, editSet, saveExerciseNote, fetchNote, fetchLastNote } from '../
 import { generateId, saveLog, removeLog } from '../utils/localWorkoutLogs';
 import { updateExerciseInstance } from '../api/exerciseInstanceApi';
 import { roundWeight, getBackoffWeight, formatWeight, getBackoffRest, floorWeight, ceilWeight } from '../utils/weightUtils';
-import { getCableDisplayWeight, formatCableTarget, computeNextCableStateOnRegression, computeNextCableStateOnProgression } from '../utils/cableUtils';
+import { getCableDisplayWeight, computeNextCableStateOnRegression, computeNextCableStateOnProgression } from '../utils/cableUtils';
 import LastPerformanceSnapshot from './LastPerformanceSnapshot';
 
 const EMPTY_CABLE_FORM = {
@@ -45,7 +45,8 @@ export default function ExerciseCard({
   onSkip,
   sessionId,
   sessionOverride,
-  onSessionOverrideChange
+  onSessionOverrideChange,
+  suppressProgression = false,
 }) {
   const {
     id,
@@ -61,11 +62,8 @@ export default function ExerciseCard({
     cable_setup_locked,
     base_stack_weight,
     stack_step_value,
-    micro_step_value,
     max_micro_levels,
     current_micro_level,
-    micro_type,
-    micro_display_label,
     cable_unit,
     backoff_enabled,
     backoff_percent,
@@ -119,7 +117,7 @@ export default function ExerciseCard({
   const [error, setError] = useState(null);
   const [exerciseNote, setExerciseNote] = useState('');
   const [noteSaving, setNoteSaving] = useState(false);
-  const [noteSaved, setNoteSaved] = useState(false);
+  const [, setNoteSaved] = useState(false);
   const [noteModalOpen, setNoteModalOpen] = useState(false);
   const [isVideoOpen, setIsVideoOpen] = useState(false);
   const [isVideoBuffering, setIsVideoBuffering] = useState(false);
@@ -189,16 +187,55 @@ export default function ExerciseCard({
     return pin + microCount * microStep;
   })() : null;
 
+  // Pre-fill the weight input. This is the ONLY place that programmatically
+  // writes to `completedWeight` outside of the input's own onChange handler.
+  //
+  // Trigger model:
+  //   - Fires when the active set advances (nextSetNumber)
+  //   - Fires when the parent pushes a new sessionOverride.weight (either
+  //     from this card's manual-edit persistence in handleLogSet below, or
+  //     from an auto-progression bump)
+  //   - Fires when the prescribed weight prop changes (rare, e.g. on
+  //     reload after week-to-week progression)
+  //
+  // `completedWeight` is intentionally NOT a dep — typing in the input must
+  // never re-trigger this effect. The input's onChange is the sole owner of
+  // the typed value until either the user logs a set (which persists it as
+  // a sessionOverride via handleLogSet) or one of the triggers above fires.
   useEffect(() => {
-    if (!isCable && sessionOverride?.weight != null) {
+    // (0) Once any set is logged this session, the last logged set's
+    //     completed_weight is the source of truth for the input pre-fill.
+    //     Manual edits stick because whatever the user typed got logged —
+    //     this branch carries it forward even when sessionOverride was
+    //     never set (diff check missed it) or got overwritten by an
+    //     auto-progression bump. Skipped on backoff so the prescribed
+    //     backoff weight wins for sets 2+ unless manually overridden.
+    if (!isCable && sessionSets.length > 0 && !backoff_enabled) {
+      const last = sessionSets[sessionSets.length - 1]?.completed_weight;
+      if (last != null) {
+        setCompletedWeight(String(last));
+        return;
+      }
+    }
+
+    // (1) Override wins — but skip on backoff sets 2+ so branch (3)
+    //     applies backoff to backoffBaseWeight (sessionSets[0].completed_weight),
+    //     which already reflects any manual edit made on Set 1.
+    if (!isCable && sessionOverride?.weight != null && !(backoff_enabled && nextSetNumber > 1)) {
       setCompletedWeight(String(sessionOverride.weight));
       return;
     }
 
-    if (effectiveWeight == null) return;
+    // (2) No numeric weight to track (bodyweight / isometric / cable
+    //     not yet set up). Clear any stale value.
+    if (effectiveWeight == null) {
+      if (!isCable) setCompletedWeight('');
+      return;
+    }
 
+    // (3) Fresh fill from the prescribed weight, with backoff applied
+    //     to sets 2+ when enabled.
     let displayWeight;
-
     if (!backoff_enabled || nextSetNumber === 1) {
       displayWeight = isCable
         ? effectiveWeight
@@ -210,48 +247,34 @@ export default function ExerciseCard({
       const stepsDown = Math.ceil((effectiveCableState.base_stack_weight - backoffTarget) / stack_step_value);
       const pin = effectiveCableState.base_stack_weight - stepsDown * stack_step_value;
       const rawMicro = (backoffTarget - pin) / microStep;
-      let microCount = Math.round(rawMicro);
-      if (microCount > levels) {
-        displayWeight = pin + stack_step_value;
-      } else if (microCount === 0) {
-        displayWeight = pin;
-      } else {
-        displayWeight = pin + microCount * microStep;
-      }
+      const microCount = Math.round(rawMicro);
+      if (microCount > levels)      displayWeight = pin + stack_step_value;
+      else if (microCount === 0)    displayWeight = pin;
+      else                          displayWeight = pin + microCount * microStep;
     } else {
-      displayWeight = getBackoffWeight(effectiveWeight, backoff_percent, equipment_type);
+      displayWeight = getBackoffWeight(backoffBaseWeight, backoff_percent, equipment_type);
     }
 
-    // TEMP DEBUG: this is what gets put in the weight input field — the number
-    // the user actually logs against. Should match effectiveWeight (or its
-    // backoff derivative). If it's stale, this effect is reading old state.
-    console.log('[EC-DBG]   input-prefill', name, {
-      computed_displayWeight: displayWeight,
-      effectiveWeight,
-      backoff_enabled,
-      nextSetNumber,
-      isCable,
-      sessionOverride_weight: sessionOverride?.weight ?? null
-    });
     setCompletedWeight(displayWeight != null ? String(displayWeight) : '');
     setCableWeightEditing(false);
-  }, [nextSetNumber, effectiveWeight, backoffBaseWeight, backoff_enabled, backoff_percent, equipment_type, isCable, stack_step_value, max_micro_levels, sessionOverride, effectiveCableState.base_stack_weight]);
+  }, [
+    nextSetNumber,
+    effectiveWeight,
+    sessionSets,
+    sessionOverride,
+    backoff_enabled,
+    backoff_percent,
+    equipment_type,
+    isCable,
+    stack_step_value,
+    max_micro_levels,
+    backoffBaseWeight,
+    effectiveCableState.base_stack_weight,
+  ]);
 
   const allSetsComplete = sessionSets.length >= target_sets;
   const cableMicroStep = isCable && stack_step_value > 0
     ? stack_step_value / ((max_micro_levels || 0) + 1)
-    : null;
-
-  const cableTargetLines = isCable && cable_setup_locked
-    ? formatCableTarget({
-        baseStackWeight: effectiveCableState.base_stack_weight,
-        stackStepValue: stack_step_value,
-        currentMicroLevel: effectiveCableState.current_micro_level,
-        maxMicroLevels: max_micro_levels,
-        cableUnit: cable_unit,
-        microType: micro_type,
-        microDisplayLabel: micro_display_label
-      }).split(' + ')
     : null;
 
   const handleCableSetupSave = async () => {
@@ -306,11 +329,40 @@ export default function ExerciseCard({
     setSessionSets((prev) => [...prev, payload].sort((a, b) => a.set_number - b.set_number));
     setCompletedReps('');
 
+    // Persist the user's typed weight as the new base for subsequent sets.
+    // This MUST run for any exercise that renders a weight input — i.e. not
+    // cable (which has its own cableState/stepper path) and not bodyweight
+    // (no weight input). For isometric: equipment_type is 'bodyweight' so
+    // effectiveWeight is null and the input never renders; the
+    // `completedWeight !== ''` check below short-circuits there anyway.
+    //
+    // Unconditional with respect to any progression flag: manual weight
+    // editing is the user's explicit intent and must never be discarded.
+    // Placed BEFORE the progression block so that when auto-progression
+    // fires, its `base = sessionOverrideRef.current?.weight ?? effectiveWeight`
+    // lookup uses the user's typed value as the bump baseline.
+    if (!isCable && !isBodyweight && completedWeight !== '') {
+      const enteredWeight = parseFloat(completedWeight);
+      const currentBase = sessionOverrideRef.current?.weight ?? effectiveWeight;
+      if (Number.isFinite(enteredWeight) && enteredWeight !== currentBase) {
+        const next = {
+          weight: enteredWeight,
+          cableState: null,
+          reps: sessionOverrideRef.current?.reps ?? null,
+        };
+        onSessionOverrideChange(next);
+        // Sync the ref synchronously so the progression block (which reads
+        // sessionOverrideRef.current within this same event handler) sees
+        // the new base before computing its bump.
+        sessionOverrideRef.current = next;
+      }
+    }
+
     const currentTargetReps = sessionOverrideRef.current?.reps ?? target_reps;
     const minReps = parseInt(String(currentTargetReps).split('-')[0], 10);
     const maxReps = parseInt(String(currentTargetReps).split('-').at(-1), 10);
 
-    if (!backoff_enabled && !isNaN(minReps) && parsedReps < minReps) {
+    if (!suppressProgression && !backoff_enabled && !isNaN(minReps) && parsedReps < minReps) {
       if (isCable) {
         const currentCableState = sessionOverrideRef.current?.cableState ?? {
           base_stack_weight,
@@ -345,6 +397,28 @@ export default function ExerciseCard({
           cableState: null,
           reps: nextReps
         });
+      } else if (type === 'isometric' && progression_value != null) {
+        // ISO step = progression_value seconds; floor at one step so we
+        // never prescribe sub-step holds (e.g. 0s or 2s when step is 5).
+        const repsStr = String(currentTargetReps);
+        const isRange = repsStr.includes('-');
+        const step = parseFloat(progression_value) || 5;
+        const floor = step;
+        let nextReps;
+
+        if (isRange) {
+          const [lo, hi] = repsStr.split('-').map(Number);
+          nextReps = `${Math.max(floor, lo - step)}-${Math.max(floor, hi - step)}`;
+        } else {
+          const v = parseInt(repsStr, 10);
+          nextReps = String(Math.max(floor, v - step));
+        }
+
+        onSessionOverrideChange({
+          weight: null,
+          cableState: null,
+          reps: nextReps
+        });
       } else if (type === 'custom' && progression_mode && progression_value != null) {
         const base = sessionOverrideRef.current?.weight ?? effectiveWeight;
         const next = progression_mode === 'absolute'
@@ -366,7 +440,7 @@ export default function ExerciseCard({
           reps: null
         });
       }
-    } else if (!backoff_enabled && !isNaN(maxReps) && parsedReps >= maxReps && nextSetNumber < target_sets) {
+    } else if (!suppressProgression && !backoff_enabled && !isNaN(maxReps) && parsedReps >= maxReps && nextSetNumber < target_sets) {
       if (isCable) {
         const currentCableState = sessionOverrideRef.current?.cableState ?? effectiveCableState;
         const nextState = computeNextCableStateOnProgression(currentCableState, {
@@ -389,6 +463,26 @@ export default function ExerciseCard({
           nextReps = `${parseInt(lo, 10) + 1}-${parseInt(hi, 10) + 1}`;
         } else {
           nextReps = String(parseInt(repsStr, 10) + 1);
+        }
+
+        onSessionOverrideChange({
+          weight: null,
+          cableState: null,
+          reps: nextReps
+        });
+      } else if (type === 'isometric' && progression_value != null) {
+        // ISO progression = bump every endpoint by progression_value seconds.
+        const repsStr = String(currentTargetReps);
+        const isRange = repsStr.includes('-');
+        const step = parseFloat(progression_value) || 5;
+        let nextReps;
+
+        if (isRange) {
+          const [lo, hi] = repsStr.split('-').map(Number);
+          nextReps = `${lo + step}-${hi + step}`;
+        } else {
+          const v = parseInt(repsStr, 10);
+          nextReps = String(v + step);
         }
 
         onSessionOverrideChange({
@@ -425,7 +519,7 @@ export default function ExerciseCard({
       const restToUse = backoff_enabled && nextSetNumber > 1
         ? getBackoffRest(rest_seconds)
         : rest_seconds;
-      onSetLogged(restToUse, id);
+      onSetLogged(restToUse, id, parsedReps);
     }
 
     setLoading(false);
@@ -457,7 +551,7 @@ export default function ExerciseCard({
 
     const isLastSet = nextSetNumber === target_sets;
     if (!(isLastIncomplete && isLastSet)) {
-      onSetLogged(rest_seconds, id);
+      onSetLogged(rest_seconds, id, 0);
     }
   };
 
@@ -561,8 +655,8 @@ export default function ExerciseCard({
 
   const displayReps = sessionOverride?.reps ?? target_reps;
   const targetLineWeight = !isBodyweight && !isCable && effectiveWeight != null
-    ? (!sessionOverride && backoff_enabled && nextSetNumber > 1
-        ? getBackoffWeight(effectiveWeight, backoff_percent, equipment_type)
+    ? (backoff_enabled && nextSetNumber > 1
+        ? getBackoffWeight(backoffBaseWeight, backoff_percent, equipment_type)
         : roundWeight(sessionOverride?.weight ?? effectiveWeight, equipment_type))
     : null;
 
@@ -571,7 +665,7 @@ export default function ExerciseCard({
       <div className="ec-header">
         <div className="ec-header__left">
           <p className="ec-name">{name}</p>
-          <p className="ec-meta">{equipment_type} · {target_sets} sets · {target_reps} reps</p>
+          <p className="ec-meta">{equipment_type} · {target_sets} sets · {target_reps} {type === 'isometric' ? 'seconds' : 'reps'}</p>
         </div>
         {video_url && (
           <button className="ec-video-btn" onClick={() => setIsVideoOpen(true)}>↗ Video</button>
@@ -623,7 +717,7 @@ export default function ExerciseCard({
             </div>
           )}
           {!isCable && isBodyweight && <p className="ec-weight-hero__bw">Bodyweight</p>}
-          {!isCable && <p className="ec-reps-hero">{displayReps} reps</p>}
+          {!isCable && <p className="ec-reps-hero">{displayReps} {type === 'isometric' ? 'seconds' : 'reps'}</p>}
 
           {/* Coaching cues */}
           {notes && (
@@ -646,7 +740,7 @@ export default function ExerciseCard({
                       stack_step_value,
                       max_micro_levels,
                       cable_unit
-                    )} · {displayReps} reps
+                    )} · {displayReps} {type === 'isometric' ? 'seconds' : 'reps'}
                   </p>
                   <button className="ec-cable-edit-btn" onClick={() => setCableWeightEditing(true)}>
                     Edit Weight
@@ -680,7 +774,7 @@ export default function ExerciseCard({
               className="ec-reps-input"
               type="text"
               inputMode="numeric"
-              placeholder="reps"
+              placeholder={type === 'isometric' ? 'seconds' : 'reps'}
               value={completedReps}
               onChange={(e) => setCompletedReps(e.target.value)}
             />

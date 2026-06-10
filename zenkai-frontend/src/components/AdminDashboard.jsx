@@ -3,9 +3,10 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { fetchClients, fetchUnassignedClients, claimClient } from '../api/clientApi';
+import { fetchClients, fetchUnassignedClients, claimClient, updateClient } from '../api/clientApi';
+import { deleteUserFull } from '../api/clientManageApi';
 import { fetchPrograms } from '../api/programApi';
-import { fetchActiveProgram, deactivateProgram, fetchAssignmentHistory } from '../api/clientProgramApi';
+import { fetchActiveProgram, deactivateProgram, fetchAssignmentHistory, activateProgram } from '../api/clientProgramApi';
 import AdminLayout from './AdminLayout';
 import ClientList from './ClientList';
 import ClientWorkoutHistoryList from './ClientWorkoutHistoryList';
@@ -14,6 +15,46 @@ import ProgramBuilder from './ProgramBuilder';
 import ClientProgramAssignment from './ClientProgramAssignment';
 import AdminVideoUpload from './AdminVideoUpload';
 import ExerciseLibrary from './ExerciseLibrary';
+import ClientManager from './ClientManager';
+
+function AddClientInline({ onCreated }) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleCreate = async () => {
+    if (!name.trim()) return;
+    setLoading(true);
+    try {
+      await (await import('../api/clientApi')).createClient({ name: name.trim() });
+      setName('');
+      setOpen(false);
+      if (onCreated) onCreated();
+    } catch {}
+    finally { setLoading(false); }
+  };
+
+  if (!open) return (
+    <button className="admin-action-btn" onClick={() => setOpen(true)}>+ Add Client</button>
+  );
+
+  return (
+    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+      <input
+        autoFocus
+        style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 8, padding: '6px 10px', color: '#e0e0e0', fontSize: 13 }}
+        placeholder="Client name"
+        value={name}
+        onChange={e => setName(e.target.value)}
+        onKeyDown={e => { if (e.key === 'Enter') handleCreate(); if (e.key === 'Escape') setOpen(false); }}
+      />
+      <button className="admin-action-btn admin-action-btn--primary" onClick={handleCreate} disabled={loading || !name.trim()}>
+        {loading ? '...' : 'Add'}
+      </button>
+      <button className="admin-action-btn" onClick={() => setOpen(false)}>Cancel</button>
+    </div>
+  );
+}
 
 export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
   const { user } = useAuth();
@@ -22,7 +63,6 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
     const saved = localStorage.getItem('adminSection');
     if (
       saved === 'dashboard' ||
-      saved === 'clients' ||
       saved === 'programs' ||
       saved === 'programBuilder' ||
       saved === 'clientPortal' ||
@@ -45,6 +85,10 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
   const [activeProgram, setActiveProgram] = useState(null);
   const [activeProgramLoading, setActiveProgramLoading] = useState(false);
   const [assignmentHistory, setAssignmentHistory] = useState([]);
+
+  const [renameEditing, setRenameEditing] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
+  const [renameError, setRenameError] = useState('');
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -121,6 +165,11 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
     load();
   }, [selectedClientId]);
 
+  useEffect(() => {
+    setRenameEditing(false);
+    setRenameError('');
+  }, [selectedClientId]);
+
   const handleClientCreated = async () => {
     const data = await fetchClients();
     setClients(data);
@@ -170,14 +219,16 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
 
   const handleActivateProgram = async (assignmentId) => {
     try {
-      await fetch(`http://localhost:3001/api/client-programs/${assignmentId}/activate`, { method: 'PATCH' });
+      await activateProgram(assignmentId);
       const [programData, historyData] = await Promise.all([
         fetchActiveProgram(selectedClientId),
         fetchAssignmentHistory(selectedClientId)
       ]);
       setActiveProgram(programData || null);
       setAssignmentHistory(Array.isArray(historyData) ? historyData : []);
-    } catch {}
+    } catch (err) {
+      console.error('Failed to activate program:', err);
+    }
   };
 
   const handleOpenBuilder = (program) => {
@@ -213,9 +264,61 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
   // * Derived from loaded clients array — safe, no extra fetch
   const selectedClient = clients.find(c => c.id === selectedClientId) || null;
 
+  const handleRenameStart = () => {
+    setRenameValue(selectedClient?.name || '');
+    setRenameEditing(true);
+    setRenameError('');
+  };
+
+  const handleRenameSave = async () => {
+    const v = renameValue.trim();
+    if (!v || !selectedClientId) return;
+    try {
+      await updateClient(selectedClientId, { name: v });
+      const data = await fetchClients();
+      setClients(data);
+      setRenameEditing(false);
+      setRenameError('');
+    } catch (err) {
+      setRenameError(err.message || 'Failed to rename');
+    }
+  };
+
+  const handleDeleteUserFull = async () => {
+    if (!selectedClientId) return;
+    if (!window.confirm(`Permanently delete ${selectedClient?.name} and all their data? This cannot be undone.`)) return;
+    try {
+      await deleteUserFull(selectedClientId);
+      await handleClientDeleted();
+    } catch (err) {
+      alert(err.message || 'Delete failed');
+    }
+  };
+
   // * Client detail block — shared between Dashboard and Clients sections
   const clientDetail = selectedClientId && (
     <div className="cl-client-detail">
+      <div className="rename-header">
+        {renameEditing ? (
+          <div className="rename-controls">
+            <input
+              autoFocus
+              value={renameValue}
+              onChange={e => setRenameValue(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleRenameSave(); if (e.key === 'Escape') setRenameEditing(false); }}
+            />
+            <button className="btn-primary" onClick={handleRenameSave}>Save</button>
+            <button className="btn-ghost" onClick={() => setRenameEditing(false)}>Cancel</button>
+            {renameError && <span className="rename-error">{renameError}</span>}
+          </div>
+        ) : (
+          <div className="rename-display">
+            <h3>{selectedClient?.name}</h3>
+            <button className="btn-ghost" onClick={handleRenameStart}>Edit</button>
+          </div>
+        )}
+      </div>
+
       <h3 style={{ color: '#aaa', fontSize: '13px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', margin: '24px 0 12px' }}>
         Active Program
       </h3>
@@ -270,6 +373,7 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
         <button className="btn-ghost" onClick={() => onStartWorkout(selectedClientId)}>
           Start Workout (Direct)
         </button>
+        <button className="btn-danger" onClick={handleDeleteUserFull}>Delete Client</button>
       </div>
 
       <ClientWorkoutHistoryList clientId={selectedClientId} />
@@ -307,87 +411,42 @@ export default function AdminDashboard({ onStartWorkout, onViewClientHome }) {
               >
                 Programs →
               </button>
-              <button
-                className="admin-action-btn"
-                onClick={() => setAdminSection('clients')}
-              >
-                Clients →
-              </button>
+              <AddClientInline onCreated={handleClientCreated} />
             </div>
           </div>
 
-          {selectedClient && (
-            <div className="admin-client-snapshot">
-              <p className="admin-client-snapshot__label">Selected Client</p>
-              <div className="admin-client-snapshot__card">
-                <div className="admin-client-snapshot__name">{selectedClient.name}</div>
-                <div className="admin-client-snapshot__program">
-                  {activeProgramLoading && <span style={{ color: '#555' }}>Loading program...</span>}
-                  {!activeProgramLoading && activeProgram?.Program && (
-                    <span>
-                      <span className="admin-client-snapshot__prog-name">{activeProgram.Program.name}</span>
-                      <span className="admin-client-snapshot__prog-meta"> · {activeProgram.Program.weeks} weeks</span>
-                    </span>
-                  )}
-                  {!activeProgramLoading && !activeProgram && (
-                    <span style={{ color: '#444' }}>No program assigned</span>
-                  )}
-                </div>
-                <div className="admin-client-snapshot__actions">
-                  <button className="btn-primary" onClick={() => onViewClientHome(selectedClientId, selectedClient?.name)}>
-                    Open Client View
-                  </button>
-                  <button className="btn-ghost" onClick={() => onStartWorkout(selectedClientId)}>
-                    Start Workout
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── Clients ── */}
-      {adminSection === 'clients' && (
-        <div>
-          <h2 className="admin-section-title">Clients</h2>
-          <div className="cl-layout">
-            <div className="cl-sidebar">
-              <ClientList
-                clients={clients}
-                selectedClientId={selectedClientId}
-                onSelectClient={setSelectedClientId}
-                onClientCreated={handleClientCreated}
-                onClientDeleted={handleClientDeleted}
-              />
-            </div>
-            <div className="cl-detail">
+          <div className="admin-dashboard-grid">
+            <ClientManager
+              selectedClientId={selectedClientId}
+              onSelectClient={setSelectedClientId}
+              onClientDeleted={handleClientDeleted}
+            />
+            <div>
               {clientDetail || (
                 <div className="cl-detail__empty">
-                  <p className="cl-detail__empty-text">Select a client to view details</p>
+                  <p>Select a client to view details</p>
                 </div>
               )}
             </div>
           </div>
-        </div>
-      )}
 
-      {/* ── Unassigned Clients ── */}
-      {adminSection === 'clients' && unassignedClients.length > 0 && (
-        <div style={{ marginTop: 32 }}>
-          <h3 style={{ color: '#aaa', fontSize: '13px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 12px' }}>
-            Unassigned Clients
-          </h3>
-          <div>
-            {unassignedClients.map(c => (
-              <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid #1a1a1a' }}>
-                <span style={{ color: '#e0e0e0', flex: 1 }}>{c.name}</span>
-                <button className="btn-primary" onClick={() => handleClaimClient(c.id)}>
-                  Claim Client
-                </button>
+          {unassignedClients.length > 0 && (
+            <div style={{ marginTop: 32 }}>
+              <h3 style={{ color: '#aaa', fontSize: '13px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 12px' }}>
+                Unassigned Clients
+              </h3>
+              <div>
+                {unassignedClients.map(c => (
+                  <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid #1a1a1a' }}>
+                    <span style={{ color: '#e0e0e0', flex: 1 }}>{c.name}</span>
+                    <button className="btn-primary" onClick={() => handleClaimClient(c.id)}>
+                      Claim Client
+                    </button>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </div>
+          )}
         </div>
       )}
 
