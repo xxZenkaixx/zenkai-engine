@@ -15,10 +15,17 @@ router.get('/:clientId/workouts', async (req, res) => {
         pd.name AS day_name,
         pd.day_number,
         pd.program_id,
-        COUNT(ls.id) AS total_sets
+        COUNT(ls.id) AS total_sets,
+        COALESCE(MAX(n.note_count), 0) AS note_count
       FROM logged_sets ls
       JOIN exercise_instances ei ON ls.exercise_instance_id = ei.id
       JOIN program_days pd ON ei.program_day_id = pd.id
+      LEFT JOIN (
+        SELECT program_day_id, session_date, COUNT(*) AS note_count
+        FROM exercise_session_notes
+        WHERE client_id = :clientId AND note IS NOT NULL AND note != ''
+        GROUP BY program_day_id, session_date
+      ) n ON n.program_day_id = pd.id AND n.session_date = DATE(ls.completed_at)
       WHERE ls.client_id = :clientId
       GROUP BY DATE(ls.completed_at), pd.id, pd.name, pd.day_number, pd.program_id
       ORDER BY DATE(ls.completed_at) DESC
@@ -77,9 +84,14 @@ router.get('/:clientId/detail', async (req, res) => {
         ls.set_number,
         ls.completed_reps,
         ls.completed_weight,
-        ls.exercise_note
+        esn.note AS exercise_note
       FROM logged_sets ls
       JOIN exercise_instances ei ON ls.exercise_instance_id = ei.id
+      LEFT JOIN exercise_session_notes esn
+        ON esn.exercise_instance_id = ls.exercise_instance_id
+        AND esn.client_id = ls.client_id
+        AND esn.program_day_id = ei.program_day_id
+        AND esn.session_date = DATE(ls.completed_at)
       WHERE ls.client_id = :clientId
         AND ei.program_day_id = :programDayId
         AND DATE(ls.completed_at) = :date
@@ -94,6 +106,7 @@ router.get('/:clientId/detail', async (req, res) => {
     for (const row of rows) {
       if (!exerciseMap[row.exercise_instance_id]) {
         exerciseMap[row.exercise_instance_id] = {
+          exercise_instance_id: row.exercise_instance_id,
           exercise_name: row.exercise_name,
           order_index: row.order_index,
           equipment_type: row.equipment_type,
@@ -175,7 +188,13 @@ router.get('/:clientId/exercises', async (req, res) => {
         ei.name AS exercise_name,
         pd.name AS day_name,
         pd.day_number,
-        MAX(DATE(ls.completed_at)) AS last_logged
+        MAX(DATE(ls.completed_at)) AS last_logged,
+        (SELECT COUNT(*) FROM exercise_session_notes esn
+           WHERE esn.exercise_instance_id = ei.id AND esn.client_id = :clientId
+             AND esn.note IS NOT NULL AND esn.note != '') AS note_count,
+        (SELECT MAX(esn.session_date) FROM exercise_session_notes esn
+           WHERE esn.exercise_instance_id = ei.id AND esn.client_id = :clientId
+             AND esn.note IS NOT NULL AND esn.note != '') AS last_note_date
       FROM logged_sets ls
       JOIN exercise_instances ei ON ls.exercise_instance_id = ei.id
       JOIN program_days pd ON ei.program_day_id = pd.id
@@ -207,10 +226,16 @@ router.get('/:clientId/exercises/:exerciseInstanceId', async (req, res) => {
         pd.day_number,
         ls.set_number,
         ls.completed_reps,
-        ls.completed_weight
+        ls.completed_weight,
+        esn.note AS exercise_note
       FROM logged_sets ls
       JOIN exercise_instances ei ON ls.exercise_instance_id = ei.id
       JOIN program_days pd ON ei.program_day_id = pd.id
+      LEFT JOIN exercise_session_notes esn
+        ON esn.exercise_instance_id = ls.exercise_instance_id
+        AND esn.client_id = ls.client_id
+        AND esn.program_day_id = ei.program_day_id
+        AND esn.session_date = DATE(ls.completed_at)
       WHERE ls.client_id = :clientId
         AND ls.exercise_instance_id = :exerciseInstanceId
       ORDER BY ls.completed_at ASC, ls.set_number ASC
