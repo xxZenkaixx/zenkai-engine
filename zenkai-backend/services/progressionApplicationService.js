@@ -175,6 +175,15 @@ async function applyProgressionForWorkout(clientId, programDayId, options = {}) 
         continue;
       }
 
+      // Backoff cables: only set 1 (the working set) drives progression — the
+      // later sets are intentionally lighter back-off sets and must not pull the
+      // prescription down. Non-backoff: every performed set counts. Mirrors the
+      // standard branch's evalSets selection.
+      const cableTopSet = weighted.find((s) => s.set_number === 1);
+      const evalSets = instance.backoff_enabled
+        ? (cableTopSet ? [cableTopSet] : [weighted[0]])
+        : weighted;
+
       const microStep = stackStep / (maxLevels + 1);
 
       // Snap any performed weight onto the valid grid (anchor + n*stackStep + level*microStep).
@@ -185,11 +194,11 @@ async function applyProgressionForWorkout(clientId, programDayId, options = {}) 
         return { base: anchor + stacks * stackStep, level };
       };
 
-      // Drive progression off the BEST (heaviest) set performed, not the final
-      // set — the last set is often a lighter back-off set, which under-
-      // prescribed every week. Snapping the best performed weight to the grid
-      // IS the catch-up: the prescription reflects what the client actually did.
-      const bestSet = [...weighted].sort(
+      // Drive progression off the BEST (heaviest) evaluated set, not the final
+      // set — the last set is often a lighter back-off set. Snapping the best
+      // performed weight to the grid IS the catch-up: the prescription reflects
+      // what the client actually did.
+      const bestSet = [...evalSets].sort(
         (a, b) =>
           parseFloat(b.completed_weight) - parseFloat(a.completed_weight) ||
           b.completed_reps - a.completed_reps
@@ -199,9 +208,8 @@ async function applyProgressionForWorkout(clientId, programDayId, options = {}) 
       const targetReps = clientTargetMap[instanceId]?.target_reps ?? instance.target_reps;
       const { min, max } = parseRepRange(targetReps);
 
-      // Cable has no back-off concept here — every performed set is evaluated.
-      const allHitTop = weighted.every((s) => s.completed_reps >= max);
-      const anyBelowMin = weighted.some((s) => s.completed_reps < min);
+      const allHitTop = evalSets.every((s) => s.completed_reps >= max);
+      const anyBelowMin = evalSets.some((s) => s.completed_reps < min);
 
       const performed = snapToGrid(bestWeight);
       let newBase = performed.base;

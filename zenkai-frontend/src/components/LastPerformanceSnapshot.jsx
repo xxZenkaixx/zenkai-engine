@@ -15,18 +15,24 @@ export default function LastPerformanceSnapshot({ exerciseInstanceId, clientId, 
       try {
         const data = await fetchSetHistory(exerciseInstanceId, clientId);
 
-        if (!data || data.length === 0) {
+        // Exclude skipped sets (0 reps) — a skip must never show as
+        // "Last set: 0 reps @ 0 lb" or count as a personal best.
+        const realSets = (data || []).filter(
+          (s) => s.completed_reps != null && s.completed_reps > 0
+        );
+
+        if (!realSets.length) {
           setSnapshot(null);
           return;
         }
 
-        const lastSet = data[data.length - 1];
-        const bestSet = getPersonalBest(data);
+        const lastSet = realSets[realSets.length - 1];
+        const bestSet = getPersonalBest(realSets);
 
         setSnapshot({
           lastReps: lastSet.completed_reps,
           lastWeight: lastSet.completed_weight != null ? parseFloat(lastSet.completed_weight) : null,
-          lastDate: getLastLoggedDate(data),
+          lastDate: getLastLoggedDate(realSets),
           bestReps: bestSet ? bestSet.completed_reps : null,
           bestWeight: bestSet && bestSet.completed_weight != null
             ? parseFloat(bestSet.completed_weight)

@@ -140,6 +140,11 @@ export default function ExerciseCard({
     if (onSessionSetsChange) onSessionSetsChange(exercise.id, sessionSets);
   }, [sessionSets, exercise.id, onSessionSetsChange]);
 
+  // A set is only "started" once a real (reps > 0) set is logged for this
+  // exercise. Skipped sets (0 reps) don't count — you can't skip your way into
+  // a session with nothing real in it.
+  const hasLoggedRealSet = sessionSets.some((s) => s.completed_reps > 0);
+
   useEffect(() => {
     const loadNotes = async () => {
       try {
@@ -526,7 +531,7 @@ export default function ExerciseCard({
   };
 
   const handleSkipSet = async () => {
-    if (allSetsComplete) return;
+    if (allSetsComplete || !hasLoggedRealSet) return;
 
     const localId = generateId();
     const payload = {
@@ -821,7 +826,12 @@ export default function ExerciseCard({
           Add Note
         </button>
         {!allSetsComplete && (
-          <button className="ec-bottom-btn" onClick={handleSkipSet} disabled={loading}>
+          <button
+            className="ec-bottom-btn"
+            onClick={handleSkipSet}
+            disabled={loading || !hasLoggedRealSet}
+            title={hasLoggedRealSet ? undefined : 'Log your first set before skipping'}
+          >
             Skip Set
           </button>
         )}
