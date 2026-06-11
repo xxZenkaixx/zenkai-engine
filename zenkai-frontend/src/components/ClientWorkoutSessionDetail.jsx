@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { fetchWorkoutDetail } from '../api/historyApi';
 import { editSet, deleteSet } from '../api/loggedSetApi';
+import { formatCableWeightLabel } from '../utils/cableUtils';
 
 export default function ClientWorkoutSessionDetail({ clientId, date, programDayId, dayLabel }) {
   const [exercises, setExercises] = useState([]);
@@ -119,7 +120,9 @@ export default function ClientWorkoutSessionDetail({ clientId, date, programDayI
                         ex.type === 'bodyweight'
                           ? ' — Bodyweight'
                           : s.completed_weight != null
-                            ? ` @ ${parseFloat(s.completed_weight)} lb`
+                            ? ex.equipment_type === 'cable'
+                              ? ` @ ${formatCableWeightLabel(s.completed_weight, ex)}`
+                              : ` @ ${parseFloat(s.completed_weight)} lb`
                             : ''
                       )}
                       {' '}

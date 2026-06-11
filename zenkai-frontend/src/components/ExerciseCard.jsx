@@ -800,7 +800,13 @@ export default function ExerciseCard({
       )}
 
       <div className="ec-snapshot-wrap">
-        <LastPerformanceSnapshot exerciseInstanceId={id} clientId={clientId} targetWeight={effectiveWeight} equipmentType={equipment_type} />
+        <LastPerformanceSnapshot
+          exerciseInstanceId={id}
+          clientId={clientId}
+          targetWeight={effectiveWeight}
+          equipmentType={equipment_type}
+          cableSetup={isCable ? { base_stack_weight, stack_step_value, max_micro_levels, cable_unit } : null}
+        />
       </div>
 
       {showSkipModal && (

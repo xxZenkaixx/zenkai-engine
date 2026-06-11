@@ -108,3 +108,29 @@ export function computeNextCableStateOnProgression(
 
   return { base_stack_weight: newBase, current_micro_level: newLevel };
 }
+
+// * Reverse-engineer a stored cable weight back into "Pin at X + N sliders".
+// * Mirrors the workout card's label so every screen reads cables the same way.
+export function formatCableWeightLabel(
+  weight,
+  { base_stack_weight, stack_step_value, max_micro_levels, cable_unit = 'lb' } = {}
+) {
+  const w = parseFloat(weight);
+  if (isNaN(w)) return null;
+
+  const base = parseFloat(base_stack_weight);
+  const step = parseFloat(stack_step_value);
+  const unit = cable_unit || 'lb';
+
+  // No valid stack grid — fall back to the raw number.
+  if (isNaN(base) || !(step > 0)) return `${w} ${unit}`;
+
+  const levels = parseInt(max_micro_levels) || 0;
+  const microStep = step / (levels + 1);
+  const stepsDown = Math.ceil((base - w) / step);
+  const pin = base - stepsDown * step;
+  const microCount = microStep > 0 ? Math.round((w - pin) / microStep) : 0;
+
+  if (microCount <= 0) return `Pin at ${pin} ${unit}`;
+  return `Pin at ${pin} ${unit} + ${microCount} slider${microCount > 1 ? 's' : ''}`;
+}

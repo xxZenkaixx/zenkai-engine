@@ -1,8 +1,16 @@
 import { useState, useEffect } from 'react';
 import { fetchExercisePerformance } from '../api/historyApi';
+import { formatCableWeightLabel } from '../utils/cableUtils';
 
 const fmtDate = (d) =>
   new Date(d + 'T00:00:00').toLocaleDateString('default', { month: 'long', day: 'numeric', year: 'numeric' });
+
+// Cable sets read as "Pin at X + N sliders"; everything else as raw lb.
+const fmtSetWeight = (st) => {
+  if (st.completed_weight == null) return '';
+  if (st.equipment_type === 'cable') return ` @ ${formatCableWeightLabel(st.completed_weight, st)}`;
+  return ` @ ${st.completed_weight} lb`;
+};
 
 export default function LogbookExerciseHistory({ clientId, exercise }) {
   const { exercise_instance_id } = exercise;
@@ -41,7 +49,7 @@ export default function LogbookExerciseHistory({ clientId, exercise }) {
               <li key={st.set_number} className="lb-session__set">
                 <span className="lb-session__setno">Set {st.set_number}</span>
                 <span className="lb-session__perf">
-                  {st.completed_reps} reps{st.completed_weight != null ? ` @ ${st.completed_weight} lb` : ''}
+                  {st.completed_reps} reps{fmtSetWeight(st)}
                 </span>
               </li>
             ))}
