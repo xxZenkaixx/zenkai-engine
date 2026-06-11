@@ -209,15 +209,27 @@ router.get('/last-note', async (req, res) => {
     if (!exerciseInstanceId || !clientId || !programDayId || !sessionDate) {
       return res.status(400).json({ error: 'exerciseInstanceId, clientId, programDayId, and sessionDate are required' });
     }
+    // Carry a note forward for exactly ONE instance: anchor to the immediately
+    // previous session this exercise was actually logged (from logged_sets, the
+    // authoritative record of past instances), then return its note only if that
+    // exact session had one. If the prior instance had no note, nothing carries —
+    // so a note never reaches back more than a single session.
     const rows = await sequelize.query(
-      `SELECT note, session_date FROM exercise_session_notes
-       WHERE exercise_instance_id = :eiId
-         AND client_id = :clientId
-         AND program_day_id = :programDayId
-         AND session_date < :sessionDate
-         AND note IS NOT NULL
-         AND note != ''
-       ORDER BY session_date DESC
+      `WITH prev AS (
+         SELECT MAX(DATE(ls.completed_at)) AS prev_date
+         FROM logged_sets ls
+         WHERE ls.exercise_instance_id = :eiId
+           AND ls.client_id = :clientId
+           AND DATE(ls.completed_at) < :sessionDate
+       )
+       SELECT esn.note, esn.session_date
+       FROM exercise_session_notes esn
+       JOIN prev ON esn.session_date = prev.prev_date
+       WHERE esn.exercise_instance_id = :eiId
+         AND esn.client_id = :clientId
+         AND esn.program_day_id = :programDayId
+         AND esn.note IS NOT NULL
+         AND esn.note != ''
        LIMIT 1`,
       {
         replacements: { eiId: exerciseInstanceId, clientId, programDayId, sessionDate },
