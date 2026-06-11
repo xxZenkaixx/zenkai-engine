@@ -158,15 +158,6 @@ async function applyProgressionForWorkout(clientId, programDayId, options = {}) 
     console.log(`[PROG] -- ${instance.name} | type=${instance.type} | equipment=${instance.equipment_type} | backoff=${instance.backoff_enabled} | template_target_weight=${instance.target_weight} | template_target_reps=${instance.target_reps}`);
 
     if (instance.equipment_type === 'cable') {
-      const finalSet = [...instanceSets].sort((a, b) => b.set_number - a.set_number)[0];
-
-      if (finalSet?.completed_weight == null) {
-        console.log(`[PROG]   ${instance.name} — cable SKIPPED, completed_weight null on final set`);
-        results.push({ exercise_instance_id: instanceId, outcome: 'skipped', reason: 'missing completed_weight' });
-        continue;
-      }
-
-      const completedWeight = parseFloat(finalSet.completed_weight);
       const anchor = parseFloat(instance.base_stack_weight);
       const stackStep = parseFloat(instance.stack_step_value);
       const maxLevels = parseInt(instance.max_micro_levels) || 0;
@@ -177,37 +168,66 @@ async function applyProgressionForWorkout(clientId, programDayId, options = {}) 
         continue;
       }
 
-      // Reverse-engineer final performed state onto valid grid (anchor + n*stackStep)
-      const microStep = stackStep / (maxLevels + 1);
-      const totalMicroSteps = Math.round((completedWeight - anchor) / microStep);
-      const stacksFromAnchor = Math.floor(totalMicroSteps / (maxLevels + 1));
-      const derivedLevel = totalMicroSteps - stacksFromAnchor * (maxLevels + 1);
-      const derivedBase = anchor + stacksFromAnchor * stackStep;
+      const weighted = instanceSets.filter((s) => s.completed_weight != null);
+      if (!weighted.length) {
+        console.log(`[PROG]   ${instance.name} — cable SKIPPED, no completed_weight on any set`);
+        results.push({ exercise_instance_id: instanceId, outcome: 'skipped', reason: 'missing completed_weight' });
+        continue;
+      }
 
-      // One-step advance/retreat from derived state, based on final set's reps vs rep range
+      const microStep = stackStep / (maxLevels + 1);
+
+      // Snap any performed weight onto the valid grid (anchor + n*stackStep + level*microStep).
+      const snapToGrid = (w) => {
+        const totalMicroSteps = Math.round((w - anchor) / microStep);
+        const stacks = Math.floor(totalMicroSteps / (maxLevels + 1));
+        const level = totalMicroSteps - stacks * (maxLevels + 1);
+        return { base: anchor + stacks * stackStep, level };
+      };
+
+      // Drive progression off the BEST (heaviest) set performed, not the final
+      // set — the last set is often a lighter back-off set, which under-
+      // prescribed every week. Snapping the best performed weight to the grid
+      // IS the catch-up: the prescription reflects what the client actually did.
+      const bestSet = [...weighted].sort(
+        (a, b) =>
+          parseFloat(b.completed_weight) - parseFloat(a.completed_weight) ||
+          b.completed_reps - a.completed_reps
+      )[0];
+      const bestWeight = parseFloat(bestSet.completed_weight);
+
       const targetReps = clientTargetMap[instanceId]?.target_reps ?? instance.target_reps;
       const { min, max } = parseRepRange(targetReps);
-      const finalReps = finalSet.completed_reps;
 
-      let newBase = derivedBase;
-      let newLevel = derivedLevel;
+      // Cable has no back-off concept here — every performed set is evaluated.
+      const allHitTop = weighted.every((s) => s.completed_reps >= max);
+      const anyBelowMin = weighted.some((s) => s.completed_reps < min);
 
-      if (finalReps >= max) {
-        if (derivedLevel < maxLevels) {
-          newLevel = derivedLevel + 1;
+      const performed = snapToGrid(bestWeight);
+      let newBase = performed.base;
+      let newLevel = performed.level;
+
+      if (allHitTop) {
+        // Success → one step UP from what they performed.
+        if (performed.level < maxLevels) {
+          newLevel = performed.level + 1;
         } else {
-          newBase = derivedBase + stackStep;
+          newBase = performed.base + stackStep;
           newLevel = 0;
         }
-      } else if (finalReps < min) {
-        if (derivedLevel > 0) {
-          newLevel = derivedLevel - 1;
-        } else if (derivedBase > stackStep) {
-          newBase = derivedBase - stackStep;
+      } else if (anyBelowMin) {
+        // Failure → one step DOWN from what they performed. Regression off the
+        // performed weight, NOT floored back up — the client gets a manageable
+        // load to rebuild from.
+        if (performed.level > 0) {
+          newLevel = performed.level - 1;
+        } else if (performed.base > stackStep) {
+          newBase = performed.base - stackStep;
           newLevel = maxLevels;
         }
-        // else: already at floor; stay
+        // else already at the floor of the stack — stay
       }
+      // else in-range → hold at the performed grid point (catch-up only).
 
       const prior = clientTargetMap[instanceId]?.cable_state;
       const priorBase = prior?.base_stack_weight ?? anchor;
@@ -220,7 +240,7 @@ async function applyProgressionForWorkout(clientId, programDayId, options = {}) 
           ? 'increase'
           : 'decrease';
 
-      console.log(`[PROG]   ${instance.name} — cable | completed=${completedWeight} reps=${finalReps} range=${min}-${max} | derived={${derivedBase},${derivedLevel}} | next={${newBase},${newLevel}} | prior={${priorBase},${priorLevel}} | outcome=${cableOutcome}`);
+      console.log(`[PROG]   ${instance.name} — cable | best=${bestWeight} reps=[${weighted.map((s) => s.completed_reps).join(',')}] range=${min}-${max} | performed={${performed.base},${performed.level}} | next={${newBase},${newLevel}} | prior={${priorBase},${priorLevel}} | outcome=${cableOutcome}`);
 
       await ExerciseProgression.destroy({
         where: { client_id: clientId, exercise_instance_id: instanceId }
@@ -347,37 +367,29 @@ async function applyProgressionForWorkout(clientId, programDayId, options = {}) 
       }
     }
 
-    // FIX: ratchet next_weight up to whatever the user actually lifted this
-    // session. Worked example from the live site:
-    //   - Prescription: target_weight = 240, target_reps = "3-5"
-    //   - User edits set 1 to 270, logs 3 reps
-    //   - Eval: 3 reps lands at min of 3-5 → outcome = 'no_change'
-    //   - Before fix: no row written → target_weight stays at 240 forever,
-    //     even though the user just lifted 270 in range. Next session
-    //     prescription is wrong (240 instead of 270).
-    //   - With ratchet: next_weight is null on no_change, so we set it to
-    //     the lifted weight (270). mutateTargets upserts target_weight=270.
+    // Catch-up floor: when the client succeeds (increase) or stays in range
+    // (no_change), the next prescription must reflect what they ACTUALLY
+    // performed — never below it. Fixes the edit-up case: prescribed 240, lifts
+    // 270 in range → prescription must follow to 270.
     //
-    // Also covers the decrease scenario where calculateNextWeight returns a
-    // value BELOW the lifted weight (e.g. 270 × 2 reps in a 3-5 range:
-    // engine computes 270 × 0.95 = 256.5 → 257.5). Ratchet pulls that back
-    // up to 270 — the prescription must never regress below what the user
-    // actually performed.
-    //
-    // Backoff eval (set 1 only) is unchanged and correct — this is purely
-    // a write-side floor. Mirrors the same baseWeight selection
-    // calculateNextWeight already uses, so backoff picks the top set and
-    // non-backoff picks instanceSets[0].
-    const liftedWeight = parseFloat(
-      instance.backoff_enabled
-        ? (topSet?.completed_weight ?? instanceSets[0].completed_weight)
-        : instanceSets[0].completed_weight
-    );
-    if (
-      !isNaN(liftedWeight) && liftedWeight > 0 &&
-      (next_weight == null || parseFloat(next_weight) < liftedWeight)
-    ) {
-      next_weight = liftedWeight;
+    // CRITICAL: SKIP this floor on a decrease. A failed set (below min) must
+    // regress — calculateNextWeight already dropped the performed weight by the
+    // type's percentage, and flooring it back up erases the regression, trapping
+    // the client at a weight they can't complete. (Previously the floor ran on
+    // every outcome; on the non-backoff branch baseWeight and liftedWeight are
+    // the same set, so decreases could never take effect at all.)
+    if (outcome !== 'decrease') {
+      const liftedWeight = parseFloat(
+        instance.backoff_enabled
+          ? (topSet?.completed_weight ?? instanceSets[0].completed_weight)
+          : instanceSets[0].completed_weight
+      );
+      if (
+        !isNaN(liftedWeight) && liftedWeight > 0 &&
+        (next_weight == null || parseFloat(next_weight) < liftedWeight)
+      ) {
+        next_weight = liftedWeight;
+      }
     }
 
     await ExerciseProgression.destroy({
