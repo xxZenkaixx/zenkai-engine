@@ -1,0 +1,78 @@
+.lb { background: #0a0a0a; color: #e8e8e8; min-height: 100%; padding-bottom: 24px; }
+
+.lb-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 14px 12px; position: sticky; top: 0; background: #0a0a0a; z-index: 5;
+}
+.lb-header__title { flex: 1; text-align: center; margin: 0; font-size: 20px; font-weight: 700; color: #fff; }
+.lb-header__back, .lb-header__search {
+  width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
+  background: transparent; border: none; color: #c8ff00; font-size: 22px; cursor: pointer; border-radius: 8px;
+}
+.lb-header__back:active, .lb-header__search:active { background: #1a1a1a; }
+.lb-header__spacer { width: 36px; }
+
+.lb-msg { padding: 16px; color: #888; text-align: center; }
+.lb-msg--error { color: #ff6b6b; }
+
+.lb-chips { display: flex; gap: 8px; overflow-x: auto; padding: 4px 12px 12px; scrollbar-width: none; }
+.lb-chips::-webkit-scrollbar { display: none; }
+.lb-chip {
+  flex: 0 0 auto; padding: 8px 16px; border-radius: 999px; border: 1px solid #2a2a2a;
+  background: #161616; color: #ccc; font-size: 14px; font-weight: 600; white-space: nowrap; cursor: pointer;
+}
+.lb-chip--active { background: #c8ff00; border-color: #c8ff00; color: #0a0a0a; }
+
+.lb-days { display: flex; flex-direction: column; gap: 10px; padding: 0 12px; }
+.lb-day-card {
+  display: flex; align-items: center; justify-content: space-between; width: 100%;
+  padding: 16px; border-radius: 14px; border: 1px solid #1f1f1f; background: #141414;
+  color: inherit; text-align: left; cursor: pointer;
+}
+.lb-day-card:active { border-color: #c8ff00; }
+.lb-day-card__main { display: flex; flex-direction: column; gap: 4px; }
+.lb-day-card__name { font-size: 17px; font-weight: 700; color: #fff; }
+.lb-day-card__date { font-size: 13px; color: #888; }
+.lb-day-card__meta { display: flex; align-items: center; gap: 10px; }
+.lb-day-card__notes { font-size: 13px; font-weight: 600; color: #c8ff00; }
+.lb-day-card__chevron { color: #555; font-size: 20px; }
+
+.lb-dayex { display: flex; flex-direction: column; gap: 10px; padding: 0 12px; }
+.lb-viewday-btn {
+  width: 100%; padding: 14px; border-radius: 12px; border: 1px solid #c8ff00;
+  background: transparent; color: #c8ff00; font-size: 15px; font-weight: 700; cursor: pointer; margin-bottom: 4px;
+}
+.lb-viewday-btn:active { background: rgba(200, 255, 0, 0.08); }
+.lb-ex-row {
+  display: flex; align-items: center; justify-content: space-between; width: 100%;
+  padding: 14px 16px; border-radius: 12px; border: 1px solid #1f1f1f; background: #141414;
+  color: inherit; text-align: left; cursor: pointer;
+}
+.lb-ex-row:active { border-color: #c8ff00; }
+.lb-ex-row__main { display: flex; flex-direction: column; gap: 3px; }
+.lb-ex-row__name { font-size: 15px; font-weight: 600; color: #fff; }
+.lb-ex-row__meta { font-size: 12px; color: #888; }
+.lb-ex-row__chevron { color: #555; font-size: 20px; }
+
+.lb-exhist { display: flex; flex-direction: column; gap: 12px; padding: 0 12px; }
+.lb-session { border: 1px solid #1f1f1f; background: #141414; border-radius: 14px; padding: 14px 16px; }
+.lb-session__date { font-size: 15px; font-weight: 700; color: #c8ff00; margin-bottom: 8px; }
+.lb-session__sets { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.lb-session__set { display: flex; justify-content: space-between; font-size: 14px; }
+.lb-session__setno { color: #888; }
+.lb-session__perf { color: #e8e8e8; font-weight: 600; }
+.lb-session__note {
+  margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: #1b1b1b;
+  border-left: 3px solid #c8ff00; display: flex; flex-direction: column; gap: 2px;
+}
+.lb-session__note-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #c8ff00; }
+.lb-session__note-text { font-size: 14px; color: #ddd; }
+
+.lb-search__input {
+  flex: 1; padding: 10px 14px; border-radius: 10px; border: 1px solid #2a2a2a;
+  background: #161616; color: #fff; font-size: 15px; outline: none;
+}
+.lb-search__input:focus { border-color: #c8ff00; }
+.lb-search__results { display: flex; flex-direction: column; gap: 10px; padding: 4px 12px 0; }
+
+@media (min-width: 768px) { .lb { max-width: 720px; margin: 0 auto; } }

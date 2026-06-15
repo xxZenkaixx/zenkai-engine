@@ -9,7 +9,7 @@ import ClientWorkoutView from './ClientWorkoutView';
 // Sits between day-pick and active workout so the client can review exercises/targets
 // and watch videos before committing.
 import ClientWorkoutDayPreview from './ClientWorkoutDayPreview';
-import ClientWorkoutHistoryList from './ClientWorkoutHistoryList';
+import Logbook from './Logbook';
 import ExerciseLibrary from './ExerciseLibrary';
 import WorkoutPreview from './WorkoutPreview';
 import ProgramList from './ProgramList';
@@ -22,7 +22,7 @@ export default function ClientDashboard({ clientId: propClientId, clientName: pr
   const TABS = [
     { key: 'home',     label: 'Home' },
     { key: 'workouts', label: 'Workouts' },
-    { key: 'history',  label: 'History' },
+    { key: 'logbook',  label: 'Logbook' },
     { key: 'library',  label: 'Library' },
     ...(isSelfServe ? [{ key: 'programs', label: 'Programs' }] : []),
     { key: 'more',     label: 'More' },
@@ -257,8 +257,8 @@ export default function ClientDashboard({ clientId: propClientId, clientName: pr
           )
         )}
 
-        {tab === 'history' && (
-          <ClientWorkoutHistoryList clientId={linkedClientId} />
+        {tab === 'logbook' && (
+          <Logbook clientId={linkedClientId} />
         )}
 
         {tab === 'library' && (

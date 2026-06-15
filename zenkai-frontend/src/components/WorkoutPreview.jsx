@@ -122,11 +122,13 @@ export default function WorkoutPreview({ programId, clientId }) {
               .map((exercise) => (
                 <div key={exercise.id} className="wp-ex-row">
                   <span className="wp-ex-index">{exercise.order_index}.</span>
-                  <span className="wp-ex-name">{exercise.name}</span>
-                  <div className="wp-ex-meta">
-                    <span className="wp-ex-badge">{exercise.target_sets ?? '—'} sets</span>
-                    <span className="wp-ex-badge">{formatRepRange(exercise)} reps</span>
-                    <span className="wp-ex-badge wp-ex-badge--weight">{formatWeight(exercise)}</span>
+                  <div className="wp-ex-info">
+                    <span className="wp-ex-name">{exercise.name}</span>
+                    <div className="wp-ex-meta">
+                      <span className="wp-ex-badge">{exercise.target_sets ?? '—'} sets</span>
+                      <span className="wp-ex-badge">{formatRepRange(exercise)} reps</span>
+                      <span className="wp-ex-badge wp-ex-badge--weight">{formatWeight(exercise)}</span>
+                    </div>
                   </div>
                 </div>
               ))
