@@ -83,7 +83,7 @@
 
 .admin-content {
   flex: 1;
-  padding: 36px 40px;
+  padding: 36px 48px;
   overflow-y: auto;
   min-width: 0;
 }
@@ -288,7 +288,10 @@
 }
 
 .prog-sidebar {
-  width: 280px;
+  /* Fill the available width on desktop (scales with the container) but stay
+     capped so the detail/builder panel keeps room. Tablet/mobile breakpoints
+     below override this to a full-width stacked column. */
+  width: clamp(340px, 40%, 470px);
   flex-shrink: 0;
   border-right: 1px solid #1c1c1c;
   padding-right: 28px;
@@ -395,11 +398,13 @@
 }
 
 .prog-list__item-inner {
+  /* Stack name/meta over the action row so the full program name is always
+     readable instead of being squeezed (and truncated) by the buttons. */
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 14px;
-  gap: 8px;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 14px 16px;
+  gap: 10px;
 }
 
 .prog-list__item-info {
@@ -410,12 +415,12 @@
 }
 
 .prog-list__item-name {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   color: #ccc;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* Full name on its own row — wrap if needed rather than truncate. */
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .prog-list__item--active .prog-list__item-name {
@@ -429,8 +434,15 @@
 
 .prog-list__item-actions {
   display: flex;
-  gap: 5px;
+  gap: 6px;
   flex-shrink: 0;
+}
+
+/* Spread the three actions evenly across the full card width — easier to read
+   and to click than the cramped right-aligned cluster. */
+.prog-list__item-actions .prog-btn {
+  flex: 1 1 0;
+  text-align: center;
 }
 
 .prog-list__edit-form {
