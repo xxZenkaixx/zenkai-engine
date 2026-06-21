@@ -208,14 +208,18 @@ export default function ExerciseCard({
   // the typed value until either the user logs a set (which persists it as
   // a sessionOverride via handleLogSet) or one of the triggers above fires.
   useEffect(() => {
-    // (0) Once any set is logged this session, the last logged set's
-    //     completed_weight is the source of truth for the input pre-fill.
-    //     Manual edits stick because whatever the user typed got logged —
-    //     this branch carries it forward even when sessionOverride was
-    //     never set (diff check missed it) or got overwritten by an
-    //     auto-progression bump. Skipped on backoff so the prescribed
-    //     backoff weight wins for sets 2+ unless manually overridden.
-    if (!isCable && sessionSets.length > 0 && !backoff_enabled) {
+    // (0) Once a set is logged with NO active override, carry the last
+    //     logged completed_weight into the input. This covers sets that
+    //     were logged exactly at prescription (no manual edit, no
+    //     progression). When an override DOES exist — set either by a
+    //     manual edit or by an auto-progression bump in handleLogSet — we
+    //     fall through to branch (1) so the input mirrors the same value
+    //     the display hero shows. Guarding on `sessionOverride?.weight ==
+    //     null` is what keeps a progression bump from being silently
+    //     replaced by the lower pre-bump weight (which would log a
+    //     regression on the next set). Skipped on backoff so branch (3)
+    //     applies the prescribed backoff weight for sets 2+.
+    if (!isCable && sessionSets.length > 0 && !backoff_enabled && sessionOverride?.weight == null) {
       const last = sessionSets[sessionSets.length - 1]?.completed_weight;
       if (last != null) {
         setCompletedWeight(String(last));
