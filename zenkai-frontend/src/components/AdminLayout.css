@@ -436,13 +436,17 @@
   display: flex;
   gap: 6px;
   flex-shrink: 0;
+  /* Four actions (Activate/Edit/Clone/Delete) don't fit on one row at the
+     narrow end of the sidebar clamp — let them wrap instead of truncating. */
+  flex-wrap: wrap;
 }
 
-/* Spread the three actions evenly across the full card width — easier to read
+/* Spread the actions evenly across the full card width — easier to read
    and to click than the cramped right-aligned cluster. */
 .prog-list__item-actions .prog-btn {
-  flex: 1 1 0;
+  flex: 1 1 68px;
   text-align: center;
+  white-space: nowrap;
 }
 
 .prog-list__edit-form {

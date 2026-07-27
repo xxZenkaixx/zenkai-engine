@@ -1,9 +1,9 @@
-// * Renders the program list with create, edit, delete, and selection.
+// * Renders the program list with create, clone, edit, delete, and selection.
 // * Keeps selected program local and clears it safely on delete.
 
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { createProgram, updateProgram, deleteProgram } from '../api/programApi';
+import { createProgram, updateProgram, deleteProgram, cloneProgram } from '../api/programApi';
 import { assignProgram } from '../api/clientProgramApi';
 import ProgramDayList from './ProgramDayList';
 import WorkoutPreview from './WorkoutPreview';
@@ -23,6 +23,7 @@ export default function ProgramList({ programs, clients = [], onProgramsChanged,
   const [error, setError] = useState(null);
   const [activatingId, setActivatingId] = useState(null);
   const [activateError, setActivateError] = useState(null);
+  const [cloningId, setCloningId] = useState(null);
 
   // Self-serve only sees programs they own here. Templates surface in the
   // dedicated Templates section (ClientDashboard). Admins see everything.
@@ -90,6 +91,27 @@ export default function ProgramList({ programs, clients = [], onProgramsChanged,
       deload_weeks: (program.deload_weeks || []).join(','),
       is_template: !!program.is_template
     });
+  };
+
+  // Deep-copies the program (days + exercise instances) into a new program owned
+  // by the caller with is_template = false, so the original is never touched.
+  // Selects the copy and opens the inline edit form on it — renaming the copy is
+  // almost always the first thing you want to do.
+  const handleClone = async (program) => {
+    setCloningId(program.id);
+    setError(null);
+    try {
+      const copy = await cloneProgram(program.id);
+      if (onProgramsChanged) await onProgramsChanged();
+      setSelectedProgramId(copy.id);
+      setLaunchedClientProgramId(null);
+      setLaunchSuccess(false);
+      handleEditStart(copy);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setCloningId(null);
+    }
   };
 
   const handleActivate = async (programId) => {
@@ -277,6 +299,13 @@ export default function ProgramList({ programs, clients = [], onProgramsChanged,
                       {activatingId === p.id ? '...' : activeProgramId === p.id ? 'Active' : 'Activate'}
                     </button>
                     <button className="prog-btn" onClick={() => handleEditStart(p)}>Edit</button>
+                    <button
+                      className="prog-btn"
+                      disabled={cloningId === p.id}
+                      onClick={() => handleClone(p)}
+                    >
+                      {cloningId === p.id ? '...' : 'Clone'}
+                    </button>
                     <button className="prog-btn prog-btn--danger" onClick={() => handleDelete(p.id)}>Delete</button>
                   </div>
                 </div>
