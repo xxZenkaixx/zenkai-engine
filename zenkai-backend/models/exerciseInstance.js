@@ -17,6 +17,7 @@
 const { DataTypes } = require('sequelize');
 
 const VALID_TYPES = ['compound', 'accessory', 'custom', 'bodyweight', 'isometric'];
+const VALID_PERIODIZATION_ROLES = ['primary', 'secondary', 'accessory'];
 const VALID_EQUIPMENT_TYPES = ['barbell', 'dumbbell', 'machine', 'cable', 'bodyweight'];
 const VALID_CABLE_UNITS = ['lb', 'kg'];
 const VALID_PROGRESSION_MODES = ['percent', 'absolute'];
@@ -44,6 +45,17 @@ module.exports = (sequelize) => {
         defaultValue: 'accessory',
         validate: {
           isIn: [VALID_TYPES]
+        }
+      },
+      // Linear periodization role — distinct from `type`. primary/secondary are
+      // driven by % of Training 1RM from the periodization table; accessory keeps
+      // the existing set-by-set progression/regression rules.
+      periodization_role: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        defaultValue: 'accessory',
+        validate: {
+          isIn: [VALID_PERIODIZATION_ROLES]
         }
       },
       equipment_type: {

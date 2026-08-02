@@ -14,6 +14,7 @@ const { getOwnedProgramViaDay, getOwnedProgramViaInstance } = require('../middle
 // Isometric = hold-based work (planks, wall sits). target_reps stores SECONDS.
 // progression_value stores the per-progression step in SECONDS (e.g., +5s).
 const VALID_TYPES = ['compound', 'accessory', 'custom', 'bodyweight', 'isometric'];
+const VALID_PERIODIZATION_ROLES = ['primary', 'secondary', 'accessory'];
 const VALID_EQUIPMENT_TYPES = ['barbell', 'dumbbell', 'machine', 'cable', 'bodyweight'];
 const VALID_PROGRESSION_MODES = ['percent', 'absolute'];
 const VALID_CABLE_UNITS = ['lb', 'kg'];
@@ -38,6 +39,14 @@ function validateExercisePayload(body, isUpdate = false) {
       errors.push({ field: 'type', error: 'Exercise type is required.' });
     } else if (!VALID_TYPES.includes(body.type)) {
       errors.push({ field: 'type', error: 'Invalid exercise type.' });
+    }
+  }
+
+  // * periodization_role validated only when present. Never required — the
+  // * column defaults to 'accessory', so existing callers that omit it stay valid.
+  if (body.hasOwnProperty('periodization_role') && body.periodization_role != null) {
+    if (!VALID_PERIODIZATION_ROLES.includes(body.periodization_role)) {
+      errors.push({ field: 'periodization_role', error: 'Invalid periodization role.' });
     }
   }
 

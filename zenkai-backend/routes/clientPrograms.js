@@ -40,7 +40,7 @@ router.get('/:clientId', protect, async (req, res) => {
                     'micro_step_value', 'max_micro_levels', 'current_micro_level',
                     'cable_unit', 'cable_setup_locked', 'backoff_enabled',
                     'backoff_percent', 'micro_type', 'micro_display_label', 'video_url',
-                    'superset_group_id', 'superset_order'
+                    'superset_group_id', 'superset_order', 'periodization_role'
                   ]
                 }
               ]

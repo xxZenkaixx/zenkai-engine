@@ -38,6 +38,7 @@ async function uploadVideoToCloudinary(file, authHeaders) {
 const EMPTY_FORM = {
   name: '',
   type: 'accessory',
+  periodization_role: 'accessory',
   equipment_type: 'barbell',
   target_sets: '',
   target_reps: '',
@@ -120,6 +121,9 @@ function buildPayload(fields) {
   return {
     name: fields.name,
     type: fields.type,
+    // Independent of `type` — see model comment. Falls back rather than sending
+    // undefined, so an older cached form state can't null out the column.
+    periodization_role: fields.periodization_role || 'accessory',
     // Isometric stored as bodyweight equipment so existing bodyweight UI paths just work.
     equipment_type: (isBodyweight || isIsometric) ? 'bodyweight' : fields.equipment_type,
     video_url: fields.video_url?.trim() || null,
@@ -361,6 +365,7 @@ export default function ExerciseInstanceForm({ dayId }) {
     setVideoFileName(''); setVideoSizeInfo(null);
     setEditFields({
       name: ex.name, type: ex.type || 'accessory', equipment_type: ex.equipment_type || 'barbell',
+      periodization_role: ex.periodization_role || 'accessory',
       target_sets: ex.target_sets, target_reps: ex.target_reps, target_weight: ex.target_weight ?? '',
       rest_seconds: ex.rest_seconds, order_index: ex.order_index, notes: ex.notes ?? '',
       progression_mode: ex.progression_mode ?? '', progression_value: ex.progression_value ?? '',
@@ -512,6 +517,16 @@ export default function ExerciseInstanceForm({ dayId }) {
                     <option value="bodyweight">Bodyweight</option>
                     {/* Isometric: hold-based; target_reps stores SECONDS. */}
                     <option value="isometric">Isometric</option>
+                  </select>
+                  <select
+                    className="prog-input"
+                    value={editFields.periodization_role}
+                    onChange={(e) => se('periodization_role', e.target.value)}
+                    title="Primary/Secondary use % of Training 1RM; Accessory keeps set-by-set progression"
+                  >
+                    <option value="accessory">Accessory</option>
+                    <option value="primary">Primary</option>
+                    <option value="secondary">Secondary</option>
                   </select>
                   {/* Isometric uses bodyweight equipment internally — hide selector. */}
                   {editFields.type !== 'bodyweight' && editFields.type !== 'isometric' && (
@@ -779,6 +794,11 @@ export default function ExerciseInstanceForm({ dayId }) {
                     <span className="ex-row__name-text">{ex.name}</span>
                   </span>
                   <span className="ex-row__meta">
+                    {/* Periodization role shown only when it isn't the default, so
+                        existing non-periodized programs read exactly as before. */}
+                    {ex.periodization_role && ex.periodization_role !== 'accessory'
+                      ? `${ex.periodization_role.toUpperCase()} · `
+                      : ''}
                     {/* Isometric: target_reps stores seconds — append 's' to disambiguate. */}
                     {ex.type} · {ex.equipment_type || 'barbell'} · {ex.target_sets}×{ex.type === 'isometric' ? `${ex.target_reps}s` : ex.target_reps}
                     {ex.equipment_type === 'cable' && ex.cable_setup_locked
@@ -840,6 +860,16 @@ export default function ExerciseInstanceForm({ dayId }) {
             <option value="bodyweight">Bodyweight</option>
             {/* Isometric: hold-based (planks, wall sits). target_reps stores SECONDS. */}
             <option value="isometric">Isometric</option>
+          </select>
+          <select
+            className="prog-input"
+            value={form.periodization_role}
+            onChange={(e) => sf('periodization_role', e.target.value)}
+            title="Primary/Secondary use % of Training 1RM; Accessory keeps set-by-set progression"
+          >
+            <option value="accessory">Accessory</option>
+            <option value="primary">Primary</option>
+            <option value="secondary">Secondary</option>
           </select>
           {/* Isometric uses bodyweight equipment internally — hide selector (same UX as bodyweight).
               buildPayload coerces equipment_type to 'bodyweight'. */}
