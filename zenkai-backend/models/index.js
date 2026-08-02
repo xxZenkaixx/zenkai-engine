@@ -26,6 +26,7 @@ const ProgressionRule = require('./progressionRule')(sequelize);
 const ExerciseProgression = require('./exerciseProgression')(sequelize);
 const ClientExerciseTarget = require('./clientExerciseTarget')(sequelize);
 const ClientExerciseMax = require('./clientExerciseMax')(sequelize);
+const PeriodizationWeek = require('./periodizationWeek')(sequelize);
 const ExerciseSessionNote = require('./exerciseSessionNote')(sequelize);
 const Exercise = require('./exercise')(sequelize);
 
@@ -82,6 +83,9 @@ ClientExerciseMax.belongsTo(ClientProgram, { foreignKey: 'client_program_id' });
 ExerciseInstance.hasMany(ClientExerciseMax, { foreignKey: 'exercise_instance_id' });
 ClientExerciseMax.belongsTo(ExerciseInstance, { foreignKey: 'exercise_instance_id' });
 
+Program.hasMany(PeriodizationWeek, { foreignKey: 'program_id' });
+PeriodizationWeek.belongsTo(Program, { foreignKey: 'program_id' });
+
 User.hasMany(Exercise, { foreignKey: 'created_by', as: 'CreatedExercises' });
 Exercise.belongsTo(User, { foreignKey: 'created_by', as: 'Creator' });
 
@@ -101,6 +105,7 @@ module.exports = {
   ExerciseProgression,
   ClientExerciseTarget,
   ClientExerciseMax,
+  PeriodizationWeek,
   ExerciseSessionNote,
   Exercise,
 };
