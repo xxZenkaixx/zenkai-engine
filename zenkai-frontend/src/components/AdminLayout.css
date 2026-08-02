@@ -677,6 +677,7 @@
   gap: 7px;
   align-items: center;
   margin-bottom: 16px;
+  flex-wrap: wrap;
 }
 
 .pdl-create-row__num {
@@ -684,8 +685,12 @@
   flex-shrink: 0;
 }
 
+/* min-width: 0 is what keeps "+ Add Day" inside the panel — without it the
+   input's default min-width: auto refuses to shrink below its placeholder's
+   intrinsic width, overflowing the row and pushing the button off the edge. */
 .pdl-create-row__name {
   flex: 1;
+  min-width: 0;
 }
 
 .pdl-add-btn {
@@ -762,6 +767,7 @@
   align-items: center;
   gap: 10px;
   min-width: 0;
+  flex: 1 1 auto;
 }
 
 .pdl-day__num {
@@ -854,15 +860,38 @@
   flex-direction: column;
   gap: 3px;
   min-width: 0;
+  flex: 1 1 auto;
 }
 
+/* Flex wrapper only — the truncation lives on .ex-row__name-text below,
+   because text-overflow is ignored on a flex container. */
 .ex-row__name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 14px;
   font-weight: 600;
   color: #ccc;
+  min-width: 0;
+}
+
+.ex-row__name-text {
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.ex-row__badge {
+  background: rgba(200, 255, 0, 0.08);
+  color: #c8ff00;
+  border: 1px solid rgba(200, 255, 0, 0.2);
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
 }
 
 .ex-row__meta {
@@ -1213,10 +1242,10 @@
   display: block;
 }
 
+/* In flow, not absolutely centered: the row is only ~350px wide, so an
+   out-of-flow hint had nothing stopping it from landing on top of the day name
+   and the action buttons. The day name ellipsizes to make room instead. */
 .pdl-day__hint {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
   font-size: 11px;
   color: #555;
   font-weight: 400;
@@ -1224,9 +1253,16 @@
   white-space: nowrap;
   pointer-events: none;
   transition: color 0.15s;
+  flex-shrink: 0;
 }
+
 .pdl-day__row:hover .pdl-day__hint {
   color: #c8ff00;
+}
+
+/* Below this the panel can't seat the hint without starving the day name. */
+@media (max-width: 1024px) {
+  .pdl-day__hint { display: none; }
 }
 
 /* ── Client List ── */

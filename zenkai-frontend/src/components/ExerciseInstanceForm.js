@@ -766,25 +766,17 @@ export default function ExerciseInstanceForm({ dayId }) {
             ) : (
               <div className="ex-row__inner">
                 <div className="ex-row__info">
-                  {/* Badge nested INSIDE the name span so existing ex-row__name CSS still applies.
-                      Inline flex keeps the badge tight against the name. */}
-                  <span className="ex-row__name" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {/* Badge and name are separate flex children so the name can
+                      ellipsize — text-overflow has no effect on a flex container,
+                      which is what an inline display:flex here was creating, so
+                      long names clipped mid-word with no ellipsis. */}
+                  <span className="ex-row__name">
                     {ex.superset_group_id != null && (
-                      <span style={{
-                        background: 'rgba(200,255,0,0.08)',
-                        color: '#c8ff00',
-                        border: '1px solid rgba(200,255,0,0.2)',
-                        borderRadius: 4,
-                        fontSize: 10,
-                        fontWeight: 700,
-                        padding: '1px 6px',
-                        letterSpacing: '0.05em',
-                        flexShrink: 0
-                      }}>
+                      <span className="ex-row__badge">
                         {['A', 'B', 'C', 'D'][ex.superset_order ?? 0]}
                       </span>
                     )}
-                    {ex.name}
+                    <span className="ex-row__name-text">{ex.name}</span>
                   </span>
                   <span className="ex-row__meta">
                     {/* Isometric: target_reps stores seconds — append 's' to disambiguate. */}
