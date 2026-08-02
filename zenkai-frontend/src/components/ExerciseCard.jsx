@@ -28,6 +28,32 @@ function buildCableLabel(weight, baseStackWeight, stackStepValue, maxMicroLevels
   return `Pin at ${pin} ${cableUnit} + ${microCount} slider${microCount > 1 ? 's' : ''}`;
 }
 
+// Inverse of getCableDisplayWeight / buildCableLabel: snap an absolute weight
+// back onto the stack grid as { pin, sliders }. gridOrigin is any weight known
+// to sit on the grid — the prescribed base works, since every reachable pin is
+// an integer number of stack steps away from it.
+function cableStateFromWeight(weight, gridOrigin, stackStepValue, maxMicroLevels) {
+  const w = parseFloat(weight);
+  const origin = parseFloat(gridOrigin);
+  const step = parseFloat(stackStepValue);
+  if (!Number.isFinite(w) || !Number.isFinite(origin) || !(step > 0)) return null;
+
+  const levels = parseInt(maxMicroLevels, 10) || 0;
+  const microStep = step / (levels + 1);
+
+  const stepsDown = Math.ceil((origin - w) / step);
+  let pin = origin - stepsDown * step;
+  let micro = Math.round((w - pin) / microStep);
+
+  // Carry a full stack step when the sliders overflow — mirrors the backoff
+  // display path so the label and the stored state never disagree.
+  if (micro > levels) { pin += step; micro = 0; }
+  if (micro < 0) micro = 0;
+  if (pin < 0) { pin = 0; micro = 0; }
+
+  return { base_stack_weight: pin, current_micro_level: micro };
+}
+
 export default function ExerciseCard({
   exercise,
   clientId,
@@ -326,7 +352,13 @@ export default function ExerciseCard({
       session_id: sessionId || null
     };
 
-    saveLog(payload);
+    // localStorage can throw (quota, Safari private mode). A failed local queue
+    // write must not abort the set — the server call below is the real save.
+    try {
+      saveLog(payload);
+    } catch (err) {
+      console.warn('[LogSet] local queue write failed:', err);
+    }
 
     try {
       await logSet(payload);
@@ -338,32 +370,63 @@ export default function ExerciseCard({
     setSessionSets((prev) => [...prev, payload].sort((a, b) => a.set_number - b.set_number));
     setCompletedReps('');
 
-    // Persist the user's typed weight as the new base for subsequent sets.
-    // This MUST run for any exercise that renders a weight input — i.e. not
-    // cable (which has its own cableState/stepper path) and not bodyweight
-    // (no weight input). For isometric: equipment_type is 'bodyweight' so
-    // effectiveWeight is null and the input never renders; the
-    // `completedWeight !== ''` check below short-circuits there anyway.
+    // Clear the button as soon as the set is recorded. Everything below
+    // (progression, rest timer) is best-effort follow-up — a throw down there
+    // used to strand `loading` at true, leaving the button permanently disabled
+    // reading "Saving..." with no way out but a reload.
+    setLoading(false);
+
+    // Persist the user's chosen weight as the new base for subsequent sets.
     //
-    // Unconditional with respect to any progression flag: manual weight
-    // editing is the user's explicit intent and must never be discarded.
-    // Placed BEFORE the progression block so that when auto-progression
-    // fires, its `base = sessionOverrideRef.current?.weight ?? effectiveWeight`
-    // lookup uses the user's typed value as the bump baseline.
-    if (!isCable && !isBodyweight && completedWeight !== '') {
+    // Runs for BOTH cable and plate-loaded work. Cable was previously excluded,
+    // which meant the stepper / weight field only ever touched local state: the
+    // next set's prefill recomputed from the prescribed cable state and silently
+    // discarded the adjustment. Manual weight editing is explicit user intent
+    // and must never be dropped.
+    //
+    // Placed BEFORE the progression block so that when auto-progression fires,
+    // its sessionOverrideRef.current lookup uses the user's value as the bump
+    // baseline. The ref is synced synchronously for that same reason.
+    if (!isBodyweight && completedWeight !== '') {
       const enteredWeight = parseFloat(completedWeight);
-      const currentBase = sessionOverrideRef.current?.weight ?? effectiveWeight;
-      if (Number.isFinite(enteredWeight) && enteredWeight !== currentBase) {
-        const next = {
-          weight: enteredWeight,
-          cableState: null,
-          reps: sessionOverrideRef.current?.reps ?? null,
-        };
-        onSessionOverrideChange(next);
-        // Sync the ref synchronously so the progression block (which reads
-        // sessionOverrideRef.current within this same event handler) sees
-        // the new base before computing its bump.
-        sessionOverrideRef.current = next;
+
+      if (Number.isFinite(enteredWeight)) {
+        if (isCable && cable_setup_locked) {
+          const currentDisplay = getCableDisplayWeight(
+            effectiveCableState.base_stack_weight,
+            stack_step_value,
+            effectiveCableState.current_micro_level,
+            max_micro_levels
+          );
+          if (enteredWeight !== currentDisplay) {
+            const nextState = cableStateFromWeight(
+              enteredWeight,
+              effectiveCableState.base_stack_weight,
+              stack_step_value,
+              max_micro_levels
+            );
+            if (nextState) {
+              const next = {
+                weight: null,
+                cableState: nextState,
+                reps: sessionOverrideRef.current?.reps ?? null,
+              };
+              onSessionOverrideChange(next);
+              sessionOverrideRef.current = next;
+            }
+          }
+        } else if (!isCable) {
+          const currentBase = sessionOverrideRef.current?.weight ?? effectiveWeight;
+          if (enteredWeight !== currentBase) {
+            const next = {
+              weight: enteredWeight,
+              cableState: null,
+              reps: sessionOverrideRef.current?.reps ?? null,
+            };
+            onSessionOverrideChange(next);
+            sessionOverrideRef.current = next;
+          }
+        }
       }
     }
 
@@ -371,12 +434,19 @@ export default function ExerciseCard({
     const minReps = parseInt(String(currentTargetReps).split('-')[0], 10);
     const maxReps = parseInt(String(currentTargetReps).split('-').at(-1), 10);
 
+    // A non-numeric rep target ("10+", "AMRAP", "8-10 each side") silently
+    // disabled BOTH progression and regression here. Surface it instead.
+    if (!suppressProgression && !backoff_enabled && (isNaN(minReps) || isNaN(maxReps))) {
+      console.warn('[Progression] target_reps is not numeric — progression disabled.',
+        { name, target_reps: currentTargetReps });
+    }
+
     if (!suppressProgression && !backoff_enabled && !isNaN(minReps) && parsedReps < minReps) {
       if (isCable) {
-        const currentCableState = sessionOverrideRef.current?.cableState ?? {
-          base_stack_weight,
-          current_micro_level
-        };
+        // Match the progression branch: fall back to effectiveCableState, not
+        // the raw props, so a regression after a manual edit regresses from the
+        // weight actually used rather than from the original prescription.
+        const currentCableState = sessionOverrideRef.current?.cableState ?? effectiveCableState;
 
         const nextState = computeNextCableStateOnRegression(currentCableState, {
           stack_step_value,
@@ -524,14 +594,20 @@ export default function ExerciseCard({
 
     const isLastSet = nextSetNumber === target_sets;
 
-    if (!(isLastIncomplete && isLastSet)) {
-      const restToUse = backoff_enabled && nextSetNumber > 1
-        ? getBackoffRest(rest_seconds)
-        : rest_seconds;
-      onSetLogged(restToUse, id, parsedReps);
+    // Isolated: startTimer touches browser globals that don't exist everywhere
+    // (Notification is undefined on iOS Safari outside an installed PWA). The
+    // set is already recorded by this point, so a timer failure must not
+    // propagate out of the handler.
+    try {
+      if (!(isLastIncomplete && isLastSet)) {
+        const restToUse = backoff_enabled && nextSetNumber > 1
+          ? getBackoffRest(rest_seconds)
+          : rest_seconds;
+        onSetLogged(restToUse, id, parsedReps);
+      }
+    } catch (err) {
+      console.error('[LogSet] rest timer failed to start:', err);
     }
-
-    setLoading(false);
   };
 
   const handleSkipSet = async () => {
@@ -663,10 +739,21 @@ export default function ExerciseCard({
   }
 
   const displayReps = sessionOverride?.reps ?? target_reps;
+
+  // The weight input carries the last logged weight forward when no override is
+  // active (prefill branch 0); the hero must use the same precedence or the two
+  // disagree after a remount — input reading 55 while the hero still reads 40.
+  const lastLoggedWeight = sessionSets.length > 0
+    ? sessionSets[sessionSets.length - 1]?.completed_weight
+    : null;
+
+  const heroBaseWeight = sessionOverride?.weight
+    ?? (!backoff_enabled && lastLoggedWeight != null ? Number(lastLoggedWeight) : effectiveWeight);
+
   const targetLineWeight = !isBodyweight && !isCable && effectiveWeight != null
     ? (backoff_enabled && nextSetNumber > 1
         ? getBackoffWeight(backoffBaseWeight, backoff_percent, equipment_type)
-        : roundWeight(sessionOverride?.weight ?? effectiveWeight, equipment_type))
+        : roundWeight(heroBaseWeight, equipment_type))
     : null;
 
   return (

@@ -6,7 +6,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { ExerciseInstance, Exercise } = require('../models');
+const { ExerciseInstance, Exercise, ClientExerciseTarget } = require('../models');
 const protect = require('../middleware/protect');
 const requireRole = require('../middleware/requireRole');
 const { getOwnedProgramViaDay, getOwnedProgramViaInstance } = require('../middleware/ownership');
@@ -191,13 +191,61 @@ router.put('/:id', protect, requireRole('admin', 'self-serve'), async (req, res)
     const exercise = chain.instance;
 
     // * Merge existing values with incoming body for validation context
-    const merged = { ...exercise.toJSON(), ...rest };
+    const prev = exercise.toJSON();
+    const merged = { ...prev, ...rest };
     const validationErrors = validateExercisePayload(merged, true);
     if (validationErrors.length > 0) {
       return res.status(400).json({ errors: validationErrors, field: validationErrors[0].field, error: validationErrors[0].error });
     }
 
     await exercise.update(rest);
+
+    // A trainer edit in the program builder is authoritative.
+    //
+    // GET /client-programs/:clientId merges client_exercise_targets over the
+    // template on read, and applyProgression writes a row there after every
+    // finished workout. So without this step an edited weight or rep range is
+    // silently discarded for any client who has already completed a session on
+    // this exercise — the builder shows the new number, the client keeps seeing
+    // the old one, permanently.
+    //
+    // Only the columns whose values actually changed are cleared, so editing a
+    // weight never wipes a client's progressed rep target or cable state, and
+    // an unrelated field edit (name, notes, video) clears nothing.
+    const numChanged = (field) => {
+      if (!Object.prototype.hasOwnProperty.call(rest, field)) return false;
+      const before = prev[field] == null ? null : Number(prev[field]);
+      const after  = rest[field] == null ? null : Number(rest[field]);
+      if (before === null && after === null) return false;
+      if (before === null || after === null) return true;
+      return before !== after;
+    };
+
+    const strChanged = (field) => {
+      if (!Object.prototype.hasOwnProperty.call(rest, field)) return false;
+      return String(prev[field] ?? '') !== String(rest[field] ?? '');
+    };
+
+    const clearedColumns = {};
+    if (numChanged('target_weight')) clearedColumns.target_weight = null;
+    if (strChanged('target_reps'))   clearedColumns.target_reps = null;
+    if (
+      numChanged('base_stack_weight') || numChanged('current_micro_level')
+      || numChanged('stack_step_value') || numChanged('max_micro_levels')
+    ) {
+      clearedColumns.cable_state = null;
+    }
+
+    if (Object.keys(clearedColumns).length > 0) {
+      const [rowsCleared] = await ClientExerciseTarget.update(clearedColumns, {
+        where: { exercise_instance_id: exercise.id }
+      });
+      console.log('[EI PUT] cleared stale client overrides', {
+        exercise_instance_id: exercise.id,
+        columns: Object.keys(clearedColumns),
+        rows: rowsCleared
+      });
+    }
 
     if (saveToLibrary === true || saveToLibrary === 'true') {
       try {

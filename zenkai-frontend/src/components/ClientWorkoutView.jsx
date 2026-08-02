@@ -11,6 +11,13 @@ import { logSet } from '../api/loggedSetApi';
 import { syncPendingLogs } from '../utils/localWorkoutLogs';
 import './ClientWorkoutView.css';
 
+// A draft older than this is treated as abandoned for the purpose of deciding
+// whether to run the week-to-week progression preload. Without a bound, a
+// session that was started and never finished suppresses applyProgression
+// forever, pinning the client to stale targets with no way to recover from
+// inside the app.
+const STALE_DRAFT_MS = 12 * 60 * 60 * 1000;
+
 function readSelectedDayId(clientId) {
   try { return localStorage.getItem(`zenkai_selected_day_${clientId}`) || null; } catch { return null; }
 }
@@ -28,7 +35,7 @@ function writeDraft(clientId, programDayId, patch) {
     const cur = readDraft(clientId, programDayId);
     localStorage.setItem(
       `zenkai_workout_draft_${clientId}_${programDayId}`,
-      JSON.stringify({ ...cur, ...patch, programDayId })
+      JSON.stringify({ ...cur, ...patch, programDayId, updatedAt: Date.now() })
     );
     localStorage.setItem(`zenkai_selected_day_${clientId}`, programDayId);
   } catch {}
@@ -148,7 +155,16 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
     return draft.sessionId;
   });
 
-  const [sessionOverrides, setSessionOverrides] = useState({});
+  // Persisted alongside draftSets. These are the in-session weight/rep
+  // adjustments (manual edits and auto-progression bumps). Keeping them in
+  // React state alone meant a backgrounded phone tab being evicted restored the
+  // logged sets but silently reset every weight back to the prescription.
+  const [sessionOverrides, setSessionOverrides] = useState(() => {
+    const dayId = readSelectedDayId(clientId);
+    const draft = readDraft(clientId, dayId);
+    if (!dayId || draft.programDayId !== dayId || !isDraftSessionValid(draft)) return {};
+    return draft.sessionOverrides || {};
+  });
 
   const intervalRef = useRef(null);
   const timerEndRef = useRef(null);
@@ -180,8 +196,12 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
   }, [clientId, selectedDayId]);
 
   const handleSessionOverrideChange = useCallback((exerciseId, override) => {
-    setSessionOverrides((prev) => ({ ...prev, [exerciseId]: override }));
-  }, []);
+    setSessionOverrides((prev) => {
+      const next = { ...prev, [exerciseId]: override };
+      writeDraft(clientId, selectedDayId, { sessionOverrides: next });
+      return next;
+    });
+  }, [clientId, selectedDayId]);
 
   const handleSkip = () => {
     const incompleteInOrder = effectiveOrder.filter(id => incompleteExerciseIds.has(id));
@@ -217,7 +237,14 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
       const persistedDayId = readSelectedDayId(clientId);
       const dayToProgress = initialDayId || persistedDayId || fallbackFirstDayId;
       const draftForDay = dayToProgress ? readDraft(clientId, dayToProgress) : null;
-      const sessionInProgress = draftForDay && isDraftSessionValid(draftForDay);
+      // Age-bounded: a draft with no timestamp (written before this field
+      // existed) or one older than STALE_DRAFT_MS counts as abandoned, so the
+      // preload runs and the client heals instead of staying pinned to last
+      // week's targets indefinitely.
+      const draftAge = Date.now() - (draftForDay?.updatedAt ?? 0);
+      const sessionInProgress = !!draftForDay
+        && isDraftSessionValid(draftForDay)
+        && draftAge < STALE_DRAFT_MS;
       let progressionApplied = false;
       if (clientId && dayToProgress && !sessionInProgress) {
         console.log(`[Progression Preload] Applying for day ${dayToProgress} (no active draft)`);
@@ -272,8 +299,9 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
     if (!selectedDayId) return;
 
     const draft = readDraft(clientId, selectedDayId);
+    const draftIsValid = isDraftSessionValid(draft);
 
-    if (isDraftSessionValid(draft)) {
+    if (draftIsValid) {
       setSessionId(draft.sessionId);
     } else {
       const newId = crypto.randomUUID();
@@ -293,7 +321,9 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
     setFinishError(null);
     setConfirmFinishEarly(false);
     setExerciseLoggedCounts({});
-    setSessionOverrides({});
+    // Restore this day's overrides rather than blanking them — switching days
+    // and switching back must not throw away in-session weight adjustments.
+    setSessionOverrides(draftIsValid ? (draft.sessionOverrides || {}) : {});
     setActiveOrderOverride([]);
   }, [selectedDayId]);
 
@@ -545,8 +575,16 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
 
     audioRef.current?.play().catch(() => {});
 
-    if (document.visibilityState !== 'visible' && Notification.permission === 'granted') {
-      new Notification('Rest complete', { body: 'Ready for your next set.' });
+    // `Notification` is undefined on iOS Safari outside an installed PWA —
+    // an unguarded reference here threw straight out of the log-set handler.
+    if (
+      document.visibilityState !== 'visible'
+      && typeof Notification !== 'undefined'
+      && Notification.permission === 'granted'
+    ) {
+      try {
+        new Notification('Rest complete', { body: 'Ready for your next set.' });
+      } catch {}
     }
   };
 
@@ -569,8 +607,13 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
       return;
     }
 
-    if (Notification.permission === 'default') {
-      Notification.requestPermission().catch(() => {});
+    // Guarded twice over: `Notification` may not exist at all (iOS Safari
+    // outside an installed PWA), and on older Safari requestPermission() is
+    // callback-based and returns undefined, so `.catch` on it throws.
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      try {
+        Notification.requestPermission()?.catch?.(() => {});
+      } catch {}
     }
 
     const endTime = Date.now() + parsedRest * 1000;
