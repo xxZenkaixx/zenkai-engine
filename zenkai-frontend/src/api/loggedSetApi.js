@@ -2,14 +2,28 @@ import { API_BASE } from './base';
 
 const BASE_URL = `${API_BASE}/api/sets`;
 
+// Gym wifi and cell handoffs can leave a fetch pending indefinitely. Without a
+// bound, the caller's await never settles and the Log Set button sits disabled
+// on "Saving..." forever. Aborting turns that hang into a normal rejection, so
+// the set stays queued in zk_pending_logs and retries on the next sync.
+const LOG_SET_TIMEOUT_MS = 15000;
+
 export const logSet = async (data) => {
-  const res = await fetch(BASE_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
-  });
-  if (!res.ok) throw new Error('Failed to log set');
-  return res.json();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), LOG_SET_TIMEOUT_MS);
+
+  try {
+    const res = await fetch(BASE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+      signal: controller.signal
+    });
+    if (!res.ok) throw new Error('Failed to log set');
+    return await res.json();
+  } finally {
+    clearTimeout(timeout);
+  }
 };
 
 export const editSet = async (id, completed_reps, completed_weight) => {
