@@ -46,6 +46,17 @@ export const fetchActiveProgram = async (clientId) => {
   return data;
 };
 
+export const completeDay = async (clientId, programDayId, sessionId = null) => {
+  const res = await fetch(`${BASE_URL}/${clientId}/complete-day`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ programDayId, sessionId })
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to record workout completion');
+  return data;
+};
+
 export const activateProgram = async (assignmentId) => {
   const res = await fetch(`${BASE_URL}/${assignmentId}/activate`, {
     method: 'PATCH',

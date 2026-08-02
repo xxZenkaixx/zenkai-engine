@@ -3,7 +3,7 @@
 // * Handles global timer display and scroll coordination.
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { fetchActiveProgram } from '../api/clientProgramApi';
+import { fetchActiveProgram, completeDay } from '../api/clientProgramApi';
 import ExerciseCard from './ExerciseCard';
 import SupersetCard from './SupersetCard';
 import { applyProgression } from '../api/progressionApi';
@@ -539,6 +539,12 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
     setFinishingWorkout(true);
 
     try {
+      // Recorded BEFORE progression, and both calls are idempotent. If
+      // progression fails, tapping Finish again re-records the completion as a
+      // no-op (absorbed by the unique constraint on client_program + day +
+      // week) and retries progression. The reverse order risks re-applying
+      // progression on every retry.
+      await completeDay(clientId, selectedDayId, sessionId);
       await applyProgression(clientId, selectedDayId);
       setWorkoutFinished(true);
       clearDraft(clientId, selectedDayId);

@@ -27,6 +27,7 @@ const ExerciseProgression = require('./exerciseProgression')(sequelize);
 const ClientExerciseTarget = require('./clientExerciseTarget')(sequelize);
 const ClientExerciseMax = require('./clientExerciseMax')(sequelize);
 const PeriodizationWeek = require('./periodizationWeek')(sequelize);
+const ClientDayCompletion = require('./clientDayCompletion')(sequelize);
 const ExerciseSessionNote = require('./exerciseSessionNote')(sequelize);
 const Exercise = require('./exercise')(sequelize);
 
@@ -86,6 +87,12 @@ ClientExerciseMax.belongsTo(ExerciseInstance, { foreignKey: 'exercise_instance_i
 Program.hasMany(PeriodizationWeek, { foreignKey: 'program_id' });
 PeriodizationWeek.belongsTo(Program, { foreignKey: 'program_id' });
 
+ClientProgram.hasMany(ClientDayCompletion, { foreignKey: 'client_program_id' });
+ClientDayCompletion.belongsTo(ClientProgram, { foreignKey: 'client_program_id' });
+
+ProgramDay.hasMany(ClientDayCompletion, { foreignKey: 'program_day_id' });
+ClientDayCompletion.belongsTo(ProgramDay, { foreignKey: 'program_day_id' });
+
 User.hasMany(Exercise, { foreignKey: 'created_by', as: 'CreatedExercises' });
 Exercise.belongsTo(User, { foreignKey: 'created_by', as: 'Creator' });
 
@@ -106,6 +113,7 @@ module.exports = {
   ClientExerciseTarget,
   ClientExerciseMax,
   PeriodizationWeek,
+  ClientDayCompletion,
   ExerciseSessionNote,
   Exercise,
 };

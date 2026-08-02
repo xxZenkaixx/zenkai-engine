@@ -24,6 +24,14 @@ module.exports = (sequelize) => {
       type: DataTypes.BOOLEAN,
       allowNull: false,
       defaultValue: true
+    },
+    // Position in the macrocycle. Advanced by completing every day of the
+    // current week — never by elapsed time. See weekProgressionService.
+    current_week: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 1,
+      validate: { min: 1 }
     }
   }, {
     tableName: 'client_programs',

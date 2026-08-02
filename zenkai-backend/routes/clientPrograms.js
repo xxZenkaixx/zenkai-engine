@@ -4,6 +4,11 @@ const router = express.Router();
 const { ClientProgram, Program, ProgramDay, ExerciseInstance, ClientExerciseTarget, ProgressionRule } = require('../models');
 const protect = require('../middleware/protect');
 const { getOwnedClient } = require('../middleware/ownership');
+const {
+  recordDayCompletion,
+  getWeekStatus
+} = require('../services/weekProgressionService');
+const { getWeeklyPrescriptions } = require('../services/periodizationService');
 
 router.get('/:clientId', protect, async (req, res) => {
   try {
@@ -111,6 +116,43 @@ router.get('/:clientId', protect, async (req, res) => {
         if (decreaseMap[ex.type] != null) ex.decrease_percent = decreaseMap[ex.type];
         if (increaseMap[ex.type] != null) ex.increase_percent = increaseMap[ex.type];
       }
+    }
+
+    // ---- Layer 3: periodization ------------------------------------------
+    // Applied AFTER the client_exercise_targets overlay, so a periodized
+    // prescription outranks a progressed one. Returns nothing at all when the
+    // program has no schedule rows, which makes every non-periodized program
+    // byte-identical to before.
+    //
+    // Wrapped: this endpoint is the single point of failure for the client app
+    // — if periodization throws on bad data, the client must still get their
+    // workout, just without the weekly overlay.
+    const allExercises = (result.Program?.ProgramDays || [])
+      .flatMap((d) => d.ExerciseInstances || []);
+
+    try {
+      const { byExerciseId, summary } = await getWeeklyPrescriptions(
+        clientProgram,
+        allExercises
+      );
+
+      for (const ex of allExercises) {
+        const prescription = byExerciseId[ex.id];
+        if (!prescription?.applied) continue;
+        // `overrides` holds only the keys meant to replace template values, so
+        // this can never write undefined over a real one.
+        Object.assign(ex, prescription.overrides);
+        ex.periodization = prescription.diagnostic;
+      }
+
+      if (summary.applied > 0 || Object.keys(summary.skipped).length > 0) {
+        console.log('[PERIODIZATION] summary:', JSON.stringify(summary));
+      }
+    } catch (periodizationErr) {
+      console.error(
+        '[PERIODIZATION] failed — serving un-periodized targets:',
+        periodizationErr.message
+      );
     }
 
     // Verify superset fields make it onto the response payload.
@@ -250,6 +292,66 @@ router.get('/:clientId/history', protect, async (req, res) => {
       order: [['created_at', 'DESC']]
     });
     res.json(assignments);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Record that the client finished a program day, advancing their week if every
+// day of the current week is now complete.
+//
+// Deliberately NOT folded into POST /api/progression/apply. That endpoint is
+// also called on workout LOAD (the progression preload in ClientWorkoutView),
+// so recording completion there would mark days complete merely for opening
+// the app.
+//
+// Not gated by requireRole: the client finishing their own workout is the
+// primary caller. getOwnedClient scopes it — admins bypass, self-serve and
+// client are limited to their own record.
+router.post('/:clientId/complete-day', protect, async (req, res) => {
+  try {
+    if (!await getOwnedClient(req, req.params.clientId)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const { programDayId, sessionId } = req.body;
+    if (!programDayId) {
+      return res.status(400).json({ error: 'programDayId is required.' });
+    }
+
+    const result = await recordDayCompletion(
+      req.params.clientId,
+      programDayId,
+      sessionId || null
+    );
+
+    console.log('[WEEK] complete-day', JSON.stringify(result));
+
+    // 200 on a repeat, 201 on a genuinely new completion. A repeat is a
+    // no-op, not a failure — the client may legitimately redo a day.
+    res.status(result.already_recorded ? 200 : 201).json(result);
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    console.error('POST /client-programs/:clientId/complete-day ERROR:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/:clientId/week-status', protect, async (req, res) => {
+  try {
+    // Same no-store reasoning as GET /:clientId — this value changes as the
+    // client trains and must never come from a Safari/CDN cache.
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.set('Pragma', 'no-cache');
+
+    if (!await getOwnedClient(req, req.params.clientId)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const status = await getWeekStatus(req.params.clientId);
+    if (!status) return res.status(404).json({ error: 'No active program found' });
+
+    res.json(status);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
