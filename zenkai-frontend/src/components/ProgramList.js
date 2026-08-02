@@ -1,13 +1,14 @@
 // * Renders the program list with create, clone, edit, delete, and selection.
 // * Keeps selected program local and clears it safely on delete.
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { createProgram, updateProgram, deleteProgram, cloneProgram } from '../api/programApi';
-import { assignProgram } from '../api/clientProgramApi';
+import { assignProgram, fetchActiveProgram } from '../api/clientProgramApi';
 import ProgramDayList from './ProgramDayList';
 import WorkoutPreview from './WorkoutPreview';
 import ClientTargetEditor from './ClientTargetEditor';
+import ClientMaxEditor from './ClientMaxEditor';
 
 export default function ProgramList({ programs, clients = [], onProgramsChanged, onAssigned, onOpenBuilder, activeProgramId, clientId, onActivated }) {
   const { user } = useAuth();
@@ -34,6 +35,27 @@ export default function ProgramList({ programs, clients = [], onProgramsChanged,
   const [launchError, setLaunchError] = useState(null);
   const [launchSuccess, setLaunchSuccess] = useState(false);
   const [launchedClientProgramId, setLaunchedClientProgramId] = useState(null);
+
+  // Resolve an EXISTING assignment when a client is picked, not just after a
+  // fresh launch. Without this, launchedClientProgramId is only ever set by
+  // handleLaunch, so both editors below are reachable for a few seconds after
+  // launching and never again for an already-assigned client.
+  useEffect(() => {
+    if (!launchClientId || !selectedProgramId) {
+      setLaunchedClientProgramId(null);
+      return;
+    }
+    let cancelled = false;
+    fetchActiveProgram(launchClientId)
+      .then((assignment) => {
+        if (cancelled) return;
+        setLaunchedClientProgramId(
+          assignment?.program_id === selectedProgramId ? assignment.id : null
+        );
+      })
+      .catch(() => { if (!cancelled) setLaunchedClientProgramId(null); });
+    return () => { cancelled = true; };
+  }, [launchClientId, selectedProgramId]);
 
   const parseDeloadWeeks = (value) => {
     if (!value.trim()) return [];
@@ -386,7 +408,10 @@ export default function ProgramList({ programs, clients = [], onProgramsChanged,
             </div>
 
             {launchedClientProgramId && (
-              <ClientTargetEditor clientProgramId={launchedClientProgramId} />
+              <>
+                <ClientTargetEditor clientProgramId={launchedClientProgramId} />
+                <ClientMaxEditor clientProgramId={launchedClientProgramId} />
+              </>
             )}
 
             {previewProgramId === selectedProgramId && (
