@@ -363,6 +363,31 @@
   cursor: default;
 }
 
+/* Periodization opt-in — create-time only, and irreversible, which is why the
+   hint below it is shown rather than hidden behind a tooltip. */
+.prog-create-form__check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #888;
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.prog-create-form__check input {
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.prog-create-form__hint {
+  color: #c8ff00;
+  font-size: 11px;
+  line-height: 1.4;
+  margin: -2px 0 0;
+  opacity: 0.75;
+}
+
 .prog-error {
   color: #ff5555;
   font-size: 12px;

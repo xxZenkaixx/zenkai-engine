@@ -33,7 +33,14 @@ function computeOverride(exercise, currentOverride, direction) {
     base_stack_weight, stack_step_value, current_micro_level, max_micro_levels,
     increase_percent, decrease_percent, backoff_enabled,
     progression_mode, progression_value, target_weight,
+    periodization,
   } = exercise;
+
+  // Periodization owns this lift's load — the weight comes from the weekly
+  // schedule, so an in-session bump would be discarded on the next load.
+  // Mirrors the suppressProgression gate in ExerciseCard; SupersetCard computes
+  // progression itself rather than delegating, so it needs its own check.
+  if (periodization?.controls_load) return null;
 
   if (backoff_enabled) return null;
 

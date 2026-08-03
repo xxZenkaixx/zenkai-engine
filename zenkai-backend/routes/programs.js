@@ -2,10 +2,11 @@
 const express = require('express');
 const router = express.Router();
 const { Op } = require('sequelize');
-const { Program, ProgramDay, ExerciseInstance, sequelize } = require('../models');
+const { Program, ProgramDay, ExerciseInstance, PeriodizationWeek, sequelize } = require('../models');
 const protect = require('../middleware/protect');
 const requireRole = require('../middleware/requireRole');
 const { getOwnedProgram } = require('../middleware/ownership');
+const { attachMesocycle, MESOCYCLE_WEEKS } = require('../services/periodizationService');
 
 router.get('/', protect, async (req, res) => {
   try {
@@ -52,8 +53,44 @@ router.get('/:id', protect, async (req, res) => {
 router.post('/', protect, requireRole('admin', 'self-serve'), async (req, res) => {
   try {
     const { id: userId } = req.user;
-    const { name, weeks, deload_weeks } = req.body;
-    const program = await Program.create({ name, weeks, deload_weeks, user_id: userId });
+    const { name, weeks, deload_weeks, periodized } = req.body;
+
+    // Periodization is declared here and only here. There is no is_periodized
+    // column — the schedule rows written below are the definition.
+    const isPeriodized = periodized === true || periodized === 'true';
+
+    if (!isPeriodized) {
+      // Byte-identical to the pre-Phase-8 path: same create, same 201, same
+      // response body. Absent flag means non-periodized, which is every
+      // existing caller including the frontend.
+      const program = await Program.create({ name, weeks, deload_weeks, user_id: userId });
+      return res.status(201).json(program);
+    }
+
+    // The mesocycle is exactly MESOCYCLE_WEEKS long, and week advancement caps
+    // at the program's own `weeks`. A shorter program would leave the later
+    // weeks permanently unreachable. Refuse rather than silently rewrite what
+    // the caller asked for; omitting `weeks` defaults to the mesocycle length.
+    if (weeks != null && weeks !== '' && Number(weeks) !== MESOCYCLE_WEEKS) {
+      return res.status(400).json({
+        field: 'weeks',
+        error: `A periodized program must be ${MESOCYCLE_WEEKS} weeks. Received ${weeks}.`
+      });
+    }
+
+    const program = await sequelize.transaction(async (t) => {
+      const created = await Program.create({
+        name,
+        weeks: MESOCYCLE_WEEKS,
+        deload_weeks,
+        user_id: userId
+      }, { transaction: t });
+
+      const rowCount = await attachMesocycle(created.id, { transaction: t });
+      console.log(`[CREATE] attached ${rowCount} periodization rows to "${name}" (${created.id})`);
+      return created;
+    });
+
     res.status(201).json(program);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -126,6 +163,39 @@ router.post('/:id/clone', protect, async (req, res) => {
             program_day_id: newDay.id
           }, { transaction: t });
         }
+      }
+
+      // Carry the periodization schedule across. It is keyed by program_id and
+      // holds no reference to days or exercises, so this is a straight
+      // re-pointing of every row — there is nothing to remap.
+      //
+      // Inside the transaction on purpose. A clone with days and exercises but
+      // no schedule is worse than an obvious failure: every tagged lift would
+      // fall through to template values AND resume ordinary progression, so the
+      // copy would look correct while behaving like a different program.
+      //
+      // No-op when the source has no schedule — which is every program today,
+      // so a non-periodized clone is byte-identical to before.
+      const schedule = await PeriodizationWeek.findAll({
+        where: { program_id: sourceFull.id },
+        transaction: t
+      });
+
+      if (schedule.length > 0) {
+        await PeriodizationWeek.bulkCreate(
+          schedule.map((w) => ({
+            program_id: program.id,
+            week_number: w.week_number,
+            periodization_role: w.periodization_role,
+            intensity_pct: w.intensity_pct,
+            sets: w.sets,
+            reps: w.reps
+          })),
+          { transaction: t }
+        );
+        console.log(
+          `[CLONE] copied ${schedule.length} periodization rows to "${cloneName}" (${program.id})`
+        );
       }
 
       return program;

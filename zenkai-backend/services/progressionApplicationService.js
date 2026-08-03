@@ -14,6 +14,7 @@ const {
   sequelize
 } = require('../models');
 const { calculateNextWeight } = require('./progressionService');
+const { getWeeklyPrescriptions, controlsLoad } = require('./periodizationService');
 const { Op } = require('sequelize');
 
 function parseRepRange(target_reps) {
@@ -129,6 +130,28 @@ async function applyProgressionForWorkout(clientId, programDayId, options = {}) 
     return acc;
   }, {});
 
+  // Periodization owns the load for the primary/secondary lifts it is actually
+  // driving. Evaluating progression for those would write a
+  // client_exercise_targets row that layer 3 of the merge discards on every
+  // read — wasted work that also leaves misleading data behind.
+  //
+  // Derived from getWeeklyPrescriptions — the SAME call the merge layer makes —
+  // so the two can never disagree about which exercises are periodized.
+  let periodizedIds = new Set();
+  try {
+    const { byExerciseId } = await getWeeklyPrescriptions(assignment, instances);
+    periodizedIds = new Set(
+      Object.keys(byExerciseId).filter((id) => controlsLoad(byExerciseId[id]))
+    );
+    if (periodizedIds.size > 0) {
+      console.log(`[PROG] periodization owns ${periodizedIds.size} instance(s) on this day — progression skipped for them`);
+    }
+  } catch (err) {
+    // Never block progression on a periodization failure. Worst case we
+    // evaluate an exercise whose written target is outranked on read anyway.
+    console.error('[PROG] periodization lookup failed, progressing everything:', err.message);
+  }
+
   console.log(`[PROG] applyProgressionForWorkout clientId=${clientId} programDayId=${programDayId} instanceCount=${instanceIds.length} setCount=${sets.length} validSetCount=${validSets.length}`);
 
   // TEMP DEBUG: for every instance about to be evaluated, dump what target row exists
@@ -150,6 +173,16 @@ async function applyProgressionForWorkout(clientId, programDayId, options = {}) 
 
     if (!instance) {
       results.push({ exercise_instance_id: instanceId, outcome: 'skipped', reason: 'instance not found' });
+      continue;
+    }
+
+    if (periodizedIds.has(instanceId)) {
+      console.log(`[PROG] -- ${instance.name} | SKIPPED, periodization controls load`);
+      results.push({
+        exercise_instance_id: instanceId,
+        outcome: 'skipped',
+        reason: 'periodization_controls_load'
+      });
       continue;
     }
 
@@ -426,6 +459,10 @@ async function applyProgressionForWorkout(clientId, programDayId, options = {}) 
   const groupMembers = {};
   for (const i of instances) {
     if (!i.superset_group_id) continue;
+    // A periodized member is never evaluated, so it can never report
+    // 'increase'. Leaving it in the group would permanently block its
+    // non-periodized partner from progressing.
+    if (periodizedIds.has(i.id)) continue;
     if (!groupMembers[i.superset_group_id]) groupMembers[i.superset_group_id] = [];
     groupMembers[i.superset_group_id].push(i.id);
   }

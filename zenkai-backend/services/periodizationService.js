@@ -15,6 +15,7 @@
 'use strict';
 
 const { PeriodizationWeek, ClientExerciseMax } = require('../models');
+const { BBLS2_WEEKS, TOTAL_WEEKS } = require('./bbls2Template');
 
 const PERIODIZED_ROLES = ['primary', 'secondary'];
 
@@ -136,6 +137,9 @@ async function getWeeklyPrescriptions(assignment, exercises = []) {
         diagnostic: {
           week_number: weekNumber,
           role,
+          // Accessories take the rep schedule only — their load is still owned
+          // by set-by-set and post-workout progression.
+          controls_load: false,
           reps: row.reps
         }
       };
@@ -178,6 +182,8 @@ async function getWeeklyPrescriptions(assignment, exercises = []) {
       diagnostic: {
         week_number: weekNumber,
         role,
+        // Periodization owns the load here, so progression must not run.
+        controls_load: true,
         intensity_pct: intensityPct,
         training_1rm: trainingMax,
         raw_weight: rawWeight,
@@ -192,4 +198,52 @@ async function getWeeklyPrescriptions(assignment, exercises = []) {
   return { weekNumber, byExerciseId, summary };
 }
 
-module.exports = { getWeeklyPrescriptions, roundWeight, SKIP };
+/**
+ * True when periodization is actually driving this exercise's load, and
+ * progression must therefore not run for it.
+ *
+ * Deliberately derived from an APPLIED prescription rather than from the role
+ * tag. A cable/bodyweight lift tagged primary, or one with no Training 1RM, is
+ * ineligible and falls through to template values — suppressing progression on
+ * those would freeze them permanently with no weight source at all.
+ */
+function controlsLoad(prescription) {
+  return !!(prescription?.applied && prescription.diagnostic?.controls_load);
+}
+
+/**
+ * Attach the fixed BBLS 2.0 mesocycle to a program.
+ *
+ * These 48 rows ARE the definition of "this program is periodized" — there is
+ * deliberately no is_periodized column, so nothing exists that could claim a
+ * program is periodized while disagreeing with its rows.
+ *
+ * Values come from bbls2Template.js, the same constant the seeder reads, so the
+ * two can never drift.
+ *
+ * The caller supplies the transaction: a program must never exist without its
+ * schedule, because a periodized-but-scheduleless program silently falls
+ * through to template values AND resumes ordinary progression.
+ */
+async function attachMesocycle(programId, { transaction } = {}) {
+  const rows = BBLS2_WEEKS.map((w) => ({
+    program_id: programId,
+    week_number: w.week_number,
+    periodization_role: w.periodization_role,
+    intensity_pct: w.intensity_pct,
+    sets: w.sets,
+    reps: w.reps
+  }));
+
+  await PeriodizationWeek.bulkCreate(rows, { transaction });
+  return rows.length;
+}
+
+module.exports = {
+  getWeeklyPrescriptions,
+  controlsLoad,
+  roundWeight,
+  attachMesocycle,
+  MESOCYCLE_WEEKS: TOTAL_WEEKS,
+  SKIP
+};

@@ -10,12 +10,19 @@ import WorkoutPreview from './WorkoutPreview';
 import ClientTargetEditor from './ClientTargetEditor';
 import ClientMaxEditor from './ClientMaxEditor';
 
+// The fixed BBLS 2.0 mesocycle length. Must match MESOCYCLE_WEEKS in
+// zenkai-backend/services/periodizationService.js. A mismatch fails loudly —
+// the server rejects a periodized program of any other length with a 400 —
+// rather than silently producing a program whose later weeks are unreachable.
+const PERIODIZED_WEEKS = 16;
+
 export default function ProgramList({ programs, clients = [], onProgramsChanged, onAssigned, onOpenBuilder, activeProgramId, clientId, onActivated }) {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
   const [name, setName] = useState('');
   const [weeks, setWeeks] = useState('');
   const [deloadWeeks, setDeloadWeeks] = useState('');
+  const [periodized, setPeriodized] = useState(false);
   const [selectedProgramId, setSelectedProgramId] = useState(null);
   const [previewProgramId, setPreviewProgramId] = useState(null);
   const [editingId, setEditingId] = useState(null);
@@ -65,6 +72,14 @@ export default function ProgramList({ programs, clients = [], onProgramsChanged,
       .filter((w) => Number.isInteger(w) && w > 0);
   };
 
+  // Ticking locks weeks to the fixed mesocycle length. Unticking re-enables the
+  // field and leaves 16 in place to edit, rather than restoring a remembered
+  // value — one less piece of state for no loss of clarity.
+  const handlePeriodizedToggle = (checked) => {
+    setPeriodized(checked);
+    if (checked) setWeeks(String(PERIODIZED_WEEKS));
+  };
+
   const handleCreate = async () => {
     const parsedWeeks = Number(weeks);
     if (!name.trim() || !Number.isInteger(parsedWeeks) || parsedWeeks <= 0) return;
@@ -74,11 +89,17 @@ export default function ProgramList({ programs, clients = [], onProgramsChanged,
       const created = await createProgram({
         name: name.trim(),
         weeks: parsedWeeks,
-        deload_weeks: parseDeloadWeeks(deloadWeeks)
+        deload_weeks: parseDeloadWeeks(deloadWeeks),
+        // Conditional on purpose: a non-periodized create must send a body
+        // byte-identical to what it sent before this option existed.
+        ...(periodized ? { periodized: true } : {})
       });
       setName('');
       setWeeks('');
       setDeloadWeeks('');
+      // Must reset. Periodization is irreversible, so silently inheriting it on
+      // the next program is the worst available failure.
+      setPeriodized(false);
       if (onProgramsChanged) await onProgramsChanged();
       if (onOpenBuilder) onOpenBuilder(created);
     } catch (err) {
@@ -223,6 +244,8 @@ export default function ProgramList({ programs, clients = [], onProgramsChanged,
             type="number"
             value={weeks}
             onChange={(e) => setWeeks(e.target.value)}
+            disabled={periodized}
+            title={periodized ? `Periodized programs are always ${PERIODIZED_WEEKS} weeks` : undefined}
           />
           <input
             className="prog-input"
@@ -230,6 +253,20 @@ export default function ProgramList({ programs, clients = [], onProgramsChanged,
             value={deloadWeeks}
             onChange={(e) => setDeloadWeeks(e.target.value)}
           />
+          <label className="prog-create-form__check">
+            <input
+              type="checkbox"
+              checked={periodized}
+              onChange={(e) => handlePeriodizedToggle(e.target.checked)}
+            />
+            <span>{PERIODIZED_WEEKS}-week periodized program</span>
+          </label>
+          {periodized && (
+            <p className="prog-create-form__hint">
+              Fixed {PERIODIZED_WEEKS}-week mesocycle. Every client starts at week 1.
+              This cannot be changed after the program is created.
+            </p>
+          )}
           <button className="prog-create-btn" onClick={handleCreate} disabled={loading}>
             {loading ? 'Creating...' : '+ New Program'}
           </button>

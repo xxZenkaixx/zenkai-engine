@@ -792,6 +792,11 @@ export default function ClientWorkoutView({ clientId, onWorkoutFinished, initial
             onSkip={isCurrent && nextUpUnits.length > 0 ? handleSkip : null}
             sessionOverride={sessionOverrides[ex.id] ?? null}
             onSessionOverrideChange={(override) => handleSessionOverrideChange(ex.id, override)}
+            // Set-by-set progression is off when periodization drives the load.
+            // The flag comes from the server's own decision (the diagnostic
+            // attached by layer 3 of the merge), so the frontend never
+            // re-derives eligibility and cannot drift from the backend.
+            suppressProgression={!!ex.periodization?.controls_load}
           />
         );
 
