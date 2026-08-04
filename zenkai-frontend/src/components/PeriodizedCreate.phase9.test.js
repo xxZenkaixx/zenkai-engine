@@ -40,6 +40,7 @@ function setup() {
 const startBtn = () => screen.getByRole('button', { name: /\+ New Program/i });
 const nameInput = () => screen.getByPlaceholderText('Program name');
 const weeksInput = () => screen.getByPlaceholderText('Weeks');
+const deloadInput = () => screen.getByPlaceholderText(/Deload weeks/i);
 const continueBtn = () => screen.getByRole('button', { name: /^Continue$/i });
 // The option buttons carry a sub-label, so match on the leading word only.
 const periodizedOption = () => screen.getByRole('button', { name: /^Periodized/i });
@@ -91,6 +92,56 @@ test('periodized create sends periodized:true with weeks 16', async () => {
     deload_weeks: [],
     periodized: true
   });
+});
+
+test('the periodized branch offers no deload input', () => {
+  setup();
+  reachTypeStep('Periodized Program');
+  userEvent.click(periodizedOption());
+
+  // The schedule fixes its own deload weeks. A typed list could only produce a
+  // label that contradicts the program, so the field is absent, not disabled.
+  expect(screen.queryByPlaceholderText(/Deload weeks/i)).not.toBeInTheDocument();
+  expect(screen.getByText(/deload weeks are part of the fixed schedule/i)).toBeInTheDocument();
+});
+
+test('typed deload cannot leak from the standard branch into a periodized create', async () => {
+  setup();
+  reachTypeStep('Switcher');
+  userEvent.click(standardOption());
+  userEvent.type(deloadInput(), '4,8');
+
+  // deloadWeeks is shared state, so hiding the input is not enough — the body
+  // has to derive deload from the branch.
+  userEvent.click(screen.getByRole('button', { name: /^Back$/i }));
+  userEvent.click(periodizedOption());
+  userEvent.click(createBtn());
+
+  await waitFor(() => expect(programApi.createProgram).toHaveBeenCalled());
+  expect(programApi.createProgram.mock.calls[0][0]).toEqual({
+    name: 'Switcher',
+    weeks: 16,
+    deload_weeks: [],
+    periodized: true
+  });
+});
+
+test('the standard branch still parses typed deload weeks', async () => {
+  setup();
+  reachTypeStep('Plain Program');
+  userEvent.click(standardOption());
+  userEvent.type(weeksInput(), '12');
+  userEvent.type(deloadInput(), '4,8,12');
+  userEvent.click(createBtn());
+
+  await waitFor(() => expect(programApi.createProgram).toHaveBeenCalled());
+  const body = programApi.createProgram.mock.calls[0][0];
+  expect(body).toEqual({
+    name: 'Plain Program',
+    weeks: 12,
+    deload_weeks: [4, 8, 12]
+  });
+  expect('periodized' in body).toBe(false);
 });
 
 test('the form does not exist until the user starts it', () => {

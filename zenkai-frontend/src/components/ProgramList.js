@@ -101,6 +101,12 @@ export default function ProgramList({ programs, clients = [], onProgramsChanged,
   const createWeeks = periodized ? PERIODIZED_WEEKS : Number(weeks);
   const canCreate = Number.isInteger(createWeeks) && createWeeks > 0;
 
+  // Deload is derived from the branch, not from the input. The periodized
+  // schedule fixes its own deload weeks, and deloadWeeks is shared state — a
+  // user who types into the standard branch, goes Back, and switches to
+  // periodized would otherwise ship those leftover values.
+  const createDeloadWeeks = periodized ? [] : parseDeloadWeeks(deloadWeeks);
+
   const handleCreate = async () => {
     const parsedWeeks = createWeeks;
     if (!name.trim() || !Number.isInteger(parsedWeeks) || parsedWeeks <= 0) return;
@@ -110,7 +116,7 @@ export default function ProgramList({ programs, clients = [], onProgramsChanged,
       const created = await createProgram({
         name: name.trim(),
         weeks: parsedWeeks,
-        deload_weeks: parseDeloadWeeks(deloadWeeks),
+        deload_weeks: createDeloadWeeks,
         // Conditional on purpose: a non-periodized create must send a body
         // byte-identical to what it sent before this option existed.
         ...(periodized ? { periodized: true } : {})
@@ -318,29 +324,35 @@ export default function ProgramList({ programs, clients = [], onProgramsChanged,
             {createStep === 'details' && (
               <>
                 {periodized ? (
+                  // No deload input on this branch. The schedule prescribes its
+                  // own deload weeks, so a typed list could only ever produce a
+                  // label that contradicts the program.
                   <>
                     <p className="prog-create-form__locked">{PERIODIZED_WEEKS} weeks · fixed</p>
                     <p className="prog-create-form__hint">
                       Fixed {PERIODIZED_WEEKS}-week mesocycle. Every client starts at week 1.
+                      Deload weeks are part of the fixed schedule.
                       This cannot be changed after the program is created.
                     </p>
                   </>
                 ) : (
-                  <input
-                    className="prog-input"
-                    placeholder="Weeks"
-                    type="number"
-                    value={weeks}
-                    autoFocus
-                    onChange={(e) => setWeeks(e.target.value)}
-                  />
+                  <>
+                    <input
+                      className="prog-input"
+                      placeholder="Weeks"
+                      type="number"
+                      value={weeks}
+                      autoFocus
+                      onChange={(e) => setWeeks(e.target.value)}
+                    />
+                    <input
+                      className="prog-input"
+                      placeholder="Deload weeks e.g. 4,8,12"
+                      value={deloadWeeks}
+                      onChange={(e) => setDeloadWeeks(e.target.value)}
+                    />
+                  </>
                 )}
-                <input
-                  className="prog-input"
-                  placeholder="Deload weeks e.g. 4,8,12"
-                  value={deloadWeeks}
-                  onChange={(e) => setDeloadWeeks(e.target.value)}
-                />
                 <div className="prog-create-form__actions">
                   <button
                     className="prog-create-btn"
