@@ -363,23 +363,82 @@
   cursor: default;
 }
 
-/* Periodization opt-in — create-time only, and irreversible, which is why the
-   hint below it is shown rather than hidden behind a tooltip. */
-.prog-create-form__check {
+/* Stepped create flow. Each step renders only its own fields, so the order —
+   name, then type, then the fields that type implies — is visible in the UI
+   rather than something the user has to infer from a flat form. */
+.prog-create-form__step {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #555;
+  margin: 0;
+}
+
+.prog-create-form__summary {
+  color: #e0e0e0;
+  font-size: 13px;
+  margin: -2px 0 0;
+}
+
+.prog-create-form__summary span {
+  color: #666;
+}
+
+.prog-create-form__actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
+}
+
+.prog-create-form__actions .prog-create-btn {
+  flex: 1;
+  text-align: center;
+}
+
+.prog-create-option {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: #141414;
+  border: 1px solid #222;
+  border-radius: 7px;
+  padding: 10px 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.prog-create-option:hover {
+  background: #1a1a1a;
+  border-color: #3a4a00;
+}
+
+.prog-create-option__title {
+  color: #e0e0e0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.prog-create-option__sub {
+  color: #666;
+  font-size: 11px;
+}
+
+/* A periodized length is displayed, never typed. Deliberately not a disabled
+   input — a greyed-out 16 still reads as a field someone failed to fill in. */
+.prog-create-form__locked {
+  background: #141414;
+  border: 1px solid #222;
+  border-radius: 7px;
   color: #888;
   font-size: 13px;
-  cursor: pointer;
-  user-select: none;
+  padding: 9px 12px;
+  margin: 0;
 }
 
-.prog-create-form__check input {
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
+/* Periodization is create-time only and irreversible, which is why this hint
+   is shown outright rather than hidden behind a tooltip. */
 .prog-create-form__hint {
   color: #c8ff00;
   font-size: 11px;

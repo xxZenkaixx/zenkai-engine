@@ -89,12 +89,12 @@ test('editor appears for an already-assigned client, with no re-launch', async (
 
   render(
     <ProgramList
-      programs={[{ id: 'prog1', name: 'BBLS 2.0', weeks: 16, deload_weeks: [] }]}
+      programs={[{ id: 'prog1', name: 'Periodized Program', weeks: 16, deload_weeks: [] }]}
       clients={[{ id: 'c1', name: 'Toree' }]}
     />
   );
 
-  userEvent.click(screen.getByText('BBLS 2.0'));
+  userEvent.click(screen.getByText('Periodized Program'));
   userEvent.selectOptions(await screen.findByRole('combobox'), 'c1');
 
   await waitFor(() => expect(cpApi.fetchActiveProgram).toHaveBeenCalledWith('c1'));
@@ -108,12 +108,12 @@ test('editor stays hidden when the client is on a different program', async () =
 
   render(
     <ProgramList
-      programs={[{ id: 'prog1', name: 'BBLS 2.0', weeks: 16, deload_weeks: [] }]}
+      programs={[{ id: 'prog1', name: 'Periodized Program', weeks: 16, deload_weeks: [] }]}
       clients={[{ id: 'c1', name: 'Toree' }]}
     />
   );
 
-  userEvent.click(screen.getByText('BBLS 2.0'));
+  userEvent.click(screen.getByText('Periodized Program'));
   userEvent.selectOptions(await screen.findByRole('combobox'), 'c1');
 
   await waitFor(() => expect(cpApi.fetchActiveProgram).toHaveBeenCalledWith('c1'));

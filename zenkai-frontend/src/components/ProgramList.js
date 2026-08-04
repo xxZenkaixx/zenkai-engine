@@ -10,11 +10,18 @@ import WorkoutPreview from './WorkoutPreview';
 import ClientTargetEditor from './ClientTargetEditor';
 import ClientMaxEditor from './ClientMaxEditor';
 
-// The fixed BBLS 2.0 mesocycle length. Must match MESOCYCLE_WEEKS in
-// zenkai-backend/services/periodizationService.js. A mismatch fails loudly —
-// the server rejects a periodized program of any other length with a 400 —
-// rather than silently producing a program whose later weeks are unreachable.
+// The fixed mesocycle length for a periodized program. Must match
+// MESOCYCLE_WEEKS in zenkai-backend/services/periodizationService.js. A
+// mismatch fails loudly — the server rejects a periodized program of any other
+// length with a 400 — rather than silently producing a program whose later
+// weeks are unreachable.
 const PERIODIZED_WEEKS = 16;
+
+// Create is a sequence, not a form: name, then periodized or not, then only
+// the fields that choice implies. Steps are named rather than numbered so the
+// render branches read as what they show.
+const CREATE_STEPS = ['name', 'type', 'details'];
+const STEP_LABEL = { name: 'Name', type: 'Type', details: 'Details' };
 
 export default function ProgramList({ programs, clients = [], onProgramsChanged, onAssigned, onOpenBuilder, activeProgramId, clientId, onActivated }) {
   const { user } = useAuth();
@@ -23,6 +30,9 @@ export default function ProgramList({ programs, clients = [], onProgramsChanged,
   const [weeks, setWeeks] = useState('');
   const [deloadWeeks, setDeloadWeeks] = useState('');
   const [periodized, setPeriodized] = useState(false);
+  // null = collapsed. The create form does not exist until the user starts it,
+  // which is what makes "+ New Program" an entry point rather than a submit.
+  const [createStep, setCreateStep] = useState(null);
   const [selectedProgramId, setSelectedProgramId] = useState(null);
   const [previewProgramId, setPreviewProgramId] = useState(null);
   const [editingId, setEditingId] = useState(null);
@@ -72,16 +82,27 @@ export default function ProgramList({ programs, clients = [], onProgramsChanged,
       .filter((w) => Number.isInteger(w) && w > 0);
   };
 
-  // Ticking locks weeks to the fixed mesocycle length. Unticking re-enables the
-  // field and leaves 16 in place to edit, rather than restoring a remembered
-  // value — one less piece of state for no loss of clarity.
-  const handlePeriodizedToggle = (checked) => {
-    setPeriodized(checked);
-    if (checked) setWeeks(String(PERIODIZED_WEEKS));
+  // Collapses the flow and clears every field. Periodization is irreversible,
+  // so silently inheriting it on the next program is the worst available
+  // failure — this reset is not optional.
+  const resetCreateForm = () => {
+    setCreateStep(null);
+    setName('');
+    setWeeks('');
+    setDeloadWeeks('');
+    setPeriodized(false);
+    setError(null);
   };
 
+  // A periodized program's length is a constant, never editable state. That is
+  // the whole reason 16 can no longer appear in the weeks field before the
+  // user has decided anything, and why it cannot survive a switch back to
+  // standard.
+  const createWeeks = periodized ? PERIODIZED_WEEKS : Number(weeks);
+  const canCreate = Number.isInteger(createWeeks) && createWeeks > 0;
+
   const handleCreate = async () => {
-    const parsedWeeks = Number(weeks);
+    const parsedWeeks = createWeeks;
     if (!name.trim() || !Number.isInteger(parsedWeeks) || parsedWeeks <= 0) return;
     setLoading(true);
     setError(null);
@@ -94,12 +115,7 @@ export default function ProgramList({ programs, clients = [], onProgramsChanged,
         // byte-identical to what it sent before this option existed.
         ...(periodized ? { periodized: true } : {})
       });
-      setName('');
-      setWeeks('');
-      setDeloadWeeks('');
-      // Must reset. Periodization is irreversible, so silently inheriting it on
-      // the next program is the worst available failure.
-      setPeriodized(false);
+      resetCreateForm();
       if (onProgramsChanged) await onProgramsChanged();
       if (onOpenBuilder) onOpenBuilder(created);
     } catch (err) {
@@ -231,47 +247,122 @@ export default function ProgramList({ programs, clients = [], onProgramsChanged,
           <span className="prog-sidebar__title">All Programs</span>
         </div>
 
-        <div className="prog-create-form">
-          <input
-            className="prog-input"
-            placeholder="Program name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-          <input
-            className="prog-input"
-            placeholder="Weeks"
-            type="number"
-            value={weeks}
-            onChange={(e) => setWeeks(e.target.value)}
-            disabled={periodized}
-            title={periodized ? `Periodized programs are always ${PERIODIZED_WEEKS} weeks` : undefined}
-          />
-          <input
-            className="prog-input"
-            placeholder="Deload weeks e.g. 4,8,12"
-            value={deloadWeeks}
-            onChange={(e) => setDeloadWeeks(e.target.value)}
-          />
-          <label className="prog-create-form__check">
-            <input
-              type="checkbox"
-              checked={periodized}
-              onChange={(e) => handlePeriodizedToggle(e.target.checked)}
-            />
-            <span>{PERIODIZED_WEEKS}-week periodized program</span>
-          </label>
-          {periodized && (
-            <p className="prog-create-form__hint">
-              Fixed {PERIODIZED_WEEKS}-week mesocycle. Every client starts at week 1.
-              This cannot be changed after the program is created.
-            </p>
-          )}
-          <button className="prog-create-btn" onClick={handleCreate} disabled={loading}>
-            {loading ? 'Creating...' : '+ New Program'}
+        {createStep === null ? (
+          <button className="prog-create-btn" onClick={() => setCreateStep('name')}>
+            + New Program
           </button>
-          {error && <p className="prog-error">{error}</p>}
-        </div>
+        ) : (
+          <div className="prog-create-form">
+            <p className="prog-create-form__step">
+              Step {CREATE_STEPS.indexOf(createStep) + 1} of {CREATE_STEPS.length} · {STEP_LABEL[createStep]}
+            </p>
+
+            {/* Decisions already made stay on screen. Without this the later
+                steps are context-free and the name is unverifiable. */}
+            {createStep !== 'name' && (
+              <p className="prog-create-form__summary">
+                {name.trim()}
+                {createStep === 'details' && (
+                  <span> · {periodized ? 'Periodized' : 'Standard'}</span>
+                )}
+              </p>
+            )}
+
+            {createStep === 'name' && (
+              <>
+                <input
+                  className="prog-input"
+                  placeholder="Program name"
+                  value={name}
+                  autoFocus
+                  onChange={(e) => setName(e.target.value)}
+                />
+                <div className="prog-create-form__actions">
+                  <button
+                    className="prog-create-btn"
+                    disabled={!name.trim()}
+                    onClick={() => setCreateStep('type')}
+                  >
+                    Continue
+                  </button>
+                  <button className="prog-btn" onClick={resetCreateForm}>Cancel</button>
+                </div>
+              </>
+            )}
+
+            {createStep === 'type' && (
+              <>
+                <button
+                  className="prog-create-option"
+                  onClick={() => { setPeriodized(true); setCreateStep('details'); }}
+                >
+                  <span className="prog-create-option__title">Periodized</span>
+                  <span className="prog-create-option__sub">
+                    Fixed {PERIODIZED_WEEKS}-week mesocycle
+                  </span>
+                </button>
+                <button
+                  className="prog-create-option"
+                  onClick={() => { setPeriodized(false); setCreateStep('details'); }}
+                >
+                  <span className="prog-create-option__title">Standard</span>
+                  <span className="prog-create-option__sub">You choose the length</span>
+                </button>
+                <div className="prog-create-form__actions">
+                  <button className="prog-btn" onClick={() => setCreateStep('name')}>Back</button>
+                  <button className="prog-btn" onClick={resetCreateForm}>Cancel</button>
+                </div>
+              </>
+            )}
+
+            {createStep === 'details' && (
+              <>
+                {periodized ? (
+                  <>
+                    <p className="prog-create-form__locked">{PERIODIZED_WEEKS} weeks · fixed</p>
+                    <p className="prog-create-form__hint">
+                      Fixed {PERIODIZED_WEEKS}-week mesocycle. Every client starts at week 1.
+                      This cannot be changed after the program is created.
+                    </p>
+                  </>
+                ) : (
+                  <input
+                    className="prog-input"
+                    placeholder="Weeks"
+                    type="number"
+                    value={weeks}
+                    autoFocus
+                    onChange={(e) => setWeeks(e.target.value)}
+                  />
+                )}
+                <input
+                  className="prog-input"
+                  placeholder="Deload weeks e.g. 4,8,12"
+                  value={deloadWeeks}
+                  onChange={(e) => setDeloadWeeks(e.target.value)}
+                />
+                <div className="prog-create-form__actions">
+                  <button
+                    className="prog-create-btn"
+                    onClick={handleCreate}
+                    disabled={loading || !canCreate}
+                  >
+                    {loading ? 'Creating...' : 'Create Program'}
+                  </button>
+                  <button
+                    className="prog-btn"
+                    onClick={() => setCreateStep('type')}
+                    disabled={loading}
+                  >
+                    Back
+                  </button>
+                </div>
+              </>
+            )}
+
+            {error && <p className="prog-error">{error}</p>}
+          </div>
+        )}
 
         <ul className="prog-list">
           {visiblePrograms.map((p) => (
